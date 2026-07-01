@@ -12,91 +12,76 @@ import { mockContacts } from '@/lib/data'
 
 const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
+const statConfig = [
+  { label: 'Follow-ups due', key: 'due', accent: 'from-red-500 to-red-600', valColor: 'text-red-500', sub: '2 overdue now', subColor: 'text-red-400' },
+  { label: 'Total contacts', key: 'total', accent: 'from-blue-600 to-violet-600', valColor: 'text-slate-900', sub: '+3 this week', subColor: 'text-emerald-500' },
+  { label: 'Reply rate', key: 'reply', accent: 'from-emerald-500 to-teal-600', valColor: 'text-emerald-500', sub: 'Above average', subColor: 'text-emerald-500' },
+  { label: 'Emails sent', key: 'sent', accent: 'from-amber-400 to-orange-500', valColor: 'text-slate-900', sub: 'This month', subColor: 'text-slate-400' },
+]
+
+const filters = ['All', 'This week', 'Overdue', 'Replied']
+
 export default function Dashboard() {
   const [contacts, setContacts] = useState<Contact[]>(mockContacts)
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
+  const [selected, setSelected] = useState<Contact | null>(null)
   const [activeNav, setActiveNav] = useState<NavItem>('dashboard')
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [showImportModal, setShowImportModal] = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
-  const [filter, setFilter] = useState<'all' | 'week' | 'overdue' | 'replied'>('all')
+  const [filter, setFilter] = useState('All')
 
-  const todayContacts = contacts.filter(c => c.column === 'today')
-  const upcomingContacts = contacts.filter(c => c.column === 'upcoming')
-  const doneContacts = contacts.filter(c => c.column === 'done')
+  const todayCol = contacts.filter(c => c.column === 'today')
+  const upcomingCol = contacts.filter(c => c.column === 'upcoming')
+  const doneCol = contacts.filter(c => c.column === 'done')
   const overdueCount = contacts.filter(c => c.status === 'overdue').length
 
-  const handleAddContact = useCallback((contact: Contact) => {
-    setContacts(prev => [contact, ...prev])
+  const handleAdd = useCallback((c: Contact) => {
+    setContacts(prev => [c, ...prev])
     setToast('Contact saved - AI drafts ready - Hunter.io enriching...')
   }, [])
 
-  const handleSendDraft = useCallback((draft: AIDraft, contact: Contact) => {
-    setToast(`Follow-up sent to ${contact.firstName} ${contact.lastName}`)
+  const handleSend = useCallback((draft: AIDraft, c: Contact) => {
+    setToast(`Follow-up sent to ${c.firstName} ${c.lastName}`)
   }, [])
 
-  const filterButtons = [
-    { id: 'all' as const, label: 'All' },
-    { id: 'week' as const, label: 'This week' },
-    { id: 'overdue' as const, label: 'Overdue' },
-    { id: 'replied' as const, label: 'Replied' },
-  ]
+  const statValues: Record<string, string | number> = {
+    due: overdueCount, total: contacts.length, reply: '34%', sent: 24
+  }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
-      <Sidebar
-        activeNav={activeNav}
-        onNavChange={setActiveNav}
-        contactCount={contacts.length}
-        overdueCount={overdueCount}
-      />
+    <div className="flex h-screen overflow-hidden bg-slate-50">
+      <Sidebar activeNav={activeNav} onNavChange={setActiveNav} contactCount={contacts.length} overdueCount={overdueCount} />
 
-      {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         {/* Topbar */}
-        <div className="flex items-center justify-between px-5 py-2.5 bg-white border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-slate-100 flex-shrink-0">
           <div>
-            <h1 className="text-sm font-medium text-gray-900">Dashboard</h1>
-            <p className="text-[11px] text-gray-400">{today} - {overdueCount} follow-up{overdueCount !== 1 ? 's' : ''} overdue today</p>
+            <h1 className="text-sm font-semibold text-slate-900 tracking-tight">Dashboard</h1>
+            <p className="text-[11px] text-slate-400 mt-0.5">{today} - {overdueCount} follow-up{overdueCount !== 1 ? 's' : ''} overdue today</p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowImportModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50 transition-colors"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
+            <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50 transition-colors font-medium">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
               Import
             </button>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700 transition-colors font-medium"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
+            <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-white rounded-lg text-xs font-semibold transition-all" style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)', boxShadow: '0 2px 8px rgba(37,99,235,.25)' }}>
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
               Add contact
             </button>
           </div>
         </div>
 
-        {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
 
           {/* Stats */}
-          <div className="grid grid-cols-4 gap-3 px-5 py-3 border-b border-gray-100 bg-white">
-            {[
-              { label: 'Follow-ups due', value: overdueCount, color: 'text-red-600', sub: `${overdueCount} overdue`, subColor: 'text-red-500', accent: 'border-red-400' },
-              { label: 'Total contacts', value: contacts.length, color: 'text-gray-900', sub: '+3 this week', subColor: 'text-green-600', accent: 'border-blue-400' },
-              { label: 'Reply rate', value: '34%', color: 'text-green-600', sub: 'Above average', subColor: 'text-green-600', accent: 'border-green-400' },
-              { label: 'Emails sent', value: 24, color: 'text-gray-900', sub: 'This month', subColor: 'text-gray-400', accent: 'border-amber-400' },
-            ].map((stat, i) => (
-              <div key={i} className={`bg-gray-50 rounded-lg p-3 border-t-2 ${stat.accent}`}>
-                <p className="text-[10px] text-gray-400 mb-1">{stat.label}</p>
-                <p className={`text-2xl font-medium ${stat.color}`}>{stat.value}</p>
-                <p className={`text-[10px] mt-1 ${stat.subColor}`}>{stat.sub}</p>
+          <div className="grid grid-cols-4 gap-3 px-5 py-3.5 bg-white border-b border-slate-100">
+            {statConfig.map(s => (
+              <div key={s.key} className="bg-slate-50 rounded-xl p-3 relative overflow-hidden border border-slate-100">
+                <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${s.accent}`} />
+                <p className="text-[10px] text-slate-400 font-medium mb-1">{s.label}</p>
+                <p className={`text-2xl font-bold tracking-tight ${s.valColor}`}>{statValues[s.key]}</p>
+                <p className={`text-[10px] mt-1 font-medium ${s.subColor}`}>{s.sub}</p>
               </div>
             ))}
           </div>
@@ -104,114 +89,47 @@ export default function Dashboard() {
           {/* Pipeline */}
           <div className="px-5 py-4">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-medium text-gray-900">Recruiter pipeline</h2>
-              <div className="flex gap-1.5">
-                {filterButtons.map(btn => (
-                  <button
-                    key={btn.id}
-                    onClick={() => setFilter(btn.id)}
-                    className={`px-3 py-1 text-[11px] rounded-full border transition-colors ${
-                      filter === btn.id
-                        ? 'bg-blue-50 text-blue-600 border-blue-200'
-                        : 'text-gray-400 border-gray-200 hover:text-gray-600'
-                    }`}
-                  >
-                    {btn.label}
+              <h2 className="text-sm font-semibold text-slate-900 tracking-tight">Recruiter pipeline</h2>
+              <div className="flex bg-slate-100 rounded-lg p-0.5 gap-0.5">
+                {filters.map(f => (
+                  <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1 text-[11px] rounded-md border-none font-medium transition-all ${filter === f ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700 bg-transparent'}`}>
+                    {f}
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-3">
-              {/* Follow up today */}
-              <div className="bg-white border border-gray-100 rounded-xl overflow-hidden flex flex-col">
-                <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                    <span className="text-xs font-medium text-gray-900">Follow up today</span>
+              {[
+                { title: 'Follow up today', dot: 'bg-red-500', glow: 'shadow-[0_0_0_3px_rgba(239,68,68,.15)]', contacts: todayCol },
+                { title: 'Coming up', dot: 'bg-amber-400', glow: 'shadow-[0_0_0_3px_rgba(245,158,11,.15)]', contacts: upcomingCol },
+                { title: 'Done', dot: 'bg-emerald-500', glow: 'shadow-[0_0_0_3px_rgba(16,185,129,.15)]', contacts: doneCol },
+              ].map((col) => (
+                <div key={col.title} className="bg-white border border-slate-100 rounded-xl overflow-hidden flex flex-col" style={{ boxShadow: '0 1px 4px rgba(0,0,0,.03)' }}>
+                  <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-50">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-1.5 h-1.5 rounded-full ${col.dot} ${col.glow}`} />
+                      <span className="text-xs font-semibold text-slate-900">{col.title}</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-full font-medium">{col.contacts.length}</span>
                   </div>
-                  <span className="text-[10px] text-gray-400 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-full">{todayContacts.length}</span>
-                </div>
-                <div className="p-2 flex flex-col gap-1.5 overflow-y-auto max-h-72">
-                  {todayContacts.map(contact => (
-                    <ContactCard
-                      key={contact.id}
-                      contact={contact}
-                      isSelected={selectedContact?.id === contact.id}
-                      onClick={() => setSelectedContact(contact)}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Coming up */}
-              <div className="bg-white border border-gray-100 rounded-xl overflow-hidden flex flex-col">
-                <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-amber-400"></div>
-                    <span className="text-xs font-medium text-gray-900">Coming up</span>
+                  <div className="p-2 flex flex-col gap-1.5 overflow-y-auto max-h-72">
+                    {col.contacts.map(c => (
+                      <ContactCard key={c.id} contact={c} isSelected={selected?.id === c.id} onClick={() => setSelected(c)} />
+                    ))}
                   </div>
-                  <span className="text-[10px] text-gray-400 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-full">{upcomingContacts.length}</span>
                 </div>
-                <div className="p-2 flex flex-col gap-1.5 overflow-y-auto max-h-72">
-                  {upcomingContacts.map(contact => (
-                    <ContactCard
-                      key={contact.id}
-                      contact={contact}
-                      isSelected={selectedContact?.id === contact.id}
-                      onClick={() => setSelectedContact(contact)}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Done */}
-              <div className="bg-white border border-gray-100 rounded-xl overflow-hidden flex flex-col">
-                <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                    <span className="text-xs font-medium text-gray-900">Done</span>
-                  </div>
-                  <span className="text-[10px] text-gray-400 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-full">{doneContacts.length}</span>
-                </div>
-                <div className="p-2 flex flex-col gap-1.5 overflow-y-auto max-h-72">
-                  {doneContacts.map(contact => (
-                    <ContactCard
-                      key={contact.id}
-                      contact={contact}
-                      isSelected={selectedContact?.id === contact.id}
-                      onClick={() => setSelectedContact(contact)}
-                    />
-                  ))}
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Contact detail panel */}
-      <ContactPanel
-        contact={selectedContact}
-        onClose={() => setSelectedContact(null)}
-        onSendDraft={handleSendDraft}
-      />
+      <ContactPanel contact={selected} onClose={() => setSelected(null)} onSendDraft={handleSend} />
 
-      {/* Modals */}
-      {showAddModal && (
-        <AddContactModal
-          onClose={() => setShowAddModal(false)}
-          onAdd={handleAddContact}
-        />
-      )}
-      {showImportModal && (
-        <ImportModal onClose={() => setShowImportModal(false)} />
-      )}
-
-      {/* Toast */}
-      {toast && (
-        <Toast message={toast} onDone={() => setToast(null)} />
-      )}
+      {showAdd && <AddContactModal onClose={() => setShowAdd(false)} onAdd={handleAdd} />}
+      {showImport && <ImportModal onClose={() => setShowImport(false)} />}
+      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
     </div>
   )
 }
