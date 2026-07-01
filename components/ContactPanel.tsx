@@ -37,11 +37,11 @@ export default function ContactPanel({ contact, onClose, onSendDraft }: ContactP
   const initials = `${contact.firstName[0]}${contact.lastName[0]}`
 
   const handleSend = (draft: AIDraft) => {
-    setSentDrafts(prev => new Set([...prev, draft.id]))
+    setSentDrafts(prev => { const next = new Set(Array.from(prev)); next.add(draft.id); return next; })
     onSendDraft(draft, contact)
     setTimeout(() => {
       setSentDrafts(prev => {
-        const next = new Set(prev)
+        const next = new Set(Array.from(prev))
         next.delete(draft.id)
         return next
       })
