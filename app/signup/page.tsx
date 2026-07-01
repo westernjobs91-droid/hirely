@@ -2,13 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
 
 export default function SignupPage() {
-  const [form, setForm] = useState({
-    firstName: '', lastName: '', email: '', password: '', company: ''
-  })
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', company: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
   const [showPass, setShowPass] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,16 +23,57 @@ export default function SignupPage() {
       return
     }
     setLoading(true)
-    // TODO: connect Supabase auth here
-    setTimeout(() => {
+    const { error } = await supabase.auth.signUp({
+      email: form.email,
+      password: form.password,
+      options: {
+        data: {
+          first_name: form.firstName,
+          last_name: form.lastName,
+          company: form.company,
+        }
+      }
+    })
+    if (error) {
+      setError(error.message)
       setLoading(false)
-      window.location.href = '/'
-    }, 1400)
+    } else {
+      setSuccess(true)
+      setLoading(false)
+    }
+  }
+
+  const handleGoogle = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/` }
+    })
   }
 
   const strength = form.password.length === 0 ? 0 : form.password.length < 6 ? 1 : form.password.length < 10 ? 2 : 3
   const strengthLabel = ['', 'Weak', 'Good', 'Strong']
   const strengthColor = ['', 'bg-red-400', 'bg-amber-400', 'bg-emerald-500']
+
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#F8FAFC,#EFF6FF)' }}>
+        <div className="bg-white rounded-2xl border border-slate-100 p-10 max-w-md w-full text-center shadow-lg">
+          <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'linear-gradient(135deg,#10B981,#059669)' }}>
+            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Check your email</h2>
+          <p className="text-slate-500 text-sm leading-relaxed mb-6">
+            We sent a confirmation link to <span className="font-semibold text-slate-700">{form.email}</span>. Click the link to activate your account.
+          </p>
+          <Link href="/login" className="inline-flex items-center gap-2 px-5 py-2.5 text-white rounded-xl text-sm font-semibold" style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)' }}>
+            Back to sign in
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen flex" style={{ background: 'linear-gradient(135deg,#F8FAFC 0%,#EFF6FF 100%)' }}>
@@ -62,7 +103,6 @@ export default function SignupPage() {
           <p className="text-blue-200 text-lg leading-relaxed mb-10">
             Join recruiters who place more candidates and never miss a follow-up again.
           </p>
-
           <div className="grid grid-cols-2 gap-4">
             {[
               { num: '40%', label: 'More placements' },
@@ -94,7 +134,6 @@ export default function SignupPage() {
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-[420px]">
 
-          {/* Mobile logo */}
           <div className="flex items-center gap-2.5 mb-8 lg:hidden">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)' }}>
               <svg viewBox="0 0 19 19" fill="none" className="w-5 h-5">
@@ -116,55 +155,30 @@ export default function SignupPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5 tracking-wide">First name <span className="text-red-400">*</span></label>
-                <input
-                  value={form.firstName}
-                  onChange={e => setForm({...form, firstName: e.target.value})}
-                  placeholder="Jey"
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:border-blue-400 focus:shadow-[0_0_0_3px_rgba(37,99,235,.1)] transition-all"
-                />
+                <input value={form.firstName} onChange={e => setForm({...form, firstName: e.target.value})} placeholder="Jey"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:border-blue-400 focus:shadow-[0_0_0_3px_rgba(37,99,235,.1)] transition-all" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5 tracking-wide">Last name</label>
-                <input
-                  value={form.lastName}
-                  onChange={e => setForm({...form, lastName: e.target.value})}
-                  placeholder="Singh"
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:border-blue-400 focus:shadow-[0_0_0_3px_rgba(37,99,235,.1)] transition-all"
-                />
+                <input value={form.lastName} onChange={e => setForm({...form, lastName: e.target.value})} placeholder="Singh"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:border-blue-400 focus:shadow-[0_0_0_3px_rgba(37,99,235,.1)] transition-all" />
               </div>
             </div>
-
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 tracking-wide">Work email <span className="text-red-400">*</span></label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={e => setForm({...form, email: e.target.value})}
-                placeholder="jey@westernstaffing.com"
-                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:border-blue-400 focus:shadow-[0_0_0_3px_rgba(37,99,235,.1)] transition-all"
-              />
+              <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="jey@westernstaffing.com"
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:border-blue-400 focus:shadow-[0_0_0_3px_rgba(37,99,235,.1)] transition-all" />
             </div>
-
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 tracking-wide">Company name</label>
-              <input
-                value={form.company}
-                onChange={e => setForm({...form, company: e.target.value})}
-                placeholder="Western Staffing"
-                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:border-blue-400 focus:shadow-[0_0_0_3px_rgba(37,99,235,.1)] transition-all"
-              />
+              <input value={form.company} onChange={e => setForm({...form, company: e.target.value})} placeholder="Western Staffing"
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:border-blue-400 focus:shadow-[0_0_0_3px_rgba(37,99,235,.1)] transition-all" />
             </div>
-
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 tracking-wide">Password <span className="text-red-400">*</span></label>
               <div className="relative">
-                <input
-                  type={showPass ? 'text' : 'password'}
-                  value={form.password}
-                  onChange={e => setForm({...form, password: e.target.value})}
-                  placeholder="Min. 8 characters"
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:border-blue-400 focus:shadow-[0_0_0_3px_rgba(37,99,235,.1)] transition-all pr-10"
-                />
+                <input type={showPass ? 'text' : 'password'} value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder="Min. 8 characters"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:border-blue-400 focus:shadow-[0_0_0_3px_rgba(37,99,235,.1)] transition-all pr-10" />
                 <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                     {showPass
@@ -197,20 +211,11 @@ export default function SignupPage() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
+            <button type="submit" disabled={loading}
               className="w-full py-2.5 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-70 flex items-center justify-center gap-2 mt-2"
-              style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)', boxShadow: '0 2px 8px rgba(37,99,235,.3)' }}
-            >
+              style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)', boxShadow: '0 2px 8px rgba(37,99,235,.3)' }}>
               {loading ? (
-                <>
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                  </svg>
-                  Creating your account...
-                </>
+                <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Creating your account...</>
               ) : 'Create free account'}
             </button>
           </form>
@@ -220,7 +225,7 @@ export default function SignupPage() {
             <div className="relative flex justify-center"><span className="bg-slate-50 px-3 text-xs text-slate-400">or</span></div>
           </div>
 
-          <button className="w-full flex items-center justify-center gap-2.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 font-medium hover:bg-white transition-colors bg-white">
+          <button onClick={handleGoogle} className="w-full flex items-center justify-center gap-2.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 font-medium hover:bg-white transition-colors bg-white">
             <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -232,15 +237,10 @@ export default function SignupPage() {
 
           <p className="text-center text-xs text-slate-500 mt-5">
             Already have an account?{' '}
-            <Link href="/login" className="text-blue-600 font-semibold hover:text-blue-700">
-              Sign in
-            </Link>
+            <Link href="/login" className="text-blue-600 font-semibold hover:text-blue-700">Sign in</Link>
           </p>
-
           <p className="text-center text-[10px] text-slate-400 mt-3">
-            By creating an account you agree to our{' '}
-            <a href="#" className="underline">Terms</a> and{' '}
-            <a href="#" className="underline">Privacy Policy</a>
+            By creating an account you agree to our <a href="#" className="underline">Terms</a> and <a href="#" className="underline">Privacy Policy</a>
           </p>
         </div>
       </div>
