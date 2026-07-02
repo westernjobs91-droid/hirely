@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import ContactCard from '@/components/ContactCard'
 import ContactPanel from '@/components/ContactPanel'
@@ -22,6 +24,9 @@ const statConfig = [
 const filters = ['All', 'This week', 'Overdue', 'Replied']
 
 export default function Dashboard() {
+  const router = useRouter()
+  const [user, setUser] = useState<{ email: string; name: string } | null>(null)
+  const [loading, setLoading] = useState(true)
   const [contacts, setContacts] = useState<Contact[]>(mockContacts)
   const [selected, setSelected] = useState<Contact | null>(null)
   const [activeNav, setActiveNav] = useState<NavItem>('dashboard')
@@ -29,6 +34,35 @@ export default function Dashboard() {
   const [showImport, setShowImport] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [filter, setFilter] = useState('All')
+
+  // Check auth on load
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/login')
+        return
+      }
+      const meta = session.user.user_metadata
+      setUser({
+        email: session.user.email || '',
+        name: meta?.first_name ? `${meta.first_name} ${meta.last_name || ''}`.trim() : session.user.email || 'User'
+      })
+      setLoading(false)
+    }
+    checkAuth()
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) router.push('/login')
+    })
+    return () => subscription.unsubscribe()
+  }, [router])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   const todayCol = contacts.filter(c => c.column === 'today')
   const upcomingCol = contacts.filter(c => c.column === 'upcoming')
@@ -48,12 +82,44 @@ export default function Dashboard() {
     due: overdueCount, total: contacts.length, reply: '34%', sent: 24
   }
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#F8FAFC,#EFF6FF)' }}>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)' }}>
+            <svg viewBox="0 0 19 19" fill="none" className="w-6 h-6">
+              <rect x="1" y="1" width="4.5" height="17" fill="white"/>
+              <rect x="13.5" y="1" width="4.5" height="17" fill="white"/>
+              <polygon points="5.5,7.5 13.5,7.5 13.5,11.5 5.5,11.5" fill="white"/>
+              <polygon points="11.5,6 16,9.5 11.5,13" fill="white"/>
+            </svg>
+          </div>
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+            <span className="text-sm text-slate-500 font-medium">Loading Hirely...</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
-      <Sidebar activeNav={activeNav} onNavChange={setActiveNav} contactCount={contacts.length} overdueCount={overdueCount} />
+      <Sidebar
+        activeNav={activeNav}
+        onNavChange={setActiveNav}
+        contactCount={contacts.length}
+        overdueCount={overdueCount}
+        userName={user?.name || ''}
+        userEmail={user?.email || ''}
+        onLogout={handleLogout}
+      />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-
         {/* Topbar */}
         <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-slate-100 flex-shrink-0">
           <div>
@@ -73,7 +139,6 @@ export default function Dashboard() {
         </div>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
-
           {/* Stats */}
           <div className="grid grid-cols-4 gap-3 px-5 py-3.5 bg-white border-b border-slate-100">
             {statConfig.map(s => (

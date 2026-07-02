@@ -7,6 +7,9 @@ interface SidebarProps {
   onNavChange: (nav: NavItem) => void
   contactCount: number
   overdueCount: number
+  userName: string
+  userEmail: string
+  onLogout: () => void
 }
 
 const mainNav = [
@@ -22,33 +25,9 @@ const insightNav = [
   { id: 'settings' as NavItem, label: 'Integrations', path: 'M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z' },
 ]
 
-function NavBtn({ item, active, onClick, contactCount, overdueCount }: {
-  item: typeof mainNav[0], active: boolean, onClick: () => void,
-  contactCount?: number, overdueCount?: number
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12.5px] mb-0.5 transition-all text-left relative ${
-        active ? 'bg-blue-50 text-blue-600 font-medium' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-      }`}
-    >
-      {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-blue-600 rounded-r-full" />}
-      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d={item.path} />
-      </svg>
-      <span className="flex-1 truncate">{item.label}</span>
-      {item.badge === 'contacts' && (
-        <span className="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full font-semibold">{contactCount}</span>
-      )}
-      {item.badge === 'overdue' && overdueCount && overdueCount > 0 && (
-        <span className="text-[9px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full font-semibold">{overdueCount}</span>
-      )}
-    </button>
-  )
-}
+export default function Sidebar({ activeNav, onNavChange, contactCount, overdueCount, userName, userEmail, onLogout }: SidebarProps) {
+  const initials = userName ? userName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : 'U'
 
-export default function Sidebar({ activeNav, onNavChange, contactCount, overdueCount }: SidebarProps) {
   return (
     <aside className="w-52 min-w-[208px] bg-white border-r border-slate-100 flex flex-col h-full">
       {/* Logo */}
@@ -79,11 +58,27 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
       <nav className="flex-1 px-2 py-2 overflow-y-auto">
         <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest px-3 mb-1.5">Main</p>
         {mainNav.map(item => (
-          <NavBtn key={item.id} item={item} active={activeNav === item.id} onClick={() => onNavChange(item.id)} contactCount={contactCount} overdueCount={overdueCount} />
+          <button key={item.id} onClick={() => onNavChange(item.id)}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12.5px] mb-0.5 transition-all text-left relative ${activeNav === item.id ? 'bg-blue-50 text-blue-600 font-medium' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+            {activeNav === item.id && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-blue-600 rounded-r-full" />}
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d={item.path} />
+            </svg>
+            <span className="flex-1 truncate">{item.label}</span>
+            {item.badge === 'contacts' && <span className="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full font-semibold">{contactCount}</span>}
+            {item.badge === 'overdue' && overdueCount > 0 && <span className="text-[9px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full font-semibold">{overdueCount}</span>}
+          </button>
         ))}
+
         <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest px-3 mb-1.5 mt-4">Insights</p>
         {insightNav.map(item => (
-          <NavBtn key={item.id} item={item} active={activeNav === item.id} onClick={() => onNavChange(item.id)} />
+          <button key={item.id} onClick={() => onNavChange(item.id)}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12.5px] mb-0.5 transition-all text-left ${activeNav === item.id ? 'bg-blue-50 text-blue-600 font-medium' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d={item.path} />
+            </svg>
+            <span className="truncate">{item.label}</span>
+          </button>
         ))}
       </nav>
 
@@ -96,15 +91,25 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
           </svg>
           Settings
         </button>
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors">
-          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg,#2563EB,#7C3AED)' }}>JS</div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-slate-900 truncate">Jey Singh</p>
-            <p className="text-[10px] text-slate-400">Pro plan</p>
+
+        {/* User + Logout */}
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors group">
+          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg,#2563EB,#7C3AED)' }}>
+            {initials}
           </div>
-          <svg className="w-3 h-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-slate-900 truncate">{userName}</p>
+            <p className="text-[10px] text-slate-400 truncate">{userEmail}</p>
+          </div>
+          <button
+            onClick={onLogout}
+            title="Sign out"
+            className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500 p-1 rounded"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
         </div>
       </div>
     </aside>
