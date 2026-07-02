@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Contact, PipelineColumn } from '@/types'
 import { avatarColors } from '@/lib/data'
+import { supabase } from '@/lib/supabase'
 
 interface AddContactModalProps {
   onClose: () => void
@@ -37,15 +38,16 @@ export default function AddContactModal({ onClose, onAdd }: AddContactModalProps
       sentDate: 'Just now',
       originalEmail: form.originalEmail,
       enriched: false,
-      activity: ['Contact added', 'Enrichment starting...'],
+      activity: ['Contact added', 'Hunter.io enrichment starting...'],
       notes: ''
     }
 
-    // Save contact first
+    // Save contact first — onAdd handles DB insert and returns the real ID
     onAdd(contact)
     onClose()
+    setLoading(false)
 
-    // Then enrich in background if email missing
+    // Enrich in background if email missing
     if (!form.email && form.firstName && form.company) {
       try {
         const res = await fetch('/api/enrich', {
@@ -58,16 +60,23 @@ export default function AddContactModal({ onClose, onAdd }: AddContactModalProps
           })
         })
         const data = await res.json()
+
         if (data.email) {
-          console.log('Email found:', data.email)
-          // TODO: update contact in DB with found email
+          // Update the contact in Supabase with found email
+          await supabase
+            .from('contacts')
+            .update({ email: data.email, enriched: true })
+            .eq('first_name', form.firstName)
+            .eq('last_name', form.lastName || '')
+            .eq('company', form.company)
+            .is('email', null)
+
+          console.log('Hunter.io found and saved email:', data.email)
         }
       } catch (e) {
         console.error('Enrichment failed', e)
       }
     }
-
-    setLoading(false)
   }
 
   const inp = "w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:border-blue-400 focus:shadow-[0_0_0_3px_rgba(37,99,235,.1)] transition-all font-sans"
@@ -128,7 +137,7 @@ export default function AddContactModal({ onClose, onAdd }: AddContactModalProps
               <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
             </svg>
             <p className="text-[11px] text-emerald-700 leading-relaxed">
-              Leave email blank and Hunter.io will automatically find their verified work email in the background. Just enter their name and company.
+              Leave email blank and Hunter.io will automatically find their verified work email. Just enter their name and company.
             </p>
           </div>
         </div>
