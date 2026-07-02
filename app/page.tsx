@@ -10,24 +10,15 @@ import AddContactModal from '@/components/AddContactModal'
 import ImportModal from '@/components/ImportModal'
 import Toast from '@/components/Toast'
 import { Contact, NavItem, AIDraft } from '@/types'
-import { mockContacts } from '@/lib/data'
 
 const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-
-const statConfig = [
-  { label: 'Follow-ups due', key: 'due', accent: 'from-red-500 to-red-600', valColor: 'text-red-500', sub: '2 overdue now', subColor: 'text-red-400' },
-  { label: 'Total contacts', key: 'total', accent: 'from-blue-600 to-violet-600', valColor: 'text-slate-900', sub: '+3 this week', subColor: 'text-emerald-500' },
-  { label: 'Reply rate', key: 'reply', accent: 'from-emerald-500 to-teal-600', valColor: 'text-emerald-500', sub: 'Above average', subColor: 'text-emerald-500' },
-  { label: 'Emails sent', key: 'sent', accent: 'from-amber-400 to-orange-500', valColor: 'text-slate-900', sub: 'This month', subColor: 'text-slate-400' },
-]
-
 const filters = ['All', 'This week', 'Overdue', 'Replied']
 
 export default function Dashboard() {
   const router = useRouter()
-  const [user, setUser] = useState<{ email: string; name: string } | null>(null)
+  const [user, setUser] = useState<{ id: string; email: string; name: string } | null>(null)
   const [loading, setLoading] = useState(true)
-  const [contacts, setContacts] = useState<Contact[]>(mockContacts)
+  const [contacts, setContacts] = useState<Contact[]>([])
   const [selected, setSelected] = useState<Contact | null>(null)
   const [activeNav, setActiveNav] = useState<NavItem>('dashboard')
   const [showAdd, setShowAdd] = useState(false)
@@ -35,54 +26,110 @@ export default function Dashboard() {
   const [toast, setToast] = useState<string | null>(null)
   const [filter, setFilter] = useState('All')
 
-  // Check auth on load
+  // Check auth and load contacts
   useEffect(() => {
-    const checkAuth = async () => {
+    const init = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        router.push('/login')
-        return
-      }
+      if (!session) { router.push('/login'); return }
+
       const meta = session.user.user_metadata
-      setUser({
+      const userData = {
+        id: session.user.id,
         email: session.user.email || '',
         name: meta?.first_name ? `${meta.first_name} ${meta.last_name || ''}`.trim() : session.user.email || 'User'
-      })
+      }
+      setUser(userData)
+      await loadContacts(session.user.id)
       setLoading(false)
     }
-    checkAuth()
+    init()
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       if (!session) router.push('/login')
     })
     return () => subscription.unsubscribe()
   }, [router])
+
+  const loadContacts = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('contacts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error) { console.error(error); return }
+
+    const mapped: Contact[] = (data || []).map((c: Record<string, unknown>) => ({
+      id: c.id as string,
+      firstName: c.first_name as string || '',
+      lastName: c.last_name as string || '',
+      email: c.email as string || '',
+      phone: c.phone as string || '',
+      company: c.company as string || '',
+      jobTitle: c.job_title as string || '',
+      linkedinUrl: c.linkedin_url as string || '',
+      avatarColor: c.avatar_color as string || '#2563EB',
+      status: c.status as Contact['status'],
+      column: c.column_name as Contact['column'],
+      statusLabel: c.status_label as string || '',
+      sentDate: c.sent_date as string || '',
+      originalEmail: c.original_email as string || '',
+      enriched: c.enriched as boolean || false,
+      notes: c.notes as string || '',
+      activity: c.activity as string[] || [],
+    }))
+    setContacts(mapped)
+  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/login')
   }
 
-  const todayCol = contacts.filter(c => c.column === 'today')
-  const upcomingCol = contacts.filter(c => c.column === 'upcoming')
-  const doneCol = contacts.filter(c => c.column === 'done')
-  const overdueCount = contacts.filter(c => c.status === 'overdue').length
+  const handleAdd = useCallback(async (contact: Contact) => {
+    if (!user) return
+    const { data, error } = await supabase.from('contacts').insert({
+      user_id: user.id,
+      first_name: contact.firstName,
+      last_name: contact.lastName,
+      email: contact.email,
+      phone: contact.phone,
+      company: contact.company,
+      job_title: contact.jobTitle,
+      linkedin_url: contact.linkedinUrl,
+      avatar_color: contact.avatarColor,
+      status: contact.status,
+      column_name: contact.column,
+      status_label: contact.statusLabel,
+      sent_date: contact.sentDate,
+      original_email: contact.originalEmail,
+      enriched: contact.enriched,
+      notes: contact.notes,
+      activity: contact.activity,
+    }).select().single()
 
-  const handleAdd = useCallback((c: Contact) => {
-    setContacts(prev => [c, ...prev])
+    if (error) { console.error(error); setToast('Error saving contact'); return }
+    const newContact = { ...contact, id: data.id }
+    setContacts(prev => [newContact, ...prev])
     setToast('Contact saved - AI drafts ready - Hunter.io enriching...')
-  }, [])
+  }, [user])
 
   const handleSend = useCallback((draft: AIDraft, c: Contact) => {
     setToast(`Follow-up sent to ${c.firstName} ${c.lastName}`)
   }, [])
 
-  const statValues: Record<string, string | number> = {
-    due: overdueCount, total: contacts.length, reply: '34%', sent: 24
-  }
+  const todayCol = contacts.filter(c => c.column === 'today')
+  const upcomingCol = contacts.filter(c => c.column === 'upcoming')
+  const doneCol = contacts.filter(c => c.column === 'done')
+  const overdueCount = contacts.filter(c => c.status === 'overdue').length
 
-  // Loading state
+  const statConfig = [
+    { label: 'Follow-ups due', key: overdueCount, accent: 'from-red-500 to-red-600', valColor: 'text-red-500', sub: `${overdueCount} overdue now`, subColor: 'text-red-400' },
+    { label: 'Total contacts', key: contacts.length, accent: 'from-blue-600 to-violet-600', valColor: 'text-slate-900', sub: 'All time', subColor: 'text-emerald-500' },
+    { label: 'Reply rate', key: '34%', accent: 'from-emerald-500 to-teal-600', valColor: 'text-emerald-500', sub: 'Above average', subColor: 'text-emerald-500' },
+    { label: 'Emails sent', key: 0, accent: 'from-amber-400 to-orange-500', valColor: 'text-slate-900', sub: 'This month', subColor: 'text-slate-400' },
+  ]
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#F8FAFC,#EFF6FF)' }}>
@@ -109,18 +156,10 @@ export default function Dashboard() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
-      <Sidebar
-        activeNav={activeNav}
-        onNavChange={setActiveNav}
-        contactCount={contacts.length}
-        overdueCount={overdueCount}
-        userName={user?.name || ''}
-        userEmail={user?.email || ''}
-        onLogout={handleLogout}
-      />
+      <Sidebar activeNav={activeNav} onNavChange={setActiveNav} contactCount={contacts.length}
+        overdueCount={overdueCount} userName={user?.name || ''} userEmail={user?.email || ''} onLogout={handleLogout} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Topbar */}
         <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-slate-100 flex-shrink-0">
           <div>
             <h1 className="text-sm font-semibold text-slate-900 tracking-tight">Dashboard</h1>
@@ -139,27 +178,23 @@ export default function Dashboard() {
         </div>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
-          {/* Stats */}
           <div className="grid grid-cols-4 gap-3 px-5 py-3.5 bg-white border-b border-slate-100">
-            {statConfig.map(s => (
-              <div key={s.key} className="bg-slate-50 rounded-xl p-3 relative overflow-hidden border border-slate-100">
+            {statConfig.map((s, i) => (
+              <div key={i} className="bg-slate-50 rounded-xl p-3 relative overflow-hidden border border-slate-100">
                 <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${s.accent}`} />
                 <p className="text-[10px] text-slate-400 font-medium mb-1">{s.label}</p>
-                <p className={`text-2xl font-bold tracking-tight ${s.valColor}`}>{statValues[s.key]}</p>
+                <p className={`text-2xl font-bold tracking-tight ${s.valColor}`}>{s.key}</p>
                 <p className={`text-[10px] mt-1 font-medium ${s.subColor}`}>{s.sub}</p>
               </div>
             ))}
           </div>
 
-          {/* Pipeline */}
           <div className="px-5 py-4">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-slate-900 tracking-tight">Recruiter pipeline</h2>
               <div className="flex bg-slate-100 rounded-lg p-0.5 gap-0.5">
                 {filters.map(f => (
-                  <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1 text-[11px] rounded-md border-none font-medium transition-all ${filter === f ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700 bg-transparent'}`}>
-                    {f}
-                  </button>
+                  <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1 text-[11px] rounded-md border-none font-medium transition-all ${filter === f ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700 bg-transparent'}`}>{f}</button>
                 ))}
               </div>
             </div>
@@ -179,9 +214,18 @@ export default function Dashboard() {
                     <span className="text-[10px] text-slate-400 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-full font-medium">{col.contacts.length}</span>
                   </div>
                   <div className="p-2 flex flex-col gap-1.5 overflow-y-auto max-h-72">
-                    {col.contacts.map(c => (
-                      <ContactCard key={c.id} contact={c} isSelected={selected?.id === c.id} onClick={() => setSelected(c)} />
-                    ))}
+                    {col.contacts.length === 0 ? (
+                      <div className="py-8 text-center">
+                        <p className="text-xs text-slate-400">No contacts here yet</p>
+                        {col.title === 'Follow up today' && (
+                          <button onClick={() => setShowAdd(true)} className="mt-2 text-xs text-blue-600 font-medium hover:underline">+ Add first contact</button>
+                        )}
+                      </div>
+                    ) : (
+                      col.contacts.map(c => (
+                        <ContactCard key={c.id} contact={c} isSelected={selected?.id === c.id} onClick={() => setSelected(c)} />
+                      ))
+                    )}
                   </div>
                 </div>
               ))}
@@ -191,7 +235,6 @@ export default function Dashboard() {
       </div>
 
       <ContactPanel contact={selected} onClose={() => setSelected(null)} onSendDraft={handleSend} />
-
       {showAdd && <AddContactModal onClose={() => setShowAdd(false)} onAdd={handleAdd} />}
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
