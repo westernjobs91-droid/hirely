@@ -8,38 +8,68 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const apiKey = process.env.HUNTER_API_KEY
-    if (!apiKey) {
-      return NextResponse.json({ error: 'Hunter API key not configured' }, { status: 500 })
+    const hunterKey = process.env.HUNTER_API_KEY
+    const apolloKey = process.env.APOLLO_API_KEY
+
+    // STEP 1 — Try Apollo first (better coverage for manufacturing, automotive, etc)
+    if (apolloKey) {
+      try {
+        const apolloRes = await fetch('https://api.apollo.io/v1/people/match', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+          },
+          body: JSON.stringify({
+            api_key: apolloKey,
+            first_name: firstName,
+            last_name: lastName || '',
+            organization_name: company,
+            reveal_personal_emails: false,
+          })
+        })
+
+        const apolloData = await apolloRes.json()
+
+        if (apolloData?.person?.email) {
+          return NextResponse.json({
+            email: apolloData.person.email,
+            phone: apolloData.person.phone_numbers?.[0]?.sanitized_number || null,
+            linkedinUrl: apolloData.person.linkedin_url || null,
+            title: apolloData.person.title || null,
+            enriched: true,
+            source: 'apollo'
+          })
+        }
+      } catch (e) {
+        console.error('Apollo error:', e)
+      }
     }
 
-    // Find email using Hunter.io email finder
-    const url = `https://api.hunter.io/v2/email-finder?first_name=${encodeURIComponent(firstName)}&last_name=${encodeURIComponent(lastName || '')}&company=${encodeURIComponent(company)}&api_key=${apiKey}`
+    // STEP 2 — Try Hunter.io as fallback
+    if (hunterKey) {
+      try {
+        const hunterUrl = `https://api.hunter.io/v2/email-finder?first_name=${encodeURIComponent(firstName)}&last_name=${encodeURIComponent(lastName || '')}&company=${encodeURIComponent(company)}&api_key=${hunterKey}`
+        const hunterRes = await fetch(hunterUrl)
+        const hunterData = await hunterRes.json()
 
-    const response = await fetch(url)
-    const data = await response.json()
-
-    if (data.data?.email) {
-      return NextResponse.json({
-        email: data.data.email,
-        score: data.data.score,
-        enriched: true
-      })
+        if (hunterData?.data?.email) {
+          return NextResponse.json({
+            email: hunterData.data.email,
+            phone: null,
+            linkedinUrl: null,
+            title: null,
+            enriched: true,
+            source: 'hunter'
+          })
+        }
+      } catch (e) {
+        console.error('Hunter error:', e)
+      }
     }
 
-    // If email finder fails try domain search
-    const domainUrl = `https://api.hunter.io/v2/domain-search?company=${encodeURIComponent(company)}&api_key=${apiKey}&limit=1`
-    const domainRes = await fetch(domainUrl)
-    const domainData = await domainRes.json()
-
-    if (domainData.data?.domain) {
-      return NextResponse.json({
-        domain: domainData.data.domain,
-        enriched: true
-      })
-    }
-
-    return NextResponse.json({ enriched: false })
+    // STEP 3 — Nothing found
+    return NextResponse.json({ enriched: false, source: null })
 
   } catch (error) {
     console.error('Enrichment error:', error)
