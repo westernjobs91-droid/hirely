@@ -88,7 +88,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft }: ContactP
                 <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
-                LinkedIn enriched via Hunter.io
+                Contact data enriched automatically
               </span>
             )}
           </div>
