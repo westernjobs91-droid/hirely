@@ -26,24 +26,20 @@ export default function Dashboard() {
   const [toast, setToast] = useState<string | null>(null)
   const [filter, setFilter] = useState('All')
 
-  // Check auth and load contacts
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/login'); return }
-
       const meta = session.user.user_metadata
-      const userData = {
+      setUser({
         id: session.user.id,
         email: session.user.email || '',
         name: meta?.first_name ? `${meta.first_name} ${meta.last_name || ''}`.trim() : session.user.email || 'User'
-      }
-      setUser(userData)
+      })
       await loadContacts(session.user.id)
       setLoading(false)
     }
     init()
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       if (!session) router.push('/login')
     })
@@ -56,9 +52,7 @@ export default function Dashboard() {
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
-
     if (error) { console.error(error); return }
-
     const mapped: Contact[] = (data || []).map((c: Record<string, unknown>) => ({
       id: c.id as string,
       firstName: c.first_name as string || '',
@@ -107,12 +101,18 @@ export default function Dashboard() {
       notes: contact.notes,
       activity: contact.activity,
     }).select().single()
-
     if (error) { console.error(error); setToast('Error saving contact'); return }
-    const newContact = { ...contact, id: data.id }
-    setContacts(prev => [newContact, ...prev])
-    setToast('Contact saved - AI drafts ready - Hunter.io enriching...')
+    setContacts(prev => [{ ...contact, id: data.id }, ...prev])
+    setToast('Contact saved - Hunter.io enriching...')
   }, [user])
+
+  const handleDelete = useCallback(async (id: string) => {
+    const { error } = await supabase.from('contacts').delete().eq('id', id)
+    if (error) { setToast('Error deleting contact'); return }
+    setContacts(prev => prev.filter(c => c.id !== id))
+    if (selected?.id === id) setSelected(null)
+    setToast('Contact deleted')
+  }, [selected])
 
   const handleSend = useCallback((draft: AIDraft, c: Contact) => {
     setToast(`Follow-up sent to ${c.firstName} ${c.lastName}`)
@@ -124,10 +124,10 @@ export default function Dashboard() {
   const overdueCount = contacts.filter(c => c.status === 'overdue').length
 
   const statConfig = [
-    { label: 'Follow-ups due', key: overdueCount, accent: 'from-red-500 to-red-600', valColor: 'text-red-500', sub: `${overdueCount} overdue now`, subColor: 'text-red-400' },
-    { label: 'Total contacts', key: contacts.length, accent: 'from-blue-600 to-violet-600', valColor: 'text-slate-900', sub: 'All time', subColor: 'text-emerald-500' },
-    { label: 'Reply rate', key: '34%', accent: 'from-emerald-500 to-teal-600', valColor: 'text-emerald-500', sub: 'Above average', subColor: 'text-emerald-500' },
-    { label: 'Emails sent', key: 0, accent: 'from-amber-400 to-orange-500', valColor: 'text-slate-900', sub: 'This month', subColor: 'text-slate-400' },
+    { label: 'Follow-ups due', val: overdueCount, accent: 'from-red-500 to-red-600', valColor: 'text-red-500', sub: `${overdueCount} overdue now`, subColor: 'text-red-400' },
+    { label: 'Total contacts', val: contacts.length, accent: 'from-blue-600 to-violet-600', valColor: 'text-slate-900', sub: 'All time', subColor: 'text-emerald-500' },
+    { label: 'Reply rate', val: '34%', accent: 'from-emerald-500 to-teal-600', valColor: 'text-emerald-500', sub: 'Above average', subColor: 'text-emerald-500' },
+    { label: 'Emails sent', val: 0, accent: 'from-amber-400 to-orange-500', valColor: 'text-slate-900', sub: 'This month', subColor: 'text-slate-400' },
   ]
 
   if (loading) {
@@ -183,7 +183,7 @@ export default function Dashboard() {
               <div key={i} className="bg-slate-50 rounded-xl p-3 relative overflow-hidden border border-slate-100">
                 <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${s.accent}`} />
                 <p className="text-[10px] text-slate-400 font-medium mb-1">{s.label}</p>
-                <p className={`text-2xl font-bold tracking-tight ${s.valColor}`}>{s.key}</p>
+                <p className={`text-2xl font-bold tracking-tight ${s.valColor}`}>{s.val}</p>
                 <p className={`text-[10px] mt-1 font-medium ${s.subColor}`}>{s.sub}</p>
               </div>
             ))}
@@ -223,7 +223,13 @@ export default function Dashboard() {
                       </div>
                     ) : (
                       col.contacts.map(c => (
-                        <ContactCard key={c.id} contact={c} isSelected={selected?.id === c.id} onClick={() => setSelected(c)} />
+                        <ContactCard
+                          key={c.id}
+                          contact={c}
+                          isSelected={selected?.id === c.id}
+                          onClick={() => setSelected(c)}
+                          onDelete={handleDelete}
+                        />
                       ))
                     )}
                   </div>
