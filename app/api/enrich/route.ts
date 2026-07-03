@@ -8,11 +8,14 @@ import { NextRequest, NextResponse } from 'next/server'
 // would do by hand, just automatic.
 async function resolveOrganizationDomain(apolloKey: string, company: string): Promise<string | null> {
   try {
-    const res = await fetch('https://api.apollo.io/v1/mixed_companies/search', {
+    const res = await fetch('https://api.apollo.io/api/v1/mixed_companies/search', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Authorization: `Bearer ${apolloKey}`,
+      },
       body: JSON.stringify({
-        api_key: apolloKey,
         q_organization_name: company,
         page: 1,
         per_page: 1,
@@ -33,11 +36,14 @@ async function apolloPeopleMatch(
   lastName: string,
   params: { organization_name?: string; domain?: string }
 ) {
-  const res = await fetch('https://api.apollo.io/v1/people/match', {
+  const res = await fetch('https://api.apollo.io/api/v1/people/match', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache',
+      Authorization: `Bearer ${apolloKey}`,
+    },
     body: JSON.stringify({
-      api_key: apolloKey,
       first_name: firstName,
       last_name: lastName || '',
       reveal_personal_emails: false,
