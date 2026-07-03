@@ -13,7 +13,7 @@
   <DisplayName DefaultValue="Hirely" />
   <Description DefaultValue="Save the sender of this email straight into your Hirely CRM pipeline." />
   <IconUrl DefaultValue="https://hirely-ten-rho.vercel.app/outlook/icons/icon-32.png" />
-  <HighResIconUrl DefaultValue="https://hirely-ten-rho.vercel.app/outlook/icons/icon-80.png" />
+  <HighResolutionIconUrl DefaultValue="https://hirely-ten-rho.vercel.app/outlook/icons/icon-80.png" />
   <SupportUrl DefaultValue="https://hirelypro.com" />
 
   <AppDomains>
