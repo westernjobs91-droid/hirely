@@ -19,12 +19,14 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
   const [notes, setNotes] = useState('')
   const [findingEmail, setFindingEmail] = useState(false)
   const [findEmailError, setFindEmailError] = useState<string | null>(null)
+  const [findEmailNote, setFindEmailNote] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({ email: '', phone: '', company: '', jobTitle: '', linkedinUrl: '' })
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     setFindEmailError(null)
+    setFindEmailNote(null)
     setFindingEmail(false)
     setEditing(false)
     setSaving(false)
@@ -98,6 +100,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
     }
     setFindingEmail(true)
     setFindEmailError(null)
+    setFindEmailNote(null)
     try {
       const res = await fetch('/api/enrich', {
         method: 'POST',
@@ -122,6 +125,17 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
           updates.company = data.resolvedCompany
         }
         await onUpdateContact(contact.id, updates)
+        // A pattern-guessed email (built from the company's standard format
+        // and verified for deliverability, but not a specific indexed match
+        // for this person) is a good bet, not a certainty — flag it clearly
+        // rather than presenting it with the same confidence as a direct find.
+        if (data.guessed) {
+          setFindEmailNote(
+            `Best guess based on ${contact.company}'s email format${
+              typeof data.confidence === 'number' ? ` (${data.confidence}% confidence)` : ''
+            } — worth confirming before sending.`
+          )
+        }
       } else {
         setFindEmailError('No email found for this contact')
       }
@@ -286,6 +300,9 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
             </div>
             {findEmailError && (
               <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 mb-2">{findEmailError}</p>
+            )}
+            {findEmailNote && (
+              <p className="text-[10px] text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1.5 mb-2">{findEmailNote}</p>
             )}
             <div className="flex gap-2">
               {contact.email ? (

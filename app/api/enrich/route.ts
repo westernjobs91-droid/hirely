@@ -47,6 +47,57 @@ async function apolloPeopleMatch(
   return res.json()
 }
 
+// Hunter's Domain Search returns the company's standard email pattern (e.g.
+// "{first}.{last}") even when they don't have this specific person indexed —
+// most companies use one consistent format across everyone on the team.
+async function hunterDomainSearch(hunterKey: string, domainOrCompany: { domain?: string; company?: string }) {
+  try {
+    const params = new URLSearchParams({ api_key: hunterKey, limit: '1' })
+    if (domainOrCompany.domain) params.set('domain', domainOrCompany.domain)
+    else if (domainOrCompany.company) params.set('company', domainOrCompany.company)
+    else return null
+
+    const res = await fetch(`https://api.hunter.io/v2/domain-search?${params.toString()}`)
+    const data = await res.json()
+    return {
+      pattern: data?.data?.pattern || null,
+      domain: data?.data?.domain || domainOrCompany.domain || null,
+    }
+  } catch (e) {
+    console.error('Hunter domain search error:', e)
+    return null
+  }
+}
+
+function buildEmailFromPattern(pattern: string, firstName: string, lastName: string, domain: string): string | null {
+  if (!pattern || !domain) return null
+  const first = firstName.toLowerCase().replace(/[^a-z]/g, '')
+  const last = (lastName || '').toLowerCase().replace(/[^a-z]/g, '')
+  if (!first) return null
+  const local = pattern
+    .replace(/\{first\}/g, first)
+    .replace(/\{last\}/g, last)
+    .replace(/\{f\}/g, first[0] || '')
+    .replace(/\{l\}/g, last[0] || '')
+  if (!local || local.includes('{')) return null // pattern needed a piece we don't have (e.g. no last name)
+  return `${local}@${domain}`
+}
+
+// Confirm the pattern-guessed address is actually deliverable before we
+// hand it back — an unverified guess is worse than no email at all.
+async function hunterVerifyEmail(hunterKey: string, email: string) {
+  try {
+    const res = await fetch(
+      `https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}&api_key=${hunterKey}`
+    )
+    const data = await res.json()
+    return { status: data?.data?.status || null, score: data?.data?.score ?? null }
+  } catch (e) {
+    console.error('Hunter verify error:', e)
+    return { status: null, score: null }
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { firstName, lastName, company } = await req.json()
@@ -111,6 +162,34 @@ export async function POST(req: NextRequest) {
         }
       } catch (e) {
         console.error('Hunter error:', e)
+      }
+
+      // STEP 3 — Neither service has this specific person indexed. Most
+      // companies use one consistent email format across everyone on the
+      // team (first.last@, flast@, etc.) — look up that pattern and build +
+      // verify a likely address rather than giving up entirely.
+      try {
+        const domainInfo = await hunterDomainSearch(
+          hunterKey,
+          resolvedDomain ? { domain: resolvedDomain } : { company }
+        )
+        if (domainInfo?.pattern && domainInfo.domain) {
+          const guessed = buildEmailFromPattern(domainInfo.pattern, firstName, lastName, domainInfo.domain)
+          if (guessed) {
+            const verification = await hunterVerifyEmail(hunterKey, guessed)
+            if (verification.status && verification.status !== 'invalid' && verification.status !== 'disposable') {
+              return NextResponse.json({
+                email: guessed,
+                enriched: true,
+                guessed: true,
+                confidence: verification.score,
+                source: 'hunter-pattern'
+              })
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Hunter pattern-guess error:', e)
       }
     }
 
