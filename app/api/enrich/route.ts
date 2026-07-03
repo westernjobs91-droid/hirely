@@ -21,7 +21,12 @@ async function resolveOrganizationDomain(apolloKey: string, company: string): Pr
         per_page: 1,
       })
     })
-    const data = await res.json()
+    const text = await res.text()
+    if (!res.ok) {
+      console.error('Apollo organization search failed:', res.status, text)
+      return null
+    }
+    const data = JSON.parse(text)
     const org = data?.organizations?.[0] || data?.accounts?.[0]
     return org?.primary_domain || org?.website_url?.replace(/^https?:\/\//, '').replace(/\/$/, '') || null
   } catch (e) {
@@ -50,7 +55,17 @@ async function apolloPeopleMatch(
       ...params,
     })
   })
-  return res.json()
+  const text = await res.text()
+  if (!res.ok) {
+    console.error('Apollo people/match failed:', res.status, text)
+    return {}
+  }
+  try {
+    return JSON.parse(text)
+  } catch (e) {
+    console.error('Apollo people/match returned non-JSON:', text)
+    return {}
+  }
 }
 
 // Hunter's Domain Search returns the company's standard email pattern (e.g.
