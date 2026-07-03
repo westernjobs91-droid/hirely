@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Hirely – Save LinkedIn Contacts",
+  "version": "1.0.0",
+  "description": "One-click save LinkedIn profiles straight into your Hirely CRM.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": [
+    "https://www.linkedin.com/*",
+    "https://rjxlnutucxxefgqtohnc.supabase.co/*",
+    "https://hirely-ten-rho.vercel.app/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/in/*"],
+      "js": ["config.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

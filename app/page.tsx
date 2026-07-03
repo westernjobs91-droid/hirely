@@ -118,6 +118,26 @@ export default function Dashboard() {
     setToast(`Follow-up sent to ${c.firstName} ${c.lastName}`)
   }, [])
 
+  const handleUpdateContact = useCallback(async (id: string, updates: Partial<Contact>) => {
+    const dbUpdates: Record<string, string | boolean> = {}
+    if (updates.email !== undefined) dbUpdates.email = updates.email
+    if (updates.phone !== undefined) dbUpdates.phone = updates.phone
+    if (updates.linkedinUrl !== undefined) dbUpdates.linkedin_url = updates.linkedinUrl
+    if (updates.jobTitle !== undefined) dbUpdates.job_title = updates.jobTitle
+    if (updates.enriched !== undefined) dbUpdates.enriched = updates.enriched
+
+    const { error } = await supabase.from('contacts').update(dbUpdates).eq('id', id)
+    if (error) {
+      console.error('Failed to update contact:', error)
+      setToast('Error updating contact')
+      return false
+    }
+
+    setContacts(prev => prev.map(c => (c.id === id ? { ...c, ...updates } : c)))
+    setSelected(prev => (prev && prev.id === id ? { ...prev, ...updates } : prev))
+    return true
+  }, [])
+
   const todayCol = contacts.filter(c => c.column === 'today')
   const upcomingCol = contacts.filter(c => c.column === 'upcoming')
   const doneCol = contacts.filter(c => c.column === 'done')
@@ -240,7 +260,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <ContactPanel contact={selected} onClose={() => setSelected(null)} onSendDraft={handleSend} />
+      <ContactPanel contact={selected} onClose={() => setSelected(null)} onSendDraft={handleSend} onUpdateContact={handleUpdateContact} />
       {showAdd && <AddContactModal onClose={() => setShowAdd(false)} onAdd={handleAdd} />}
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}

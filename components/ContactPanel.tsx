@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Contact, AIDraft } from '@/types'
 import { getAIDrafts } from '@/lib/data'
 
@@ -8,14 +8,22 @@ interface ContactPanelProps {
   contact: Contact | null
   onClose: () => void
   onSendDraft: (draft: AIDraft, contact: Contact) => void
+  onUpdateContact: (id: string, updates: Partial<Contact>) => Promise<boolean>
 }
 
 type Tab = 'info' | 'drafts' | 'activity' | 'notes'
 
-export default function ContactPanel({ contact, onClose, onSendDraft }: ContactPanelProps) {
+export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateContact }: ContactPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>('info')
   const [sentDrafts, setSentDrafts] = useState<Set<string>>(new Set())
   const [notes, setNotes] = useState('')
+  const [findingEmail, setFindingEmail] = useState(false)
+  const [findEmailError, setFindEmailError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setFindEmailError(null)
+    setFindingEmail(false)
+  }, [contact?.id])
 
   if (!contact) {
     return (
@@ -50,6 +58,42 @@ export default function ContactPanel({ contact, onClose, onSendDraft }: ContactP
         return n
       })
     }, 3000)
+  }
+
+  const handleFindEmail = async () => {
+    if (!contact.firstName || !contact.company) {
+      setFindEmailError('Need a company name to search')
+      return
+    }
+    setFindingEmail(true)
+    setFindEmailError(null)
+    try {
+      const res = await fetch('/api/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: contact.firstName,
+          lastName: contact.lastName,
+          company: contact.company
+        })
+      })
+      const data = await res.json()
+
+      if (data.enriched && data.email) {
+        const updates: Partial<Contact> = { email: data.email, enriched: true }
+        if (data.phone) updates.phone = data.phone
+        if (data.linkedinUrl && !contact.linkedinUrl) updates.linkedinUrl = data.linkedinUrl
+        if (data.title && !contact.jobTitle) updates.jobTitle = data.title
+        await onUpdateContact(contact.id, updates)
+      } else {
+        setFindEmailError('No email found for this contact')
+      }
+    } catch (e) {
+      console.error('Find email failed', e)
+      setFindEmailError('Something went wrong — try again')
+    } finally {
+      setFindingEmail(false)
+    }
   }
 
   const tabs: { id: Tab; label: string }[] = [
@@ -146,13 +190,39 @@ export default function ContactPanel({ contact, onClose, onSendDraft }: ContactP
               </svg>
               First email: {contact.sentDate}
             </div>
+            {findEmailError && (
+              <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 mb-2">{findEmailError}</p>
+            )}
             <div className="flex gap-2">
-              <button className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50 transition-colors font-medium">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                Email
-              </button>
+              {contact.email ? (
+                <a
+                  href={`mailto:${contact.email}`}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50 transition-colors font-medium"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Email
+                </a>
+              ) : (
+                <button
+                  onClick={handleFindEmail}
+                  disabled={findingEmail}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50 transition-colors font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {findingEmail ? (
+                    <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                  ) : (
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+                    </svg>
+                  )}
+                  {findingEmail ? 'Searching...' : 'Find email'}
+                </button>
+              )}
               <button
                 onClick={() => setActiveTab('drafts')}
                 className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-white rounded-lg text-xs font-medium transition-all"

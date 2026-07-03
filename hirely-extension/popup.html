@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Hirely</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="logo">H</div>
+      <div class="title">Hirely</div>
+    </div>
+
+    <div id="loggedOut" class="section">
+      <p class="hint">Log in to save LinkedIn contacts to your Hirely pipeline in one click.</p>
+      <label>Email</label>
+      <input type="email" id="email" placeholder="you@company.com" />
+      <label>Password</label>
+      <input type="password" id="password" placeholder="••••••••" />
+      <button id="loginBtn" class="btn">Log In</button>
+      <div id="loginStatus" class="status"></div>
+      <p class="foot">No account? <a href="#" id="signupLink">Sign up</a></p>
+    </div>
+
+    <div id="loggedIn" class="section" style="display:none;">
+      <p class="hint">You're logged in as <span id="userEmail" class="strong"></span>.</p>
+      <p class="hint">Visit any LinkedIn profile and click the blue <span class="strong">Save to Hirely</span> tab on the right edge of the page.</p>
+      <button id="dashboardBtn" class="btn">Open Dashboard</button>
+      <button id="logoutBtn" class="btn-secondary">Log Out</button>
+    </div>
+  </div>
+  <script src="config.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
