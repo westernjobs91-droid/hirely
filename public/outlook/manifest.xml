@@ -59,11 +59,6 @@
             <OfficeTab id="TabDefault">
               <Group id="Hirely.Group">
                 <Label resid="Hirely.Group.Label" />
-                <Icon>
-                  <bt:Image size="16" resid="Icon.16x16" />
-                  <bt:Image size="32" resid="Icon.32x32" />
-                  <bt:Image size="80" resid="Icon.80x80" />
-                </Icon>
                 <Control xsi:type="Button" id="Hirely.TaskpaneButton">
                   <Label resid="Hirely.TaskpaneButton.Label" />
                   <Supertip>
