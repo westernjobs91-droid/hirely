@@ -10,6 +10,7 @@ Adds a "Save to Hirely" tab on the right edge of every LinkedIn profile page (`l
 - Saving a contact **writes directly to Supabase** via PostgREST (`/rest/v1/contacts`) using the logged-in user's access token — so your existing RLS policy (`auth.uid() = user_id`) enforces ownership automatically. No new Next.js API route is required for the save itself.
 - After a successful save, the extension calls your existing `POST /api/enrich` endpoint in the background (fire-and-forget) so Apollo/Hunter enrichment kicks in the same way it does from the web app. If that call fails for any reason, the contact is still saved — it just won't be auto-enriched until you open it in the dashboard.
 - Before inserting, it checks for an existing contact with the same `linkedin_url` for that user, so re-clicking "Save" on a profile you already captured won't create a duplicate — it shows "Already in Hirely" instead.
+- **Enrichment is deliberately not triggered from the extension.** Apollo/Hunter credits are limited, and firing a lookup on every single save — before you've had a chance to fix a mis-scraped company name — wastes them on contacts you might not pursue. Use the **"Find email"** button on the contact's card in the Hirely dashboard once you're ready to reach out.
 
 ## Setup
 

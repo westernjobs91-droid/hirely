@@ -267,6 +267,7 @@
   function findIntroCandidates(name, maxTextCount) {
     const textCandidates = [];
     let companyFromLink = "";
+    let companyFromBadge = "";
     let photo = "";
     // Skip past the sticky top nav so its junk text never even enters the pool.
     const startEl =
@@ -274,6 +275,7 @@
       document.querySelector('[role="main"]') ||
       document.body;
     const els = startEl.querySelectorAll("*");
+    const badgeImgs = []; // remember which images were claimed as logo badges
 
     for (const el of els) {
       const ownText = directText(el);
@@ -284,34 +286,46 @@
         }
       }
 
-      // The company badge is always a link to a /company/ page — this is an
-      // exact signal, unlike guessing from logo pixel dimensions.
+      // The company badge is a link to a /company/ page when LinkedIn makes
+      // it clickable — an exact signal when present.
       if (!companyFromLink && el.tagName === "A" && /\/company\//.test(el.getAttribute("href") || "")) {
         const label = el.innerText.trim().split("\n")[0].trim();
         if (label && !isJunkLine(label, name)) companyFromLink = label;
       }
 
-      if (!photo && el.tagName === "IMG") {
+      if (el.tagName === "IMG") {
         const rect = el.getBoundingClientRect();
         const w = rect.width;
         const h = rect.height;
         if (!w || !h) continue;
         const aspect = w / h;
-        // Any image sitting inside a /company/ or /school/ link is a logo,
-        // never the profile photo — exclude it regardless of its pixel size.
+
+        // Company/school badge: a small square logo icon next to short text.
+        // LinkedIn doesn't always make this a real <a href> — sometimes it's
+        // a div/button with a click handler instead — so we can't rely on
+        // href alone. This is scoped to the intro card (scan stops at the
+        // first section heading) so it can't pick up unrelated logos further
+        // down the page.
+        if (!companyFromBadge && w >= 14 && w <= 56 && aspect > 0.75 && aspect < 1.35) {
+          const wrap = el.closest("a") || el.parentElement?.parentElement || el.parentElement;
+          const label = wrap ? wrap.innerText.trim().split("\n")[0].trim() : "";
+          if (label && label.length < 60 && !isJunkLine(label, name)) {
+            companyFromBadge = label;
+            badgeImgs.push(el);
+          }
+        }
+
+        // Profile photo: bigger and roughly square. Exclude anything inside
+        // a /company/ or /school/ link, and anything already claimed above
+        // as a logo badge — never the profile photo either way.
         const inBadgeLink = el.closest('a[href*="/company/"], a[href*="/school/"], a[href*="/edu/"]');
-        if (inBadgeLink) continue;
-        // Use the actual on-screen rendered size, not the source file's
-        // native resolution — company logos are often uploaded as large
-        // square files even though they're displayed tiny, so checking
-        // naturalWidth was unreliable. A real avatar renders noticeably
-        // larger on screen than a badge icon.
-        if (w >= 80 && w <= 400 && aspect > 0.8 && aspect < 1.25 && el.src && !el.src.includes("data:image")) {
+        if (inBadgeLink || badgeImgs.includes(el)) continue;
+        if (!photo && w >= 80 && w <= 400 && aspect > 0.8 && aspect < 1.25 && el.src && !el.src.includes("data:image")) {
           photo = el.src;
         }
       }
     }
-    return { textCandidates, companyFromLink, photo };
+    return { textCandidates, companyFromLink, companyFromBadge, photo };
   }
 
   // Credentials like ", M.B.A., CHRL" after the name break a naive first/last
@@ -320,21 +334,63 @@
     return (raw || "").split(",")[0].trim();
   }
 
+  // Company wasn't in the headline or intro card — look at the Experience
+  // section's first (i.e. current) entry specifically. Scoped tightly to
+  // just that section so it can't pick up unrelated links from Education,
+  // Certifications, or elsewhere further down the page.
+  function findExperienceCompany(name) {
+    const heading = Array.from(document.querySelectorAll("h2, h3")).find(
+      (el) => el.innerText.trim() === "Experience"
+    );
+    if (!heading) return "";
+
+    const section =
+      heading.closest("section") ||
+      heading.parentElement?.parentElement?.parentElement ||
+      heading.parentElement;
+    if (!section) return "";
+
+    // The current/most recent role's company is almost always a link to a
+    // /company/ page within the first entry of this section.
+    const companyLink = section.querySelector('a[href*="/company/"]');
+    if (companyLink) {
+      const label = companyLink.innerText.trim().split("\n")[0].trim();
+      if (label && !isJunkLine(label, name)) return label;
+    }
+
+    // Fallback: some employers (small businesses, nonprofits) don't have a
+    // LinkedIn company page — grab text from the entry instead. LinkedIn
+    // renders the job title first and the company name second within each
+    // entry, so the second candidate is the better guess for company.
+    const candidates = [];
+    const walker = document.createTreeWalker(section, NodeFilter.SHOW_ELEMENT);
+    let node = walker.nextNode();
+    while (node && candidates.length < 5) {
+      const t = directText(node);
+      if (t && t !== "Experience" && !isJunkLine(t, name) && !candidates.includes(t)) {
+        candidates.push(t);
+      }
+      node = walker.nextNode();
+    }
+    return candidates[1] || candidates[0] || "";
+  }
+
+  function extractCompanyFromHeadline(headline) {
+    // "Senior Accountant at KPMG, CFE Honour Roll Recipient" -> "KPMG"
+    // "Founder & CEO of 1Thing" -> "1Thing"
+    // Stop at the next comma/pipe/bullet so trailing accolades don't get
+    // swept in along with the actual company name.
+    const match = headline.match(/\b(?:at|of)\s+([^,|•\n]+)/i);
+    return match ? match[1].trim() : "";
+  }
+
   function scrapeProfile() {
     // 1) Try the reliable server-rendered sources first.
     let parsed = parseTitleSource(getMeta("og:title")) || parseTitleSource(document.title);
 
     let name = cleanName(parsed?.name || "");
     let headline = parsed?.headline || "";
-    let company = parsed?.company || "";
-
-    // LinkedIn's meta description often includes "... Experience: <Company> ..."
-    // — a reliable, structured signal worth trying before DOM heuristics.
-    if (!company) {
-      const desc = getMeta("og:description") || getMeta("description");
-      const expMatch = desc.match(/Experience:\s*([^·|]+)/i);
-      if (expMatch) company = expMatch[1].trim();
-    }
+    let company = "";
 
     const nameEl = findNameEl();
     const rawNameText = nameEl ? nameEl.innerText.trim() : parsed?.name || "";
@@ -343,10 +399,8 @@
     // 2) Scan the intro area of the document (skipping the top nav, and
     // stopping at the first profile section heading like "About" or
     // "Experience" so we never cross into unrelated company links/logos
-    // further down the page) for text candidates and the company link.
-    const { textCandidates, companyFromLink, photo: scannedPhoto } = findIntroCandidates(name, 10);
-
-    if (!company && companyFromLink) company = companyFromLink;
+    // further down the page) for text candidates, the badge, and the link.
+    const { textCandidates, companyFromLink, companyFromBadge, photo: scannedPhoto } = findIntroCandidates(name, 10);
 
     if (!headline) {
       const headlineCandidate = textCandidates.find(
@@ -355,14 +409,25 @@
       if (headlineCandidate) headline = headlineCandidate;
     }
 
-    if (!company) {
-      const bulletLine = textCandidates.find((c) => c.includes(" • "));
-      if (bulletLine) company = bulletLine.split(" • ")[0].trim();
-    }
-
-    if (!company && headline.includes(" at ")) {
-      company = headline.split(" at ").slice(1).join(" at ").trim();
-    }
+    // Company priority: the visible logo badge is the most reliable signal
+    // (present on almost every profile, regardless of whether it's a real
+    // link) — then the og:description meta, then the /company/ link, then
+    // the bullet-separated intro line, then the headline text itself, and
+    // finally the Experience section as a last resort.
+    company =
+      companyFromBadge ||
+      (() => {
+        const desc = getMeta("og:description") || getMeta("description");
+        const expMatch = desc.match(/Experience:\s*([^·|]+)/i);
+        return expMatch ? expMatch[1].trim() : "";
+      })() ||
+      companyFromLink ||
+      (() => {
+        const bulletLine = textCandidates.find((c) => c.includes(" • "));
+        return bulletLine ? bulletLine.split(" • ")[0].trim() : "";
+      })() ||
+      extractCompanyFromHeadline(headline) ||
+      findExperienceCompany(name);
 
     // Photo: og:image is the exact profile photo URL LinkedIn renders for
     // social sharing — far more reliable than guessing between the profile
@@ -480,7 +545,7 @@
         <button class="hirely-btn-secondary" id="hirely-logout-btn">Log out</button>
         <div class="hirely-status" id="hirely-save-status"></div>
       </div>
-      <div class="hirely-footer">Hirely will look up a verified email in the background.</div>
+      <div class="hirely-footer">Use "Find email" on the contact's card in Hirely to look up a verified email.</div>
     `;
 
     panel.querySelector("#hirely-close-btn").addEventListener("click", closePanel);
@@ -509,7 +574,7 @@
       btn.textContent = "Save to Hirely";
 
       if (res.ok) {
-        showStatus(statusEl, "✓ Saved! Hirely is enriching this contact now.", "success");
+        showStatus(statusEl, "✓ Saved to Hirely.", "success");
         btn.textContent = "Saved ✓";
         btn.disabled = true;
       } else if (res.error === "ALREADY_EXISTS") {

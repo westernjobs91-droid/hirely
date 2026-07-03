@@ -151,21 +151,11 @@ async function saveContact(payload) {
   }
   const contact = Array.isArray(data) ? data[0] : data;
 
-  // Fire-and-forget enrichment call — contact is already saved either way.
-  fetch(`${HIRELY_CONFIG.API_BASE}/api/enrich`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      contactId: contact.id,
-      firstName: payload.firstName,
-      lastName: payload.lastName,
-      company: payload.company
-    })
-  }).catch(() => {});
-
+  // No automatic enrichment call here on purpose — Apollo/Hunter credits are
+  // limited, and firing a lookup on every single save (before the recruiter
+  // has had a chance to fix a mis-scraped company name) wastes them. The
+  // "Find email" button on the dashboard is the deliberate place enrichment
+  // happens, once the contact's info is confirmed correct.
   return contact;
 }
 
