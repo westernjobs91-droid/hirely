@@ -19,10 +19,15 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
   const [notes, setNotes] = useState('')
   const [findingEmail, setFindingEmail] = useState(false)
   const [findEmailError, setFindEmailError] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
+  const [editForm, setEditForm] = useState({ email: '', phone: '', company: '', jobTitle: '', linkedinUrl: '' })
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     setFindEmailError(null)
     setFindingEmail(false)
+    setEditing(false)
+    setSaving(false)
   }, [contact?.id])
 
   if (!contact) {
@@ -58,6 +63,32 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
         return n
       })
     }, 3000)
+  }
+
+  const startEditing = () => {
+    setEditForm({
+      email: contact.email || '',
+      phone: contact.phone || '',
+      company: contact.company || '',
+      jobTitle: contact.jobTitle || '',
+      linkedinUrl: contact.linkedinUrl || ''
+    })
+    setEditing(true)
+  }
+
+  const cancelEditing = () => setEditing(false)
+
+  const saveEditing = async () => {
+    setSaving(true)
+    const ok = await onUpdateContact(contact.id, {
+      email: editForm.email.trim(),
+      phone: editForm.phone.trim(),
+      company: editForm.company.trim(),
+      jobTitle: editForm.jobTitle.trim(),
+      linkedinUrl: editForm.linkedinUrl.trim()
+    })
+    setSaving(false)
+    if (ok) setEditing(false)
   }
 
   const handleFindEmail = async () => {
@@ -163,26 +194,83 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
 
         {activeTab === 'info' && (
           <div>
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Contact info</p>
-            <div className="space-y-2 mb-4">
-              {[
-                { icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', value: contact.email },
-                { icon: 'M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z', value: contact.phone },
-                { icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', value: contact.company },
-                { icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1', value: contact.linkedinUrl, isLink: true },
-              ].map((row, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <svg className="w-3.5 h-3.5 text-slate-300 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d={row.icon} />
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Contact info</p>
+              {!editing && (
+                <button
+                  onClick={startEditing}
+                  className="text-[10px] text-blue-600 font-semibold hover:underline flex items-center gap-1"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
-                  {row.isLink ? (
-                    <a href="#" className="text-[11px] text-blue-600 truncate hover:underline">{row.value}</a>
-                  ) : (
-                    <span className="text-[11px] text-slate-600 truncate">{row.value}</span>
-                  )}
-                </div>
-              ))}
+                  Edit
+                </button>
+              )}
             </div>
+
+            {editing ? (
+              <div className="space-y-2 mb-4">
+                {[
+                  { key: 'company' as const, label: 'Company', placeholder: 'Company name' },
+                  { key: 'jobTitle' as const, label: 'Job title', placeholder: 'Job title' },
+                  { key: 'email' as const, label: 'Email', placeholder: 'name@company.com' },
+                  { key: 'phone' as const, label: 'Phone', placeholder: 'Phone number' },
+                  { key: 'linkedinUrl' as const, label: 'LinkedIn URL', placeholder: 'https://linkedin.com/in/...' },
+                ].map(field => (
+                  <div key={field.key}>
+                    <label className="block text-[9px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{field.label}</label>
+                    <input
+                      value={editForm[field.key]}
+                      onChange={e => setEditForm(prev => ({ ...prev, [field.key]: e.target.value }))}
+                      placeholder={field.placeholder}
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-[11px] text-slate-900 bg-white focus:outline-none focus:border-blue-400 focus:shadow-[0_0_0_2px_rgba(37,99,235,.1)] transition-all"
+                    />
+                  </div>
+                ))}
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={cancelEditing}
+                    disabled={saving}
+                    className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-[11px] text-slate-600 hover:bg-slate-50 transition-colors font-medium disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveEditing}
+                    disabled={saving}
+                    className="flex-1 px-2 py-1.5 text-white rounded-lg text-[11px] font-medium transition-all disabled:opacity-60"
+                    style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)' }}
+                  >
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2 mb-4">
+                {[
+                  { icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', value: contact.email },
+                  { icon: 'M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z', value: contact.phone },
+                  { icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', value: contact.company },
+                  { icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1', value: contact.linkedinUrl, isLink: true },
+                ].map((row, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <svg className="w-3.5 h-3.5 text-slate-300 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d={row.icon} />
+                    </svg>
+                    {row.value ? (
+                      row.isLink ? (
+                        <a href={row.value} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-600 truncate hover:underline">{row.value}</a>
+                      ) : (
+                        <span className="text-[11px] text-slate-600 truncate">{row.value}</span>
+                      )
+                    ) : (
+                      <span className="text-[11px] text-slate-300 italic">Not set</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Status</p>
             <div className="flex items-center gap-2 text-[11px] text-slate-500 mb-4">
               <svg className="w-3.5 h-3.5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
