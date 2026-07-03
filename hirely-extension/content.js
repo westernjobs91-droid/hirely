@@ -190,6 +190,7 @@
     if (/^\d+\s*(mo|yr|d|w|h|min)s?$/i.test(t)) return true; // post timestamps: "2mo", "3yr"
     if (/^\d+([,.]\d+)?[km]?\s*(followers?|posts?|comments?)$/i.test(t)) return true;
     if (/^you (both|two)\s/i.test(t)) return true; // "You both studied at X" highlight callout
+    if (/video player|is loading\.?$|loading\.\.\.$|please wait\.?$/i.test(t)) return true; // embedded media widget placeholder text
     if (t.length > 220) return true; // paragraph, not a headline
     return false;
   }

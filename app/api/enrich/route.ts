@@ -1,5 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// LinkedIn often shows a brand/product name ("Kruger Products") rather than
+// the actual registered entity Apollo/Hunter have on file ("Kruger Inc.").
+// Rather than trying to guess the "real" name from LinkedIn's page (there's
+// nothing more correct sitting in their DOM for us to find), we resolve it
+// against Apollo's own company database — the same correction a recruiter
+// would do by hand, just automatic.
+async function resolveOrganizationDomain(apolloKey: string, company: string): Promise<string | null> {
+  try {
+    const res = await fetch('https://api.apollo.io/v1/mixed_companies/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+      body: JSON.stringify({
+        api_key: apolloKey,
+        q_organization_name: company,
+        page: 1,
+        per_page: 1,
+      })
+    })
+    const data = await res.json()
+    const org = data?.organizations?.[0] || data?.accounts?.[0]
+    return org?.primary_domain || org?.website_url?.replace(/^https?:\/\//, '').replace(/\/$/, '') || null
+  } catch (e) {
+    console.error('Apollo organization search error:', e)
+    return null
+  }
+}
+
+async function apolloPeopleMatch(
+  apolloKey: string,
+  firstName: string,
+  lastName: string,
+  params: { organization_name?: string; domain?: string }
+) {
+  const res = await fetch('https://api.apollo.io/v1/people/match', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+    body: JSON.stringify({
+      api_key: apolloKey,
+      first_name: firstName,
+      last_name: lastName || '',
+      reveal_personal_emails: false,
+      ...params,
+    })
+  })
+  return res.json()
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { firstName, lastName, company } = await req.json()
@@ -10,27 +57,31 @@ export async function POST(req: NextRequest) {
 
     const hunterKey = process.env.HUNTER_API_KEY
     const apolloKey = process.env.APOLLO_API_KEY
+    let resolvedDomain: string | null = null
 
     if (apolloKey) {
       try {
-        const apolloRes = await fetch('https://api.apollo.io/v1/people/match', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
-          body: JSON.stringify({
-            api_key: apolloKey,
-            first_name: firstName,
-            last_name: lastName || '',
-            organization_name: company,
-            reveal_personal_emails: false,
-          })
-        })
-        const apolloData = await apolloRes.json()
+        // STEP 1 — Try the company name exactly as scraped.
+        let apolloData = await apolloPeopleMatch(apolloKey, firstName, lastName, { organization_name: company })
+
+        // STEP 1.5 — Didn't match. Look up the real organization in Apollo's
+        // own database (handles "Kruger Products" -> "Kruger Inc." style
+        // brand-name-vs-legal-entity mismatches) and retry using its domain,
+        // which matches far more reliably than a free-text company name.
+        if (!apolloData?.person?.email) {
+          resolvedDomain = await resolveOrganizationDomain(apolloKey, company)
+          if (resolvedDomain) {
+            apolloData = await apolloPeopleMatch(apolloKey, firstName, lastName, { domain: resolvedDomain })
+          }
+        }
+
         if (apolloData?.person?.email) {
           return NextResponse.json({
             email: apolloData.person.email,
             phone: apolloData.person.phone_numbers?.[0]?.sanitized_number || null,
             linkedinUrl: apolloData.person.linkedin_url || null,
             title: apolloData.person.title || null,
+            resolvedCompany: apolloData.person.organization?.name || null,
             enriched: true,
             source: 'apollo'
           })
@@ -42,7 +93,13 @@ export async function POST(req: NextRequest) {
 
     if (hunterKey) {
       try {
-        const hunterUrl = `https://api.hunter.io/v2/email-finder?first_name=${encodeURIComponent(firstName)}&last_name=${encodeURIComponent(lastName || '')}&company=${encodeURIComponent(company)}&api_key=${hunterKey}`
+        // Prefer the resolved domain over the raw company name here too, if
+        // Apollo's organization search found one — Hunter's domain search is
+        // more reliable than its free-text company search for the same reason.
+        const hunterQuery = resolvedDomain
+          ? `domain=${encodeURIComponent(resolvedDomain)}`
+          : `company=${encodeURIComponent(company)}`
+        const hunterUrl = `https://api.hunter.io/v2/email-finder?first_name=${encodeURIComponent(firstName)}&last_name=${encodeURIComponent(lastName || '')}&${hunterQuery}&api_key=${hunterKey}`
         const hunterRes = await fetch(hunterUrl)
         const hunterData = await hunterRes.json()
         if (hunterData?.data?.email) {

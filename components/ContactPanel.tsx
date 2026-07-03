@@ -115,6 +115,12 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
         if (data.phone) updates.phone = data.phone
         if (data.linkedinUrl && !contact.linkedinUrl) updates.linkedinUrl = data.linkedinUrl
         if (data.title && !contact.jobTitle) updates.jobTitle = data.title
+        // Apollo sometimes has to resolve the real registered entity behind
+        // a brand/product name LinkedIn shows (e.g. "Kruger Products" ->
+        // "Kruger Inc.") — carry that correction back into the contact.
+        if (data.resolvedCompany && data.resolvedCompany !== contact.company) {
+          updates.company = data.resolvedCompany
+        }
         await onUpdateContact(contact.id, updates)
       } else {
         setFindEmailError('No email found for this contact')
