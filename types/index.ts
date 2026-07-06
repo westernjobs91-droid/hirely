@@ -19,6 +19,7 @@ export interface Contact {
   enriched: boolean
   activity: string[]
   notes: string
+  aiDrafts?: AIDraft[]
 }
 
 export interface AIDraft {

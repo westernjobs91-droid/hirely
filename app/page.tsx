@@ -71,6 +71,7 @@ export default function Dashboard() {
       enriched: c.enriched as boolean || false,
       notes: c.notes as string || '',
       activity: c.activity as string[] || [],
+      aiDrafts: c.ai_drafts as Contact['aiDrafts'] || undefined,
     }))
     setContacts(mapped)
   }
@@ -119,13 +120,14 @@ export default function Dashboard() {
   }, [])
 
   const handleUpdateContact = useCallback(async (id: string, updates: Partial<Contact>) => {
-    const dbUpdates: Record<string, string | boolean> = {}
+    const dbUpdates: Record<string, string | boolean | Contact['aiDrafts']> = {}
     if (updates.email !== undefined) dbUpdates.email = updates.email
     if (updates.phone !== undefined) dbUpdates.phone = updates.phone
     if (updates.company !== undefined) dbUpdates.company = updates.company
     if (updates.linkedinUrl !== undefined) dbUpdates.linkedin_url = updates.linkedinUrl
     if (updates.jobTitle !== undefined) dbUpdates.job_title = updates.jobTitle
     if (updates.enriched !== undefined) dbUpdates.enriched = updates.enriched
+    if (updates.aiDrafts !== undefined) dbUpdates.ai_drafts = updates.aiDrafts
 
     const { error } = await supabase.from('contacts').update(dbUpdates).eq('id', id)
     if (error) {

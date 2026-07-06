@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { Contact, AIDraft } from '@/types'
-import { getAIDrafts } from '@/lib/data'
 
 interface ContactPanelProps {
   contact: Contact | null
@@ -23,6 +22,8 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({ email: '', phone: '', company: '', jobTitle: '', linkedinUrl: '' })
   const [saving, setSaving] = useState(false)
+  const [generatingDrafts, setGeneratingDrafts] = useState(false)
+  const [draftsError, setDraftsError] = useState<string | null>(null)
 
   useEffect(() => {
     setFindEmailError(null)
@@ -30,6 +31,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
     setFindingEmail(false)
     setEditing(false)
     setSaving(false)
+    setDraftsError(null)
   }, [contact?.id])
 
   if (!contact) {
@@ -50,7 +52,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
     )
   }
 
-  const drafts = getAIDrafts(contact)
+  const drafts = contact.aiDrafts || []
   const initials = `${contact.firstName[0]}${contact.lastName[0]}`
 
   const handleSend = (draft: AIDraft) => {
@@ -91,6 +93,35 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
     })
     setSaving(false)
     if (ok) setEditing(false)
+  }
+
+  const handleGenerateDrafts = async () => {
+    setGeneratingDrafts(true)
+    setDraftsError(null)
+    try {
+      const res = await fetch('/api/generate-drafts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: contact.firstName,
+          lastName: contact.lastName,
+          company: contact.company,
+          jobTitle: contact.jobTitle,
+          originalEmail: contact.originalEmail
+        })
+      })
+      const data = await res.json()
+      if (data.drafts) {
+        await onUpdateContact(contact.id, { aiDrafts: data.drafts })
+      } else {
+        setDraftsError(data.error || 'Could not generate drafts. Try again.')
+      }
+    } catch (e) {
+      console.error('Generate drafts failed', e)
+      setDraftsError('Something went wrong. Try again.')
+    } finally {
+      setGeneratingDrafts(false)
+    }
   }
 
   const handleFindEmail = async () => {
@@ -350,7 +381,34 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
 
         {activeTab === 'drafts' && (
           <div className="space-y-3">
-            {drafts.map(draft => (
+            {draftsError && (
+              <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">{draftsError}</p>
+            )}
+
+            {drafts.length === 0 && !generatingDrafts && (
+              <div className="text-center py-8">
+                <p className="text-xs text-slate-400 mb-3">No drafts generated yet.</p>
+                <button
+                  onClick={handleGenerateDrafts}
+                  className="px-4 py-2 text-white rounded-lg text-xs font-semibold transition-all"
+                  style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)', boxShadow: '0 2px 6px rgba(37,99,235,.25)' }}
+                >
+                  Generate AI drafts
+                </button>
+              </div>
+            )}
+
+            {generatingDrafts && (
+              <div className="text-center py-8">
+                <svg className="w-5 h-5 animate-spin text-blue-600 mx-auto mb-2" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                <p className="text-xs text-slate-400">Writing drafts based on {contact.firstName}&apos;s profile...</p>
+              </div>
+            )}
+
+            {drafts.length > 0 && !generatingDrafts && drafts.map(draft => (
               <div key={draft.id} className="bg-slate-50 border border-slate-200 rounded-xl p-3 hover:border-slate-300 transition-colors">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full tracking-wide">
@@ -360,15 +418,15 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
                 </div>
                 <p className="text-[11px] text-slate-600 leading-relaxed">{draft.body}</p>
                 <div className="flex gap-1.5 mt-2.5">
-                  <button className="px-2.5 py-1.5 text-[10px] border border-slate-200 rounded-lg text-slate-600 hover:bg-white transition-colors font-medium">Edit</button>
-                  <button className="px-2.5 py-1.5 text-[10px] border border-slate-200 rounded-lg text-slate-600 hover:bg-white transition-colors font-medium">Copy</button>
+                  <button
+                    onClick={() => navigator.clipboard?.writeText(draft.body)}
+                    className="px-2.5 py-1.5 text-[10px] border border-slate-200 rounded-lg text-slate-600 hover:bg-white transition-colors font-medium"
+                  >
+                    Copy
+                  </button>
                   <button
                     onClick={() => handleSend(draft)}
-                    className={`px-2.5 py-1.5 text-[10px] rounded-lg font-medium transition-all ${
-                      sentDrafts.has(draft.id)
-                        ? 'text-white'
-                        : 'text-white'
-                    }`}
+                    className="px-2.5 py-1.5 text-[10px] rounded-lg font-medium transition-all text-white"
                     style={{
                       background: sentDrafts.has(draft.id)
                         ? 'linear-gradient(135deg,#10B981,#059669)'
@@ -381,6 +439,15 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
                 </div>
               </div>
             ))}
+
+            {drafts.length > 0 && !generatingDrafts && (
+              <button
+                onClick={handleGenerateDrafts}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-[11px] text-slate-600 hover:bg-slate-50 transition-colors font-medium"
+              >
+                Regenerate drafts
+              </button>
+            )}
           </div>
         )}
 
