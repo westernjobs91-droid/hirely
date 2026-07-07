@@ -20,7 +20,7 @@
   "host_permissions": [
     "https://www.linkedin.com/*",
     "https://rjxlnutucxxefgqtohnc.supabase.co/*",
-    "https://hirely-ten-rho.vercel.app/*"
+    "https://app.hirelypro.com/*"
   ],
   "content_scripts": [
     {

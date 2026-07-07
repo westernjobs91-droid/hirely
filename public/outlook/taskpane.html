@@ -84,7 +84,7 @@
     // Same anon key as the Chrome extension / web app — paste it in below.
     const HIRELY_CONFIG = {
       SUPABASE_URL: "https://rjxlnutucxxefgqtohnc.supabase.co",
-      SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJqeGxudXR1Y3h4ZWZncXRvaG5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4NzIyNDMsImV4cCI6MjA5ODQ0ODI0M30.8GmNv0CjniF32bqKR335U8zBavnLDGN_ryodyT1RWJw"
+      SUPABASE_ANON_KEY: "PASTE_YOUR_SUPABASE_ANON_KEY_HERE"
     };
 
     const STORAGE_KEY = "hirely_outlook_session";
@@ -216,8 +216,20 @@
       return new Promise((resolve) => {
         const item = Office.context.mailbox.item;
         const from = item.from || item.sender || {};
-        const displayName = (from.displayName || "").trim();
-        const emailAddress = (from.emailAddress || "").trim();
+        const myEmail = (Office.context.mailbox.userProfile.emailAddress || "").toLowerCase();
+        const isSentByMe = (from.emailAddress || "").toLowerCase() === myEmail;
+
+        // Viewing an email you sent — the person to save is the recipient,
+        // not yourself. Viewing a received email — it's the sender, as before.
+        let contactSource;
+        if (isSentByMe && item.to && item.to.length) {
+          contactSource = item.to[0];
+        } else {
+          contactSource = from;
+        }
+
+        const displayName = (contactSource.displayName || "").trim();
+        const emailAddress = (contactSource.emailAddress || "").trim();
         const parts = displayName.split(" ").filter(Boolean);
         const firstName = parts[0] || emailAddress.split("@")[0] || "";
         const lastName = parts.slice(1).join(" ") || "";
@@ -232,7 +244,8 @@
             lastName,
             email: emailAddress,
             subject: item.subject || "",
-            originalEmail: bodyText
+            originalEmail: bodyText,
+            isSentByMe
           });
         });
       });
@@ -265,7 +278,7 @@
         <div class="field"><label>Password</label><input type="password" id="password" placeholder="••••••••" /></div>
         <button class="btn" id="login-btn">Log In</button>
         <div class="status" id="login-status"></div>
-        <p class="footer-note">Don't have an account? <a class="link" href="https://hirely-ten-rho.vercel.app/signup" target="_blank">Sign up</a></p>
+        <p class="footer-note">Don't have an account? <a class="link" href="https://app.hirelypro.com/signup" target="_blank">Sign up</a></p>
       `;
       document.getElementById("login-btn").addEventListener("click", async () => {
         const email = document.getElementById("email").value.trim();
@@ -296,7 +309,7 @@
           <div class="avatar-fallback">${initials || "?"}</div>
           <div>
             <div class="profile-name">${escapeHtml(data.firstName + " " + data.lastName) || "Unknown sender"}</div>
-            <div class="profile-sub">Signed in as ${escapeHtml(session.user.email)}</div>
+            <div class="profile-sub">${data.isSentByMe ? "Recipient of this email" : "Sender of this email"} · ${escapeHtml(session.user.email)}</div>
           </div>
         </div>
 
