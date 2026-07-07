@@ -20,6 +20,7 @@ export interface Contact {
   activity: string[]
   notes: string
   aiDrafts?: AIDraft[]
+  createdAt?: string
 }
 
 export interface AIDraft {
