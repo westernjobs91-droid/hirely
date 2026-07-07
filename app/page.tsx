@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import ContactCard from '@/components/ContactCard'
+import ContactListView from '@/components/ContactListView'
 import ContactPanel from '@/components/ContactPanel'
 import AddContactModal from '@/components/AddContactModal'
 import ImportModal from '@/components/ImportModal'
@@ -25,6 +26,7 @@ export default function Dashboard() {
   const [showImport, setShowImport] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [filter, setFilter] = useState('All')
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     const init = async () => {
@@ -146,6 +148,23 @@ export default function Dashboard() {
   const doneCol = contacts.filter(c => c.column === 'done')
   const overdueCount = contacts.filter(c => c.status === 'overdue').length
 
+  const matchesSearch = (c: Contact, query: string) => {
+    if (!query.trim()) return true
+    const q = query.toLowerCase()
+    return (
+      c.firstName.toLowerCase().includes(q) ||
+      c.lastName.toLowerCase().includes(q) ||
+      c.company.toLowerCase().includes(q) ||
+      c.email.toLowerCase().includes(q) ||
+      c.jobTitle.toLowerCase().includes(q)
+    )
+  }
+
+  const allContactsFiltered = contacts.filter(c => matchesSearch(c, searchQuery))
+  const followupsFiltered = contacts
+    .filter(c => c.status === 'overdue' || c.status === 'due-today')
+    .filter(c => matchesSearch(c, searchQuery))
+
   const statConfig = [
     { label: 'Follow-ups due', val: overdueCount, accent: 'from-red-500 to-red-600', valColor: 'text-red-500', sub: `${overdueCount} overdue now`, subColor: 'text-red-400' },
     { label: 'Total contacts', val: contacts.length, accent: 'from-blue-600 to-violet-600', valColor: 'text-slate-900', sub: 'All time', subColor: 'text-emerald-500' },
@@ -180,27 +199,44 @@ export default function Dashboard() {
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
       <Sidebar activeNav={activeNav} onNavChange={setActiveNav} contactCount={contacts.length}
-        overdueCount={overdueCount} userName={user?.name || ''} userEmail={user?.email || ''} onLogout={handleLogout} />
+        overdueCount={overdueCount} userName={user?.name || ''} userEmail={user?.email || ''} onLogout={handleLogout}
+        searchQuery={searchQuery} onSearchChange={setSearchQuery} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-slate-100 flex-shrink-0">
           <div>
-            <h1 className="text-sm font-semibold text-slate-900 tracking-tight">Dashboard</h1>
-            <p className="text-[11px] text-slate-400 mt-0.5">{today} - {overdueCount} follow-up{overdueCount !== 1 ? 's' : ''} overdue today</p>
+            <h1 className="text-sm font-semibold text-slate-900 tracking-tight">
+              {activeNav === 'dashboard' && 'Dashboard'}
+              {activeNav === 'contacts' && 'Contacts'}
+              {activeNav === 'followups' && 'Follow-ups'}
+              {activeNav === 'ai-drafts' && 'AI Drafts'}
+              {activeNav === 'analytics' && 'Analytics'}
+              {activeNav === 'enrichment' && 'Enrichment'}
+              {activeNav === 'settings' && 'Integrations'}
+            </h1>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              {activeNav === 'dashboard' && `${today} - ${overdueCount} follow-up${overdueCount !== 1 ? 's' : ''} overdue today`}
+              {activeNav === 'contacts' && `${allContactsFiltered.length} of ${contacts.length} contacts`}
+              {activeNav === 'followups' && `${followupsFiltered.length} needing follow-up`}
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50 transition-colors font-medium">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-              Import
-            </button>
-            <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-white rounded-lg text-xs font-semibold transition-all" style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)', boxShadow: '0 2px 8px rgba(37,99,235,.25)' }}>
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-              Add contact
-            </button>
-          </div>
+          {(activeNav === 'dashboard' || activeNav === 'contacts') && (
+            <div className="flex items-center gap-2">
+              <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50 transition-colors font-medium">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                Import
+              </button>
+              <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-white rounded-lg text-xs font-semibold transition-all" style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)', boxShadow: '0 2px 8px rgba(37,99,235,.25)' }}>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                Add contact
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          {activeNav === 'dashboard' && (
+          <>
           <div className="grid grid-cols-4 gap-3 px-5 py-3.5 bg-white border-b border-slate-100">
             {statConfig.map((s, i) => (
               <div key={i} className="bg-slate-50 rounded-xl p-3 relative overflow-hidden border border-slate-100">
@@ -260,6 +296,52 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
+          </>
+          )}
+
+          {activeNav === 'contacts' && (
+            <div className="px-5 py-4">
+              <ContactListView
+                contacts={allContactsFiltered}
+                selectedId={selected?.id}
+                onSelect={setSelected}
+                onDelete={handleDelete}
+                emptyMessage={searchQuery ? 'No contacts match your search.' : 'No contacts yet — add one to get started.'}
+              />
+            </div>
+          )}
+
+          {activeNav === 'followups' && (
+            <div className="px-5 py-4">
+              <ContactListView
+                contacts={followupsFiltered}
+                selectedId={selected?.id}
+                onSelect={setSelected}
+                onDelete={handleDelete}
+                emptyMessage="Nothing due — you're all caught up."
+              />
+            </div>
+          )}
+
+          {(activeNav === 'ai-drafts' || activeNav === 'analytics' || activeNav === 'enrichment' || activeNav === 'settings') && (
+            <div className="flex items-center justify-center py-24">
+              <div className="text-center max-w-sm">
+                <p className="text-sm font-medium text-slate-600 mb-1">
+                  {activeNav === 'ai-drafts' && 'A dedicated AI Drafts view is coming soon.'}
+                  {activeNav === 'analytics' && 'Analytics is coming soon.'}
+                  {activeNav === 'enrichment' && 'A dedicated Enrichment view is coming soon.'}
+                  {activeNav === 'settings' && 'Integrations settings are coming soon.'}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {activeNav === 'ai-drafts'
+                    ? 'For now, generate and manage drafts from each contact\u2019s own panel.'
+                    : activeNav === 'enrichment'
+                    ? 'For now, use "Find email" on each contact\u2019s panel.'
+                    : 'Check back soon.'}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

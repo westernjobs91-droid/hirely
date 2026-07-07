@@ -28,7 +28,7 @@ Adds a "Save to Hirely" tab on the right edge of every LinkedIn profile page (`l
    - Go to any LinkedIn profile, e.g. `linkedin.com/in/someone`
    - Click the blue **Save to Hirely** tab on the right edge
    - Review the scraped fields (edit if LinkedIn's layout scraped something oddly), click **Save to Hirely**
-   - Check your dashboard at hirely-ten-rho.vercel.app — the contact should appear, and enrichment should kick in shortly after
+   - Check your dashboard at app.hirelypro.com — the contact should appear, and enrichment should kick in shortly after
 
 ## Notes / things to verify on your end
 

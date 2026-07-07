@@ -10,6 +10,8 @@ interface SidebarProps {
   userName: string
   userEmail: string
   onLogout: () => void
+  searchQuery: string
+  onSearchChange: (query: string) => void
 }
 
 const mainNav = [
@@ -25,7 +27,7 @@ const insightNav = [
   { id: 'settings' as NavItem, label: 'Integrations', path: 'M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z' },
 ]
 
-export default function Sidebar({ activeNav, onNavChange, contactCount, overdueCount, userName, userEmail, onLogout }: SidebarProps) {
+export default function Sidebar({ activeNav, onNavChange, contactCount, overdueCount, userName, userEmail, onLogout, searchQuery, onSearchChange }: SidebarProps) {
   const initials = userName ? userName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : 'U'
 
   return (
@@ -45,12 +47,20 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
 
       {/* Search */}
       <div className="px-3 py-2.5 border-b border-slate-100">
-        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-white transition-colors">
+        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 focus-within:bg-white focus-within:border-blue-300 transition-colors">
           <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          <span className="text-[11px] text-slate-400 flex-1">Search contacts...</span>
-          <span className="text-[9px] bg-slate-100 text-slate-400 px-1 py-0.5 rounded font-medium">⌘K</span>
+          <input
+            value={searchQuery}
+            onChange={e => {
+              onSearchChange(e.target.value)
+              if (e.target.value && activeNav !== 'contacts') onNavChange('contacts')
+            }}
+            placeholder="Search contacts..."
+            className="text-[11px] text-slate-700 placeholder:text-slate-400 flex-1 bg-transparent outline-none border-none min-w-0"
+          />
+          {!searchQuery && <span className="text-[9px] bg-slate-100 text-slate-400 px-1 py-0.5 rounded font-medium flex-shrink-0">⌘K</span>}
         </div>
       </div>
 

@@ -290,7 +290,7 @@
       // The company badge is a link to a /company/ page when LinkedIn makes
       // it clickable — an exact signal when present.
       if (!companyFromLink && el.tagName === "A" && /\/company\//.test(el.getAttribute("href") || "")) {
-        const label = el.innerText.trim().split("\n")[0].trim();
+        const label = cleanCompanyLabel(el.innerText);
         if (label && !isJunkLine(label, name)) companyFromLink = label;
       }
 
@@ -309,7 +309,7 @@
         // down the page.
         if (!companyFromBadge && w >= 14 && w <= 56 && aspect > 0.75 && aspect < 1.35) {
           const wrap = el.closest("a") || el.parentElement?.parentElement || el.parentElement;
-          const label = wrap ? wrap.innerText.trim().split("\n")[0].trim() : "";
+          const label = wrap ? cleanCompanyLabel(wrap.innerText) : "";
           if (label && label.length < 60 && !isJunkLine(label, name)) {
             companyFromBadge = label;
             badgeImgs.push(el);
@@ -335,6 +335,15 @@
     return (raw || "").split(",")[0].trim();
   }
 
+  // Some company badges show bilingual text on one line, e.g.
+  // "Kruger Products | Produits Kruger" — take just the first segment.
+  function cleanCompanyLabel(raw) {
+    return (raw || "")
+      .split("\n")[0]
+      .split(" | ")[0]
+      .trim();
+  }
+
   // Company wasn't in the headline or intro card — look at the Experience
   // section's first (i.e. current) entry specifically. Scoped tightly to
   // just that section so it can't pick up unrelated links from Education,
@@ -355,7 +364,7 @@
     // /company/ page within the first entry of this section.
     const companyLink = section.querySelector('a[href*="/company/"]');
     if (companyLink) {
-      const label = companyLink.innerText.trim().split("\n")[0].trim();
+      const label = cleanCompanyLabel(companyLink.innerText);
       if (label && !isJunkLine(label, name)) return label;
     }
 
