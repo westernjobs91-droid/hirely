@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import ContactCard from '@/components/ContactCard'
 import ContactListView from '@/components/ContactListView'
+import AnalyticsView from '@/components/AnalyticsView'
 import ContactPanel from '@/components/ContactPanel'
 import AddContactModal from '@/components/AddContactModal'
 import ImportModal from '@/components/ImportModal'
@@ -74,6 +75,7 @@ export default function Dashboard() {
       notes: c.notes as string || '',
       activity: c.activity as string[] || [],
       aiDrafts: c.ai_drafts as Contact['aiDrafts'] || undefined,
+      createdAt: c.created_at as string || undefined,
     }))
     setContacts(mapped)
   }
@@ -323,12 +325,13 @@ export default function Dashboard() {
             </div>
           )}
 
-          {(activeNav === 'ai-drafts' || activeNav === 'analytics' || activeNav === 'enrichment' || activeNav === 'settings') && (
+          {activeNav === 'analytics' && <AnalyticsView contacts={contacts} />}
+
+          {(activeNav === 'ai-drafts' || activeNav === 'enrichment' || activeNav === 'settings') && (
             <div className="flex items-center justify-center py-24">
               <div className="text-center max-w-sm">
                 <p className="text-sm font-medium text-slate-600 mb-1">
                   {activeNav === 'ai-drafts' && 'A dedicated AI Drafts view is coming soon.'}
-                  {activeNav === 'analytics' && 'Analytics is coming soon.'}
                   {activeNav === 'enrichment' && 'A dedicated Enrichment view is coming soon.'}
                   {activeNav === 'settings' && 'Integrations settings are coming soon.'}
                 </p>
