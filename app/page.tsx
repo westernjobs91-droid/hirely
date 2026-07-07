@@ -8,6 +8,7 @@ import ContactCard from '@/components/ContactCard'
 import ContactListView from '@/components/ContactListView'
 import AnalyticsView from '@/components/AnalyticsView'
 import EnrichmentView from '@/components/EnrichmentView'
+import IntegrationsView from '@/components/IntegrationsView'
 import ContactPanel from '@/components/ContactPanel'
 import AddContactModal from '@/components/AddContactModal'
 import ImportModal from '@/components/ImportModal'
@@ -332,18 +333,13 @@ export default function Dashboard() {
             <EnrichmentView contacts={contacts} onSelect={setSelected} onUpdateContact={handleUpdateContact} />
           )}
 
-          {(activeNav === 'ai-drafts' || activeNav === 'settings') && (
+          {activeNav === 'settings' && <IntegrationsView />}
+
+          {activeNav === 'ai-drafts' && (
             <div className="flex items-center justify-center py-24">
               <div className="text-center max-w-sm">
-                <p className="text-sm font-medium text-slate-600 mb-1">
-                  {activeNav === 'ai-drafts' && 'A dedicated AI Drafts view is coming soon.'}
-                  {activeNav === 'settings' && 'Integrations settings are coming soon.'}
-                </p>
-                <p className="text-xs text-slate-400">
-                  {activeNav === 'ai-drafts'
-                    ? 'For now, generate and manage drafts from each contact\u2019s own panel.'
-                    : 'Check back soon.'}
-                </p>
+                <p className="text-sm font-medium text-slate-600 mb-1">A dedicated AI Drafts view is coming soon.</p>
+                <p className="text-xs text-slate-400">For now, generate and manage drafts from each contact&apos;s own panel.</p>
               </div>
             </div>
           )}
