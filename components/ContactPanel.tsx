@@ -188,7 +188,10 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
       {/* Profile header */}
       <div className="relative flex-shrink-0">
         {/* Gradient banner */}
-        <div className="h-16 w-full" style={{ background: `linear-gradient(135deg, ${contact.avatarColor}22, ${contact.avatarColor}44)` }} />
+        <div className="h-16 w-full relative overflow-hidden">
+          <div className="absolute inset-0" style={{ backgroundColor: contact.avatarColor, opacity: 0.18 }} />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.1), transparent)' }} />
+        </div>
 
         {/* Close button */}
         <button onClick={onClose} className="absolute top-3 right-3 w-7 h-7 bg-white/80 backdrop-blur-sm rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-white transition-all shadow-sm">
