@@ -465,7 +465,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <ContactPanel contact={selected} onClose={() => setSelected(null)} onSendDraft={handleSend} onUpdateContact={handleUpdateContact} />
+      {(activeNav === 'dashboard' || activeNav === 'contacts' || activeNav === 'followups') && (
+        <ContactPanel contact={selected} onClose={() => setSelected(null)} onSendDraft={handleSend} onUpdateContact={handleUpdateContact} />
+      )}
       {showAdd && <AddContactModal onClose={() => setShowAdd(false)} onAdd={handleAdd} />}
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}

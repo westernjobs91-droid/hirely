@@ -38,6 +38,100 @@ function StatCard({ label, value, sub, color, icon }: {
       <div className="text-3xl font-black text-slate-900 tracking-tight">{value}</div>
       <div className="text-[11px] font-semibold text-slate-500 mt-1">{label}</div>
       <div className="text-[10px] text-slate-400 mt-0.5">{sub}</div>
+
+      {/* Row 3 — Funnel + Job titles + Monthly trend */}
+      <div className="grid grid-cols-3 gap-4">
+
+        {/* Conversion funnel */}
+        <SectionCard title="Pipeline funnel">
+          <div className="space-y-2">
+            {funnelSteps.map((step, i) => {
+              const pct = total > 0 ? Math.round((step.value / total) * 100) : 0
+              const width = total > 0 ? Math.max((step.value / total) * 100, step.value > 0 ? 8 : 0) : 0
+              return (
+                <div key={step.label}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: step.color }} />
+                      <span className="text-[11px] text-slate-600 font-medium">{step.label}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-400">{pct}%</span>
+                      <span className="text-[11px] font-bold text-slate-900 w-6 text-right">{step.value}</span>
+                    </div>
+                  </div>
+                  <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-700"
+                      style={{ width: `${width}%`, backgroundColor: step.color, opacity: 0.85 }} />
+                  </div>
+                  {i < funnelSteps.length - 1 && step.value > 0 && (
+                    <div className="text-[9px] text-slate-300 pl-4 mt-0.5">
+                      ↓ {funnelSteps[i+1].value > 0 ? Math.round((funnelSteps[i+1].value / step.value) * 100) : 0}% convert
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2">
+            <div className="bg-slate-50 rounded-xl p-2.5 text-center">
+              <div className="text-lg font-black text-slate-900">{avgDaysInPipeline}</div>
+              <div className="text-[9px] text-slate-400 font-medium mt-0.5">Avg days in pipeline</div>
+            </div>
+            <div className="bg-slate-50 rounded-xl p-2.5 text-center">
+              <div className="text-lg font-black text-slate-900">{companyMap.size}</div>
+              <div className="text-[9px] text-slate-400 font-medium mt-0.5">Companies targeted</div>
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* Top job titles */}
+        <SectionCard title="Top job titles">
+          {topTitles.length === 0 ? (
+            <p className="text-xs text-slate-400">No job title data yet</p>
+          ) : (
+            <div className="space-y-3">
+              {topTitles.map(([title, count], i) => {
+                const pct = Math.max((count / maxTitle) * 100, 6)
+                const colors = [COLORS.blue, COLORS.violet, COLORS.cyan, COLORS.emerald, COLORS.amber, COLORS.red]
+                return (
+                  <div key={title}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[11px] text-slate-700 font-medium truncate">{title}</span>
+                      <span className="text-[11px] font-bold text-slate-900 ml-2 flex-shrink-0">{count}</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${pct}%`, backgroundColor: colors[i % colors.length] }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </SectionCard>
+
+        {/* Monthly trend */}
+        <SectionCard title="Monthly contacts added">
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={monthlyData} barSize={22} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: '#94A3B8' }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: '#F1F5F9', radius: 6 }} />
+              <Bar dataKey="count" radius={[5, 5, 0, 0]}>
+                {monthlyData.map((entry, index) => (
+                  <Cell
+                    key={index}
+                    fill={index === monthlyData.length - 1 ? COLORS.emerald : '#BBF7D0'}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </SectionCard>
+
+      </div>
+
     </div>
   )
 }
@@ -116,6 +210,50 @@ export default function AnalyticsView({ contacts }: AnalyticsViewProps) {
   // Reply rate
   const repliedCount = contacts.filter(c => c.status === 'replied' || c.status === 'meeting-set').length
   const replyRate = total > 0 ? Math.round((repliedCount / total) * 100) : 0
+
+  // Top job titles
+  const titleMap = new Map<string, number>()
+  contacts.forEach(c => {
+    const title = c.jobTitle?.trim().split('|')[0].split('-')[0].trim()
+    if (title && title.length > 2) titleMap.set(title, (titleMap.get(title) || 0) + 1)
+  })
+  const topTitles = Array.from(titleMap.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+  const maxTitle = Math.max(...topTitles.map(t => t[1]), 1)
+
+  // Conversion funnel
+  const funnelSteps = [
+    { label: 'Saved', value: total, color: COLORS.blue },
+    { label: 'Enriched', value: enrichedCount, color: COLORS.violet },
+    { label: 'Have email', value: withEmailCount, color: COLORS.cyan },
+    { label: 'Replied', value: repliedCount, color: COLORS.emerald },
+  ]
+
+  // Monthly trend (last 6 months)
+  const monthlyData: { label: string; count: number }[] = []
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date()
+    d.setMonth(d.getMonth() - i)
+    const month = d.toLocaleDateString('en-US', { month: 'short' })
+    const year = d.getFullYear()
+    const monthNum = d.getMonth()
+    const count = contacts.filter(c => {
+      if (!c.createdAt) return false
+      const cd = new Date(c.createdAt)
+      return cd.getMonth() === monthNum && cd.getFullYear() === year
+    }).length
+    monthlyData.push({ label: month, count })
+  }
+
+  // Pipeline velocity — avg days in pipeline
+  const contactsWithDates = contacts.filter(c => c.createdAt)
+  const avgDaysInPipeline = contactsWithDates.length > 0
+    ? Math.round(contactsWithDates.reduce((sum, c) => {
+        const days = Math.floor((Date.now() - new Date(c.createdAt as string).getTime()) / 86400000)
+        return sum + days
+      }, 0) / contactsWithDates.length)
+    : 0
 
   if (total === 0) {
     return (
