@@ -207,7 +207,7 @@ export default function AnalyticsView({ contacts }: AnalyticsViewProps) {
                   iconSize={7}
                   formatter={(value) => <span style={{ fontSize: 10, color: '#64748B' }}>{value}</span>}
                 />
-                <Tooltip formatter={(value: number) => [`${value} contacts`, '']}
+                <Tooltip formatter={(value: any) => [`${value} contacts`, '']}
                   contentStyle={{ fontSize: 11, borderRadius: 10, border: '1px solid #E2E8F0' }} />
               </PieChart>
             </ResponsiveContainer>
