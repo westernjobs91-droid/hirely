@@ -39,7 +39,7 @@ function InfoRow({ icon, label, value, href, isEmail }: {
           className="flex-shrink-0 w-7 h-7 rounded-lg bg-blue-50 hover:bg-blue-100 flex items-center justify-center transition-colors"
           title="Send email">
           <svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
         </a>
       )}
@@ -186,28 +186,24 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
     <div className="w-80 min-w-[320px] border-l border-slate-100 bg-white flex flex-col h-full overflow-hidden">
 
       {/* Profile header */}
-      <div className="relative flex-shrink-0">
-        {/* Gradient banner */}
-        <div className="h-16 w-full relative overflow-hidden">
-          <div className="absolute inset-0" style={{ backgroundColor: contact.avatarColor, opacity: 0.18 }} />
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.1), transparent)' }} />
-        </div>
+      <div className="flex-shrink-0">
+        {/* Colored banner — thin accent strip */}
+        <div className="h-2 w-full" style={{ backgroundColor: contact.avatarColor }} />
 
-        {/* Close button */}
-        <button onClick={onClose} className="absolute top-3 right-3 w-7 h-7 bg-white/80 backdrop-blur-sm rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-white transition-all shadow-sm">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        {/* Close button + profile content */}
+        <div className="px-4 pt-4 pb-3 relative">
+          <button onClick={onClose} className="absolute top-3 right-3 w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 transition-all">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
 
-        {/* Avatar overlapping banner */}
-        <div className="px-4 pb-4">
-          <div className="flex items-end gap-3 -mt-6">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-base font-black text-white flex-shrink-0 ring-4 ring-white shadow-md"
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-black text-white flex-shrink-0 shadow-sm"
               style={{ background: contact.avatarColor }}>
               {initials}
             </div>
-            <div className="min-w-0 pb-1">
+            <div className="min-w-0 flex-1 pr-8">
               <div className="flex items-center gap-1.5">
                 <h2 className="text-sm font-bold text-slate-900 truncate">{contact.firstName} {contact.lastName}</h2>
                 {contact.enriched && (
@@ -218,7 +214,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-slate-500 truncate">{contact.jobTitle}{contact.jobTitle && contact.company ? ' · ' : ''}{contact.company}</p>
+              <p className="text-[11px] text-slate-500 truncate mt-0.5">{contact.jobTitle}{contact.jobTitle && contact.company ? ' · ' : ''}{contact.company}</p>
             </div>
           </div>
 
@@ -338,7 +334,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
                     </div>
                     <div className="bg-slate-50 rounded-xl p-2.5">
                       <p className="text-[9px] text-slate-400 font-medium mb-1">First contact</p>
-                      <p className="text-xs font-bold text-slate-700">{contact.sentDate || '—'}</p>
+                      <p className="text-xs font-bold text-slate-700">{contact.sentDate || (contact.createdAt ? new Date(contact.createdAt).toLocaleDateString('en-US', {month:'short', day:'numeric'}) : '—')}</p>
                     </div>
                   </div>
                 </div>
