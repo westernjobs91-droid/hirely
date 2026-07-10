@@ -2,7 +2,7 @@
 // app/pricing/page.tsx
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
 const PLANS = [
@@ -61,7 +61,7 @@ export default function PricingPage() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState<string | null>(null);
   const router = useRouter();
-  const supabase = createClient();
+
 
   useEffect(() => {
     async function load() {
