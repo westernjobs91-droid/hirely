@@ -3,15 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2026-06-24.dahlia" as any,
-});
-
-const supabase = createSupabaseClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 const PRICE_IDS: Record<string, string> = {
   solo:   "price_1TrVW7JYp8fgJBx4sWJvf14I",
   pro:    "price_1TrVWtJYp8fgJBx4CqOBQ531",
@@ -19,6 +10,15 @@ const PRICE_IDS: Record<string, string> = {
 };
 
 export async function POST(req: NextRequest) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: "2026-06-24.dahlia" as any,
+  });
+
+  const supabase = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
   try {
     const { plan, userId, userEmail } = await req.json();
 
@@ -27,7 +27,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
 
-    // Check if customer already exists
     const { data: profile } = await supabase
       .from("profiles")
       .select("stripe_customer_id")
@@ -42,7 +41,6 @@ export async function POST(req: NextRequest) {
         metadata: { supabase_user_id: userId },
       });
       customerId = customer.id;
-
       await supabase
         .from("profiles")
         .upsert({ id: userId, stripe_customer_id: customerId });
@@ -56,9 +54,7 @@ export async function POST(req: NextRequest) {
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?upgraded=true`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
       metadata: { userId, plan },
-      subscription_data: {
-        metadata: { userId, plan },
-      },
+      subscription_data: { metadata: { userId, plan } },
     });
 
     return NextResponse.json({ url: session.url });

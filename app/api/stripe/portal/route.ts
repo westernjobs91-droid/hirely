@@ -3,19 +3,18 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2026-06-24.dahlia" as any,
-});
-
-const supabase = createSupabaseClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export async function POST(req: NextRequest) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: "2026-06-24.dahlia" as any,
+  });
+
+  const supabase = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
   try {
     const { userId } = await req.json();
-
     const { data: profile } = await supabase
       .from("profiles")
       .select("stripe_customer_id")
