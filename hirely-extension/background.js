@@ -116,7 +116,7 @@ async function saveContact(payload) {
     user_id: session.user.id,
     first_name: payload.firstName,
     last_name: payload.lastName,
-    email: null,
+    email: payload.email || null,
     phone: null,
     company: payload.company || null,
     job_title: payload.headline || null,
@@ -159,6 +159,66 @@ async function saveContact(payload) {
   return contact;
 }
 
+
+
+
+
+
+// ── PEOPLE DATA LABS + HUNTER (company enrichment) ───────────────────────
+async function pdlCompanyEnrich(companyName, linkedinSlug) {
+  let url = `https://api.peopledatalabs.com/v5/company/enrich?api_key=${HIRELY_CONFIG.PDL_API_KEY}`;
+  if (linkedinSlug) url += `&linkedin_url=${encodeURIComponent('https://www.linkedin.com/company/' + linkedinSlug)}`;
+  url += `&name=${encodeURIComponent(companyName)}`;
+
+  console.log('[Hirely BG] PDL fetch:', url);
+  try {
+    const res = await fetch(url, { method: 'GET' });
+    console.log('[Hirely BG] PDL status:', res.status);
+    if (!res.ok) { console.log('[Hirely BG] PDL not ok'); return null; }
+    const data = await res.json();
+    console.log('[Hirely BG] PDL data status:', data.status, 'name:', data.name);
+    if (data.status !== 200) return null;
+    return data;
+  } catch(e) {
+    console.log('[Hirely BG] PDL error:', e.message);
+    return null;
+  }
+}
+
+async function hunterDomainSearch(domain) {
+  if (!domain) return [];
+  const res = await fetch(
+    `https://api.hunter.io/v2/domain-search?domain=${encodeURIComponent(domain)}&limit=10&api_key=${HIRELY_CONFIG.HUNTER_API_KEY}`,
+    { method: 'GET' }
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.data && data.data.emails) ? data.data.emails : [];
+}
+
+async function enrichCompany(companyName, linkedinSlug) {
+  // 1. PDL → get company info + domain
+  const pdl = await pdlCompanyEnrich(companyName, linkedinSlug);
+  if (!pdl) return { info: null, people: [] };
+
+  const info = {
+    name: pdl.display_name || pdl.name || companyName,
+    website: pdl.website || '',
+    domain: pdl.website ? pdl.website.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0] : '',
+    industry: pdl.industry || '',
+    size: pdl.size || '',
+    employeeCount: pdl.employee_count || null,
+    founded: pdl.founded || null,
+    location: [pdl.location?.locality, pdl.location?.region, pdl.location?.country].filter(Boolean).join(', '),
+    summary: pdl.summary || '',
+    tags: pdl.tags || [],
+    linkedinUrl: pdl.linkedin_url || '',
+  };
+
+  // Hunter is called on-demand via HIRELY_HUNTER_SEARCH to save credits
+  return { info, people: [] };
+}
+
 // ── MESSAGE ROUTER ───────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   (async () => {
@@ -176,6 +236,16 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       } else if (msg.type === "HIRELY_SAVE_CONTACT") {
         const contact = await saveContact(msg.payload);
         sendResponse({ ok: true, contact });
+      } else if (msg.type === "HIRELY_CHECK_CONTACT") {
+        const contact = await checkContact(msg.url);
+        sendResponse({ ok: true, contact });
+      } else if (msg.type === "HIRELY_HUNTER_SEARCH") {
+        const people = await hunterDomainSearch(msg.domain);
+        sendResponse({ ok: true, people });
+      } else if (msg.type === "HIRELY_ENRICH_COMPANY") {
+        const { companyName, linkedinSlug } = msg;
+        const result = await enrichCompany(companyName, linkedinSlug);
+        sendResponse({ ok: true, info: result.info, people: result.people });
       } else {
         sendResponse({ ok: false, error: "Unknown message type" });
       }
@@ -195,3 +265,23 @@ chrome.runtime.onInstalled.addListener((details) => {
     chrome.tabs.create({ url: `${HIRELY_CONFIG.API_BASE}/login` });
   }
 });
+
+// ── CHECK CONTACT (for pipeline status in extension panel) ───────────────
+async function checkContact(url) {
+  let session = await getSession();
+  session = await refreshIfNeeded(session);
+  if (!session) return null;
+
+  const res = await fetch(
+    `${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?select=id,first_name,last_name,email,job_title,company,column_name,status_label&user_id=eq.${session.user.id}&linkedin_url=eq.${encodeURIComponent(url)}&limit=1`,
+    {
+      headers: {
+        apikey: HIRELY_CONFIG.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${session.access_token}`
+      }
+    }
+  );
+  if (!res.ok) return null;
+  const data = await res.json();
+  return Array.isArray(data) && data.length > 0 ? data[0] : null;
+}

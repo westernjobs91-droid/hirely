@@ -4,137 +4,216 @@
 
   const STYLES = `
     :host { all: initial; }
-    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
 
     .hirely-tab {
-      position: fixed;
-      top: 50%;
-      right: 0;
-      transform: translateY(-50%);
-      background: #2563EB;
-      color: #fff;
-      padding: 14px 10px;
-      border-radius: 10px 0 0 10px;
-      cursor: pointer;
-      z-index: 2147483000;
+      position: fixed; top: 50%; right: 0; transform: translateY(-50%);
+      background: #2563EB; color: #fff; padding: 10px 7px;
+      border-radius: 10px 0 0 10px; cursor: pointer; z-index: 2147483000;
       box-shadow: -2px 2px 10px rgba(0,0,0,0.18);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      transition: padding 0.15s ease, right 0.15s ease;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      transition: padding 0.15s ease;
     }
-    .hirely-tab:hover { padding-right: 14px; }
+    .hirely-tab:hover { padding-right: 10px; }
     .hirely-tab-logo {
-      width: 22px; height: 22px;
-      background: #fff;
-      color: #2563EB;
-      border-radius: 6px;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 800; font-size: 13px;
+      width: 20px; height: 20px; background: #fff; color: #2563EB;
+      border-radius: 5px; display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 11px;
     }
     .hirely-tab-label {
-      writing-mode: vertical-rl;
-      text-orientation: mixed;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.3px;
+      writing-mode: vertical-rl; text-orientation: mixed;
+      font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
     }
-
-    .hirely-overlay {
-      position: fixed; inset: 0;
-      background: rgba(15, 23, 42, 0.35);
-      z-index: 2147483001;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.18s ease;
-    }
-    .hirely-overlay.open { opacity: 1; pointer-events: auto; }
 
     .hirely-panel {
-      position: fixed;
-      top: 0; right: -380px;
-      width: 360px;
-      height: 100%;
-      background: #fff;
-      z-index: 2147483002;
-      box-shadow: -8px 0 30px rgba(0,0,0,0.2);
-      transition: right 0.22s ease;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
+      position: fixed; top: 0; right: -310px; width: 300px; height: 100%;
+      background: #fff; z-index: 2147483002;
+      box-shadow: -6px 0 24px rgba(0,0,0,0.15); transition: right 0.22s ease;
+      display: flex; flex-direction: column; overflow: hidden;
     }
     .hirely-panel.open { right: 0; }
 
     .hirely-header {
       background: linear-gradient(135deg, #2563EB, #1E3A5F);
-      color: #fff;
-      padding: 18px 20px;
+      color: #fff; padding: 10px 14px;
       display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
     }
-    .hirely-header-title {
-      display: flex; align-items: center; gap: 10px;
-      font-weight: 700; font-size: 15px;
-    }
+    .hirely-header-title { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 13px; }
     .hirely-header-logo {
-      width: 26px; height: 26px; background: #fff; color: #2563EB;
-      border-radius: 7px; display: flex; align-items: center; justify-content: center;
-      font-weight: 800; font-size: 14px;
+      width: 22px; height: 22px; background: #fff; color: #2563EB;
+      border-radius: 5px; display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 10px; letter-spacing: -0.5px;
     }
+    .hirely-open-app {
+      font-size: 10px; color: rgba(255,255,255,0.8); text-decoration: none;
+      font-weight: 500; white-space: nowrap;
+    }
+    .hirely-open-app:hover { color: #fff; }
     .hirely-close {
       cursor: pointer; background: rgba(255,255,255,0.15); border: none;
-      color: #fff; width: 26px; height: 26px; border-radius: 6px; font-size: 15px;
-      display: flex; align-items: center; justify-content: center;
+      color: #fff; width: 20px; height: 20px; border-radius: 4px; font-size: 11px;
+      display: flex; align-items: center; justify-content: center; padding: 0;
     }
     .hirely-close:hover { background: rgba(255,255,255,0.28); }
 
-    .hirely-body { padding: 20px; overflow-y: auto; flex: 1; }
+    .hirely-body { padding: 12px 14px; overflow-y: auto; flex: 1; }
+    .hirely-loading { color: #94A3B8; font-size: 12px; text-align: center; padding: 24px 0; }
 
-    .hirely-profile-row { display: flex; gap: 12px; align-items: center; margin-bottom: 18px; }
-    .hirely-avatar { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; background: #E5E7EB; flex-shrink: 0; }
-    .hirely-avatar-fallback {
-      width: 52px; height: 52px; border-radius: 50%; background: #2563EB; color: #fff;
-      display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; flex-shrink: 0;
+    .hirely-pipeline-badge {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 600; padding: 5px 9px;
+      border-radius: 20px; margin-bottom: 12px; width: fit-content;
     }
-    .hirely-profile-name { font-size: 15px; font-weight: 700; color: #0F172A; }
-    .hirely-profile-sub { font-size: 12.5px; color: #64748B; margin-top: 2px; }
+    .hirely-pipeline-badge.in-pipeline { background: #ECFDF5; color: #047857; }
+    .hirely-pipeline-badge.new-contact { background: #EFF6FF; color: #1D4ED8; }
+    .hirely-badge-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .in-pipeline .hirely-badge-dot { background: #047857; }
+    .new-contact .hirely-badge-dot { background: #2563EB; }
 
-    .hirely-field { margin-bottom: 14px; }
-    .hirely-field label { display: block; font-size: 11.5px; font-weight: 600; color: #475569; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.4px; }
+    .hirely-profile-card { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 12px; }
+    .hirely-avatar { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+    .hirely-avatar-fallback {
+      width: 38px; height: 38px; border-radius: 50%; background: #2563EB; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 13px; flex-shrink: 0;
+    }
+    .hirely-profile-info { min-width: 0; }
+    .hirely-profile-name { font-size: 13px; font-weight: 700; color: #0F172A; line-height: 1.3; }
+    .hirely-profile-sub { font-size: 11px; color: #475569; margin-top: 1px; line-height: 1.3; }
+    .hirely-profile-company { font-size: 11px; color: #64748B; margin-top: 1px; font-weight: 500; }
+
+    .hirely-pipeline-status {
+      display: flex; align-items: center;
+      background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px;
+      padding: 8px 12px; margin-bottom: 12px;
+    }
+    .hirely-status-item { flex: 1; text-align: center; }
+    .hirely-status-label { display: block; font-size: 10px; color: #94A3B8; font-weight: 500; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.4px; }
+    .hirely-status-val { display: block; font-size: 12px; font-weight: 700; color: #0F172A; }
+    .hirely-status-divider { width: 1px; background: #E2E8F0; height: 28px; margin: 0 8px; }
+
+    .hirely-email-row {
+      display: flex; align-items: center; gap: 6px;
+      background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 7px;
+      padding: 7px 10px; margin-bottom: 10px; font-size: 11.5px; color: #065F46;
+    }
+    .hirely-email-val { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hirely-copy-btn {
+      font-size: 10px; padding: 3px 7px; border: 1px solid #34D399; border-radius: 4px;
+      background: #fff; color: #047857; cursor: pointer; font-weight: 600; white-space: nowrap;
+    }
+    .hirely-copy-btn:hover { background: #ECFDF5; }
+    .hirely-email-missing {
+      font-size: 11px; color: #94A3B8; margin-bottom: 10px; padding: 7px 10px;
+      background: #F8FAFC; border-radius: 7px; border: 1px dashed #E2E8F0;
+    }
+    .hirely-email-hint { font-size: 10.5px; color: #94A3B8; margin-bottom: 10px; }
+
+    .hirely-fields-edit { margin-bottom: 10px; }
+    .hirely-field { margin-bottom: 8px; }
+    .hirely-field label { display: block; font-size: 10px; font-weight: 600; color: #64748B; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.4px; }
     .hirely-field input {
-      width: 100%; padding: 9px 11px; border: 1.5px solid #E2E8F0; border-radius: 8px;
-      font-size: 13.5px; color: #0F172A; outline: none;
+      width: 100%; padding: 6px 8px; border: 1.5px solid #E2E8F0; border-radius: 6px;
+      font-size: 12px; color: #0F172A; outline: none; background: #fff;
     }
     .hirely-field input:focus { border-color: #2563EB; }
-    .hirely-field input[readonly] { background: #F8FAFC; color: #64748B; }
-
-    .hirely-row-2 { display: flex; gap: 10px; }
+    .hirely-row-2 { display: flex; gap: 8px; }
     .hirely-row-2 .hirely-field { flex: 1; }
 
     .hirely-btn {
-      width: 100%; padding: 11px; border: none; border-radius: 9px;
-      background: #2563EB; color: #fff; font-weight: 700; font-size: 13.5px;
-      cursor: pointer; transition: background 0.15s ease;
+      width: 100%; padding: 9px; border: none; border-radius: 8px;
+      background: #2563EB; color: #fff; font-weight: 700; font-size: 12.5px;
+      cursor: pointer; transition: background 0.15s ease; display: block;
+      text-align: center; text-decoration: none; margin-bottom: 0;
     }
     .hirely-btn:hover { background: #1D4ED8; }
     .hirely-btn:disabled { background: #94A3B8; cursor: not-allowed; }
-    .hirely-btn-secondary {
-      width: 100%; padding: 11px; border: 1.5px solid #E2E8F0; border-radius: 9px;
-      background: #fff; color: #334155; font-weight: 600; font-size: 13.5px; cursor: pointer; margin-top: 8px;
+    .hirely-btn-outline {
+      width: 100%; padding: 8px; border: 1.5px solid #2563EB; border-radius: 8px;
+      background: #fff; color: #2563EB; font-weight: 700; font-size: 12px;
+      cursor: pointer; display: block; text-align: center; text-decoration: none;
+      transition: background 0.15s ease;
     }
-    .hirely-btn-secondary:hover { background: #F8FAFC; }
+    .hirely-btn-outline:hover { background: #EFF6FF; }
 
-    .hirely-status { font-size: 12.5px; margin-top: 10px; padding: 9px 11px; border-radius: 8px; display: none; }
+    .hirely-status { font-size: 11px; margin-top: 8px; padding: 6px 9px; border-radius: 6px; display: none; }
     .hirely-status.show { display: block; }
     .hirely-status.success { background: #ECFDF5; color: #047857; }
     .hirely-status.error { background: #FEF2F2; color: #B91C1C; }
     .hirely-status.info { background: #EFF6FF; color: #1D4ED8; }
 
-    .hirely-login-hint { font-size: 12.5px; color: #64748B; margin-bottom: 16px; line-height: 1.5; }
+    .hirely-login-hint { font-size: 11.5px; color: #64748B; margin-bottom: 14px; line-height: 1.5; }
     .hirely-link { color: #2563EB; text-decoration: none; font-weight: 600; }
 
-    .hirely-footer { padding: 12px 20px; border-top: 1px solid #F1F5F9; font-size: 11.5px; color: #94A3B8; text-align: center; }
-  `;
+    .hirely-footer {
+      padding: 8px 14px; border-top: 1px solid #F1F5F9;
+      font-size: 10.5px; color: #94A3B8; text-align: center; flex-shrink: 0;
+    }
+    .hirely-text-btn {
+      background: none; border: none; color: #94A3B8; font-size: 10.5px;
+      cursor: pointer; padding: 0; text-decoration: underline;
+    }
+    .hirely-text-btn:hover { color: #64748B; }
+
+    /* COMPANY PAGE */
+    .hirely-company-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .hirely-company-logo { width: 38px; height: 38px; border-radius: 7px; object-fit: cover; flex-shrink: 0; border: 1px solid #E2E8F0; background: #F1F5F9; }
+    .hirely-company-logo-fallback { width: 38px; height: 38px; border-radius: 7px; background: #1E3A5F; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; flex-shrink: 0; }
+    .hirely-company-name { font-size: 13px; font-weight: 700; color: #0F172A; line-height: 1.3; }
+    .hirely-company-meta { font-size: 11px; color: #64748B; margin-top: 2px; }
+    .hirely-section-label { font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; margin-top: 4px; }
+    .hirely-person-card { border: 1px solid #E2E8F0; border-radius: 8px; padding: 9px 10px; margin-bottom: 8px; background: #fff; }
+    .hirely-person-card:hover { border-color: #BFDBFE; background: #F8FAFC; }
+    .hirely-person-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+    .hirely-person-name { font-size: 12px; font-weight: 700; color: #0F172A; }
+    .hirely-person-title { font-size: 10.5px; color: #64748B; margin-top: 1px; }
+    .hirely-person-save {
+      font-size: 10px; padding: 4px 10px; border: 1.5px solid #2563EB; border-radius: 6px;
+      background: #fff; color: #2563EB; cursor: pointer; font-weight: 700;
+      white-space: nowrap; flex-shrink: 0; transition: all 0.15s;
+    }
+    .hirely-person-save:hover { background: #2563EB; color: #fff; }
+    .hirely-person-save.saved { border-color: #047857; color: #047857; background: #ECFDF5; cursor: default; }
+    .hirely-person-save:disabled { opacity: 0.6; cursor: not-allowed; }
+    .hirely-no-results { text-align: center; padding: 16px 0; color: #94A3B8; font-size: 12px; line-height: 1.6; }
+
+    /* HISTORY TAB */
+    .hirely-tabs {
+      display: flex; border-bottom: 1px solid #E2E8F0; margin-bottom: 12px;
+      flex-shrink: 0;
+    }
+    .hirely-tab-btn {
+      flex: 1; padding: 8px 4px; font-size: 11px; font-weight: 600;
+      color: #94A3B8; background: none; border: none; cursor: pointer;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+      transition: all 0.15s;
+    }
+    .hirely-tab-btn.active { color: #2563EB; border-bottom-color: #2563EB; }
+    .hirely-tab-btn:hover:not(.active) { color: #475569; }
+
+    .hirely-history-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 8px 0; border-bottom: 1px solid #F1F5F9; cursor: pointer;
+    }
+    .hirely-history-item:last-child { border-bottom: none; }
+    .hirely-history-item:hover { opacity: 0.8; }
+    .hirely-history-avatar {
+      width: 32px; height: 32px; border-radius: 50%; object-fit: cover;
+      flex-shrink: 0; background: #E5E7EB;
+    }
+    .hirely-history-avatar-fallback {
+      width: 32px; height: 32px; border-radius: 50%; background: #1E3A5F;
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 11px; flex-shrink: 0;
+    }
+    .hirely-history-info { flex: 1; min-width: 0; }
+    .hirely-history-name { font-size: 12px; font-weight: 700; color: #0F172A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hirely-history-sub { font-size: 10.5px; color: #64748B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+    .hirely-history-time { font-size: 10px; color: #94A3B8; flex-shrink: 0; }
+    .hirely-history-saved { font-size: 9.5px; color: #047857; background: #ECFDF5; padding: 1px 5px; border-radius: 3px; font-weight: 600; flex-shrink: 0; }
+    .hirely-history-empty { text-align: center; padding: 24px 0; color: #94A3B8; font-size: 12px; }
+  `
 
   // ── HOST + SHADOW ROOT ──────────────────────────────────────────────────
   const host = document.createElement("div");
@@ -467,154 +546,576 @@
     return { name, firstName, lastName, headline, company, photo, url };
   }
 
+
   // ── RENDER ────────────────────────────────────────────────────────────
-  function sendMsg(msg) {
-    return new Promise((resolve) => chrome.runtime.sendMessage(msg, resolve));
+  function sendMsg(msg, timeoutMs = 5000) {
+    return new Promise((resolve) => {
+      let done = false;
+      const timer = setTimeout(() => {
+        if (!done) { done = true; resolve({ ok: false, error: 'timeout' }); }
+      }, timeoutMs);
+      try {
+        chrome.runtime.sendMessage(msg, (res) => {
+          if (!done) {
+            done = true;
+            clearTimeout(timer);
+            resolve(res || { ok: false, error: 'no_response' });
+          }
+        });
+      } catch(e) {
+        if (!done) { done = true; clearTimeout(timer); resolve({ ok: false, error: e.message }); }
+      }
+    });
   }
+
 
   async function render() {
-    if (window.HIRELY_DEBUG !== false) {
-      console.log("[Hirely] scraped profile:", scrapeProfile());
-    }
-    const { session } = await sendMsg({ type: "HIRELY_GET_SESSION" });
-    if (!session) {
-      renderLogin();
-    } else {
-      renderProfile(session);
+    // Always paint a loading shell immediately so panel is never blank
+    panel.innerHTML =
+      '<div class="hirely-header">' +
+        '<div class="hirely-header-title"><div class="hirely-header-logo">H→</div><span>Hirely</span></div>' +
+        '<button class="hirely-close" id="hirely-close-btn-loading">✕</button>' +
+      '</div>' +
+      '<div class="hirely-body"><div class="hirely-loading">Loading…</div></div>';
+    panel.querySelector('#hirely-close-btn-loading').addEventListener('click', closeHirely);
+
+    try {
+      const result = await sendMsg({ type: "HIRELY_GET_SESSION" });
+      const session = result?.session || null;
+      if (!session) {
+        renderLogin();
+      } else if (/linkedin\.com\/company\/[^/?#]+/.test(window.location.href)) {
+        await renderCompany(session);
+      } else {
+        await renderProfile(session);
+      }
+    } catch(e) {
+      panel.innerHTML =
+        '<div class="hirely-header">' +
+          '<div class="hirely-header-title"><div class="hirely-header-logo">H→</div><span>Hirely</span></div>' +
+          '<button class="hirely-close" id="hirely-close-btn-err">✕</button>' +
+        '</div>' +
+        '<div class="hirely-body"><div class="hirely-status show error">Something went wrong. Reload the page.</div></div>';
+      panel.querySelector('#hirely-close-btn-err').addEventListener('click', closeHirely);
     }
   }
 
+  // ── LOGIN VIEW ────────────────────────────────────────────────────────
   function renderLogin() {
     panel.innerHTML = `
       <div class="hirely-header">
-        <div class="hirely-header-title"><div class="hirely-header-logo">H</div> Hirely</div>
+        <div class="hirely-header-title">
+          <div class="hirely-header-logo">H→</div>
+          <span>Hirely</span>
+        </div>
         <button class="hirely-close" id="hirely-close-btn">✕</button>
       </div>
       <div class="hirely-body">
-        <p class="hirely-login-hint">Log in with your Hirely account to save this contact directly to your pipeline.</p>
+        <p class="hirely-login-hint">Sign in to see pipeline status and save contacts directly from LinkedIn.</p>
         <div class="hirely-field"><label>Email</label><input type="email" id="hirely-email" placeholder="you@company.com" /></div>
         <div class="hirely-field"><label>Password</label><input type="password" id="hirely-password" placeholder="••••••••" /></div>
-        <button class="hirely-btn" id="hirely-login-btn">Log In</button>
+        <button class="hirely-btn" id="hirely-login-btn">Sign In</button>
         <div class="hirely-status" id="hirely-login-status"></div>
       </div>
-      <div class="hirely-footer">Don't have an account? <a class="hirely-link" href="${HIRELY_CONFIG.API_BASE}/signup" target="_blank">Sign up</a></div>
+      <div class="hirely-footer">No account? <a class="hirely-link" href="${HIRELY_CONFIG.API_BASE}/signup" target="_blank">Sign up free</a></div>
     `;
-    panel.querySelector("#hirely-close-btn").addEventListener("click", closePanel);
+    panel.querySelector("#hirely-close-btn").addEventListener("click", closeHirely);
     panel.querySelector("#hirely-login-btn").addEventListener("click", async () => {
       const email = panel.querySelector("#hirely-email").value.trim();
       const password = panel.querySelector("#hirely-password").value;
       const statusEl = panel.querySelector("#hirely-login-status");
       const btn = panel.querySelector("#hirely-login-btn");
-      if (!email || !password) {
-        showStatus(statusEl, "Enter your email and password.", "error");
-        return;
-      }
-      btn.disabled = true;
-      btn.textContent = "Logging in…";
+      if (!email || !password) { showStatus(statusEl, "Enter your email and password.", "error"); return; }
+      btn.disabled = true; btn.textContent = "Signing in…";
       const res = await sendMsg({ type: "HIRELY_LOGIN", email, password });
-      btn.disabled = false;
-      btn.textContent = "Log In";
-      if (res.ok) {
-        render();
-      } else {
-        showStatus(statusEl, res.error || "Login failed.", "error");
-      }
+      btn.disabled = false; btn.textContent = "Sign In";
+      if (res.ok) { render(); } else { showStatus(statusEl, res.error || "Login failed.", "error"); }
     });
   }
 
-  function renderProfile(session) {
+
+  function titleCase(str) {
+    if (!str) return '';
+    return str.replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  // ── RENDER SAVE TAB ──────────────────────────────────────────────────────
+  async function renderSaveTab(container, session, data, existing) {
+    const initials = ((data.firstName[0] || '') + (data.lastName[0] || '')).toUpperCase();
+    const avatarHtml = data.photo
+      ? '<img class="hirely-avatar" src="' + escapeAttr(data.photo) + '" />'
+      : '<div class="hirely-avatar-fallback">' + (initials || '?') + '</div>';
+
+    const COLUMN_LABELS = {
+      follow_up_today: 'Follow Up Today',
+      upcoming: 'Coming Up',
+      done: 'Done'
+    };
+
+    if (existing) {
+      const columnLabel = COLUMN_LABELS[existing.column_name] || existing.column_name || 'Pipeline';
+      const statusLabel = existing.status_label || 'Active';
+      const emailDisplay = existing.email
+        ? '<div class="hirely-email-row">✉ <span class="hirely-email-val">' + escapeHtml(existing.email) + '</span><button class="hirely-copy-btn" data-copy="' + escapeAttr(existing.email) + '">Copy</button></div>'
+        : '<div class="hirely-email-missing">✉ No email yet — find it in the dashboard</div>';
+
+      container.innerHTML =
+        '<div class="hirely-pipeline-badge in-pipeline"><span class="hirely-badge-dot"></span>Already in your pipeline</div>' +
+        '<div class="hirely-profile-card">' + avatarHtml +
+          '<div class="hirely-profile-info">' +
+            '<div class="hirely-profile-name">' + escapeHtml(data.name || existing.first_name + ' ' + existing.last_name) + '</div>' +
+            '<div class="hirely-profile-sub">' + escapeHtml(data.headline || existing.job_title || '') + '</div>' +
+            '<div class="hirely-profile-company">' + escapeHtml(data.company || existing.company || '') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="hirely-pipeline-status">' +
+          '<div class="hirely-status-item"><span class="hirely-status-label">Pipeline</span><span class="hirely-status-val">' + escapeHtml(columnLabel) + '</span></div>' +
+          '<div class="hirely-status-divider"></div>' +
+          '<div class="hirely-status-item"><span class="hirely-status-label">Status</span><span class="hirely-status-val">' + escapeHtml(statusLabel) + '</span></div>' +
+        '</div>' +
+        emailDisplay +
+        '<a class="hirely-btn hirely-btn-outline" href="' + HIRELY_CONFIG.API_BASE + '" target="_blank">View in Pipeline ↗</a>';
+
+      const copyBtn = container.querySelector('.hirely-copy-btn');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          navigator.clipboard.writeText(copyBtn.dataset.copy).then(() => {
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+          });
+        });
+      }
+    } else {
+      container.innerHTML =
+        '<div class="hirely-pipeline-badge new-contact"><span class="hirely-badge-dot"></span>Not in your pipeline</div>' +
+        '<div class="hirely-profile-card">' + avatarHtml +
+          '<div class="hirely-profile-info">' +
+            '<div class="hirely-profile-name">' + escapeHtml(data.name || 'Unknown') + '</div>' +
+            '<div class="hirely-profile-sub">' + escapeHtml(data.headline || '') + '</div>' +
+            '<div class="hirely-profile-company">' + escapeHtml(data.company || '') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="hirely-fields-edit">' +
+          '<div class="hirely-row-2">' +
+            '<div class="hirely-field"><label>First name</label><input id="hirely-first" value="' + escapeAttr(data.firstName) + '" /></div>' +
+            '<div class="hirely-field"><label>Last name</label><input id="hirely-last" value="' + escapeAttr(data.lastName) + '" /></div>' +
+          '</div>' +
+          '<div class="hirely-field"><label>Job title</label><input id="hirely-title" value="' + escapeAttr(data.headline) + '" /></div>' +
+          '<div class="hirely-field"><label>Company</label><input id="hirely-company" value="' + escapeAttr(data.company) + '" /></div>' +
+        '</div>' +
+        '<div class="hirely-email-hint">✉ Email found in dashboard after saving</div>' +
+        '<button class="hirely-btn" id="hirely-save-btn">Save to Pipeline</button>' +
+        '<div class="hirely-status" id="hirely-save-status"></div>';
+
+      container.querySelector('#hirely-save-btn').addEventListener('click', async () => {
+        const statusEl = container.querySelector('#hirely-save-status');
+        const btn = container.querySelector('#hirely-save-btn');
+        const payload = {
+          firstName: container.querySelector('#hirely-first').value.trim(),
+          lastName: container.querySelector('#hirely-last').value.trim(),
+          headline: container.querySelector('#hirely-title').value.trim(),
+          company: container.querySelector('#hirely-company').value.trim(),
+          url: data.url
+        };
+        if (!payload.firstName) { showStatus(statusEl, 'First name is required.', 'error'); return; }
+        btn.disabled = true; btn.textContent = 'Saving…';
+        const res = await sendMsg({ type: 'HIRELY_SAVE_CONTACT', payload });
+        btn.disabled = false;
+        if (res.ok) {
+          // Re-check and re-render save tab as in-pipeline
+          const checkRes = await sendMsg({ type: 'HIRELY_CHECK_CONTACT', url: data.url });
+          await renderSaveTab(container, session, data, checkRes.contact || null);
+        } else if (res.error === 'ALREADY_EXISTS') {
+          showStatus(statusEl, 'Already in your pipeline.', 'info');
+        } else if (res.error === 'NOT_LOGGED_IN') {
+          renderLogin();
+        } else {
+          btn.textContent = 'Save to Pipeline';
+          showStatus(statusEl, res.error || 'Something went wrong.', 'error');
+        }
+      });
+    }
+  }
+
+  // ── PROFILE VIEW ──────────────────────────────────────────────────────
+  async function renderProfile(session) {
+    panel.innerHTML =
+      '<div class="hirely-header">' +
+        '<div class="hirely-header-title"><div class="hirely-header-logo">H→</div><span>Hirely</span></div>' +
+        '<div style="display:flex;gap:8px;align-items:center;">' +
+          '<a class="hirely-open-app" href="' + HIRELY_CONFIG.API_BASE + '" target="_blank">Open app ↗</a>' +
+          '<button class="hirely-close" id="hirely-close-btn">✕</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="hirely-tabs">' +
+        '<button class="hirely-tab-btn active" id="hirely-tab-save">Save</button>' +
+        '<button class="hirely-tab-btn" id="hirely-tab-history">History</button>' +
+      '</div>' +
+      '<div class="hirely-body" id="hirely-tab-body"><div class="hirely-loading">Checking pipeline…</div></div>' +
+      '<div class="hirely-footer"><button class="hirely-text-btn" id="hirely-logout-btn-shell">Sign out</button></div>';
+
+    panel.querySelector('#hirely-close-btn').addEventListener('click', closeHirely);
+    panel.querySelector('#hirely-logout-btn-shell').addEventListener('click', async () => {
+      await sendMsg({ type: 'HIRELY_LOGOUT' }); render();
+    });
+
+    const tabBody = panel.querySelector('#hirely-tab-body');
+    const tabSave = panel.querySelector('#hirely-tab-save');
+    const tabHistory = panel.querySelector('#hirely-tab-history');
+
     const data = scrapeProfile();
-    const initials = ((data.firstName[0] || "") + (data.lastName[0] || "")).toUpperCase();
+    logProfileView(data);
 
-    panel.innerHTML = `
-      <div class="hirely-header">
-        <div class="hirely-header-title"><div class="hirely-header-logo">H</div> Save Contact</div>
-        <button class="hirely-close" id="hirely-close-btn">✕</button>
-      </div>
-      <div class="hirely-body">
-        <div class="hirely-profile-row">
-          ${data.photo
-            ? `<img class="hirely-avatar" src="${escapeAttr(data.photo)}" />`
-            : `<div class="hirely-avatar-fallback">${initials || "?"}</div>`
-          }
-          <div>
-            <div class="hirely-profile-name">${escapeHtml(data.name || "Unknown")}</div>
-            <div class="hirely-profile-sub">Signed in as ${escapeHtml(session.user.email)}</div>
-          </div>
-        </div>
+    // Check pipeline status
+    const checkRes = await sendMsg({ type: 'HIRELY_CHECK_CONTACT', url: data.url });
+    const existing = checkRes.contact || null;
 
-        <div class="hirely-row-2">
-          <div class="hirely-field"><label>First name</label><input id="hirely-first" value="${escapeAttr(data.firstName)}" /></div>
-          <div class="hirely-field"><label>Last name</label><input id="hirely-last" value="${escapeAttr(data.lastName)}" /></div>
-        </div>
-        <div class="hirely-field"><label>Job title</label><input id="hirely-title" value="${escapeAttr(data.headline)}" /></div>
-        <div class="hirely-field"><label>Company</label><input id="hirely-company" value="${escapeAttr(data.company)}" /></div>
-        <div class="hirely-field"><label>LinkedIn URL</label><input readonly value="${escapeAttr(data.url)}" /></div>
+    // Render save tab by default
+    await renderSaveTab(tabBody, session, data, existing);
 
-        <button class="hirely-btn" id="hirely-save-btn">Save to Hirely</button>
-        <button class="hirely-btn-secondary" id="hirely-logout-btn">Log out</button>
-        <div class="hirely-status" id="hirely-save-status"></div>
-      </div>
-      <div class="hirely-footer">Use "Find email" on the contact's card in Hirely to look up a verified email.</div>
-    `;
-
-    panel.querySelector("#hirely-close-btn").addEventListener("click", closePanel);
-    panel.querySelector("#hirely-logout-btn").addEventListener("click", async () => {
-      await sendMsg({ type: "HIRELY_LOGOUT" });
-      render();
+    // Wire tab switching
+    tabSave.addEventListener('click', () => {
+      tabSave.classList.add('active'); tabHistory.classList.remove('active');
+      renderSaveTab(tabBody, session, data, existing);
     });
-    panel.querySelector("#hirely-save-btn").addEventListener("click", async () => {
-      const statusEl = panel.querySelector("#hirely-save-status");
-      const btn = panel.querySelector("#hirely-save-btn");
-      const payload = {
-        firstName: panel.querySelector("#hirely-first").value.trim(),
-        lastName: panel.querySelector("#hirely-last").value.trim(),
-        headline: panel.querySelector("#hirely-title").value.trim(),
-        company: panel.querySelector("#hirely-company").value.trim(),
-        url: data.url
-      };
-      if (!payload.firstName) {
-        showStatus(statusEl, "First name is required.", "error");
-        return;
-      }
-      btn.disabled = true;
-      btn.textContent = "Saving…";
-      const res = await sendMsg({ type: "HIRELY_SAVE_CONTACT", payload });
-      btn.disabled = false;
-      btn.textContent = "Save to Hirely";
-
-      if (res.ok) {
-        showStatus(statusEl, "✓ Saved to Hirely.", "success");
-        btn.textContent = "Saved ✓";
-        btn.disabled = true;
-      } else if (res.error === "ALREADY_EXISTS") {
-        showStatus(statusEl, "This contact is already in Hirely.", "info");
-      } else if (res.error === "NOT_LOGGED_IN") {
-        renderLogin();
-      } else {
-        showStatus(statusEl, res.error || "Something went wrong. Try again.", "error");
-      }
+    tabHistory.addEventListener('click', () => {
+      tabHistory.classList.add('active'); tabSave.classList.remove('active');
+      renderHistoryTab(tabBody, session);
     });
   }
+
 
   function showStatus(el, msg, kind) {
     el.textContent = msg;
     el.className = `hirely-status show ${kind}`;
   }
-
   function escapeHtml(str) {
     return (str || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
-  function escapeAttr(str) {
-    return escapeHtml(str);
+  function escapeAttr(str) { return escapeHtml(str); }
+
+
+
+
+
+  // ── HISTORY TRACKING ─────────────────────────────────────────────────────
+  const HISTORY_KEY = 'hirely_history';
+  const HISTORY_MAX = 50;
+  const HISTORY_DAYS = 7;
+
+  async function logProfileView(data) {
+    if (!data.name || !data.url) return;
+    const stored = await chrome.storage.local.get(HISTORY_KEY);
+    let history = stored[HISTORY_KEY] || [];
+    // Remove existing entry for same URL
+    history = history.filter(h => h.url !== data.url);
+    // Add to front
+    history.unshift({
+      name: data.name,
+      headline: data.headline || '',
+      company: data.company || '',
+      photo: data.photo || '',
+      url: data.url,
+      viewedAt: Date.now()
+    });
+    // Keep max entries
+    history = history.slice(0, HISTORY_MAX);
+    await chrome.storage.local.set({ [HISTORY_KEY]: history });
   }
 
-  // Re-close panel if the user navigates to a different LinkedIn profile via SPA routing.
+  async function getHistory() {
+    const stored = await chrome.storage.local.get(HISTORY_KEY);
+    const history = stored[HISTORY_KEY] || [];
+    const cutoff = Date.now() - HISTORY_DAYS * 24 * 60 * 60 * 1000;
+    return history.filter(h => h.viewedAt > cutoff);
+  }
+
+  function timeAgo(ts) {
+    const diff = Date.now() - ts;
+    const mins = Math.floor(diff / 60000);
+    const hrs = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    if (hrs < 24) return hrs + 'h ago';
+    return days + 'd ago';
+  }
+
+  // ── RENDER HISTORY TAB ────────────────────────────────────────────────────
+  async function renderHistoryTab(container, session) {
+    container.innerHTML = '<div class="hirely-loading">Loading history…</div>';
+    const history = await getHistory();
+
+    // Check which ones are saved in pipeline
+    let savedUrls = new Set();
+    if (session) {
+      // We check locally — only mark as saved if we know from current session
+      // Full check would require too many API calls
+    }
+
+    if (history.length === 0) {
+      container.innerHTML = '<div class="hirely-history-empty">No profiles viewed in the last 7 days.<br/>Browse LinkedIn profiles to build your history.</div>';
+      return;
+    }
+
+    container.innerHTML = history.map((h, i) => {
+      const initials = h.name.split(' ').map(p => p[0] || '').join('').slice(0, 2).toUpperCase();
+      const avatarHtml = h.photo
+        ? '<img class="hirely-history-avatar" src="' + escapeAttr(h.photo) + '" />'
+        : '<div class="hirely-history-avatar-fallback">' + initials + '</div>';
+      return '<div class="hirely-history-item" data-url="' + escapeAttr(h.url) + '" data-index="' + i + '">' +
+        avatarHtml +
+        '<div class="hirely-history-info">' +
+          '<div class="hirely-history-name">' + escapeHtml(h.name) + '</div>' +
+          '<div class="hirely-history-sub">' + escapeHtml(h.company || h.headline || '') + '</div>' +
+        '</div>' +
+        '<span class="hirely-history-time">' + timeAgo(h.viewedAt) + '</span>' +
+      '</div>';
+    }).join('');
+
+    // Click to open profile in new tab
+    container.querySelectorAll('.hirely-history-item').forEach(item => {
+      item.addEventListener('click', () => {
+        window.open(item.dataset.url, '_blank');
+      });
+    });
+  }
+
+
+  // ── SCRAPE COMPANY PAGE ──────────────────────────────────────────────────
+  function scrapeCompany() {
+    const url = window.location.href;
+    const slugMatch = url.match(/linkedin\.com\/company\/([^/?#]+)/);
+    const slug = slugMatch ? slugMatch[1].replace(/-\d+$/, '') : '';
+    const name =
+      document.querySelector('h1')?.innerText?.trim() ||
+      getMeta('og:title')?.replace(/\s*\|\s*LinkedIn\s*$/i, '').trim() ||
+      slug;
+
+    // Get logo from actual DOM img element
+    const logo = (() => {
+      try {
+        const selectors = [
+          'img[class*="org-top-card-primary-content__logo"]',
+          'img[class*="company-logo"]',
+          'img[class*="EntityPhoto"]',
+          'img[class*="evi-image"]',
+          '.org-top-card-summary-info-list img',
+        ];
+        for (const sel of selectors) {
+          try {
+            const el = document.querySelector(sel);
+            if (el && el.src && !el.src.includes('ghost') && el.width > 30) return el.src;
+          } catch(e) {}
+        }
+        const imgs = document.querySelectorAll('main img, header img');
+        for (const img of imgs) {
+          if (img.src && img.naturalWidth > 40 && img.naturalWidth < 300 &&
+              Math.abs(img.naturalWidth - img.naturalHeight) < 20) {
+            return img.src;
+          }
+        }
+      } catch(e) {}
+      return '';
+    })();
+
+    const tagline = getMeta('og:description')?.split('.')[0]?.trim() || '';
+    return { name, slug, logo, tagline, url };
+  }
+
+  // ── RENDER COMPANY PAGE ──────────────────────────────────────────────────
+  async function renderCompany(session) {
+    const company = scrapeCompany();
+    const initial = (company.name || 'C')[0].toUpperCase();
+    const logoHtml = company.logo
+      ? '<img class="hirely-company-logo" src="' + escapeAttr(company.logo) + '" />'
+      : '<div class="hirely-company-logo-fallback">' + escapeHtml(initial) + '</div>';
+
+    function buildPanel(bodyHtml) {
+      panel.innerHTML =
+        '<div class="hirely-header">' +
+          '<div class="hirely-header-title">' +
+            '<div class="hirely-header-logo">H→</div>' +
+            '<span>Hirely</span>' +
+          '</div>' +
+          '<div style="display:flex;gap:8px;align-items:center;">' +
+            '<a class="hirely-open-app" href="' + HIRELY_CONFIG.API_BASE + '" target="_blank">Open app ↗</a>' +
+            '<button class="hirely-close" id="hirely-close-btn">✕</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="hirely-body">' + bodyHtml + '</div>' +
+        '<div class="hirely-footer"><button class="hirely-text-btn" id="hirely-logout-co">Sign out</button></div>';
+
+      panel.querySelector('#hirely-close-btn').addEventListener('click', closeHirely);
+      panel.querySelector('#hirely-logout-co').addEventListener('click', async () => {
+        await sendMsg({ type: 'HIRELY_LOGOUT' }); render();
+      });
+    }
+
+    // Loading state
+    buildPanel(
+      '<div class="hirely-company-header">' +
+        logoHtml +
+        '<div>' +
+          '<div class="hirely-company-name">' + escapeHtml(company.name) + '</div>' +
+          '<div class="hirely-company-meta">Loading…</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="hirely-loading">Fetching company details…</div>'
+    );
+
+    const res = await sendMsg({ type: 'HIRELY_ENRICH_COMPANY', companyName: company.name, linkedinSlug: company.slug });
+    const info = res.info || null;
+    const people = res.people || [];
+
+    function dmCardsHtml(ppl) {
+      if (!ppl.length) return '';
+      return '<div class="hirely-section-label">Decision Makers <span style="font-weight:400;color:#94A3B8;">(' + ppl.length + ' found)</span></div>' +
+        ppl.map((p, i) => {
+          const name = [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Unknown';
+          return '<div class="hirely-person-card">' +
+            '<div class="hirely-person-top">' +
+              '<div>' +
+                '<div class="hirely-person-name">' + escapeHtml(name) + '</div>' +
+                '<div class="hirely-person-title">' + escapeHtml(p.position || '') + '</div>' +
+              '</div>' +
+              '<button class="hirely-person-save" data-index="' + i + '">Save</button>' +
+            '</div>' +
+            '<div class="hirely-email-hint">✉ Find email in dashboard after saving</div>' +
+          '</div>';
+        }).join('');
+    }
+
+    function fullBodyHtml(ppl) {
+      const name = info?.name || company.name;
+      const rows = [
+        info?.location ? ['📍', titleCase(info.location)] : null,
+        info?.industry ? ['🏭', titleCase(info.industry)] : null,
+        info?.size     ? ['👥', info.size + ' employees'] : null,
+        (info?.revenue && typeof info.revenue === 'string') ? ['💰', info.revenue] : null,
+        info?.founded  ? ['📅', 'Founded ' + info.founded] : null,
+        info?.website  ? ['🌍', info.website] : null,
+      ].filter(Boolean);
+
+      return (
+        // Company header
+        '<div class="hirely-company-header">' +
+          logoHtml +
+          '<div>' +
+            '<div class="hirely-company-name">' + escapeHtml(name) + '</div>' +
+            (info?.industry ? '<div class="hirely-company-meta">' + escapeHtml(titleCase(info.industry)) + '</div>' : '') +
+          '</div>' +
+        '</div>' +
+
+        // Description
+        (info?.summary
+          ? '<div style="font-size:11px;color:#475569;line-height:1.55;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #F1F5F9;">' +
+              escapeHtml(info.summary.slice(0,1).toUpperCase() + info.summary.slice(1, 160)) + (info.summary.length > 160 ? '…' : '') +
+            '</div>'
+          : '') +
+
+        // Info rows card
+        (rows.length
+          ? '<div class="hirely-pipeline-status" style="flex-direction:column;align-items:flex-start;gap:6px;margin-bottom:12px;">' +
+              rows.map(([icon, val]) =>
+                '<div style="display:flex;align-items:center;gap:8px;width:100%;">' +
+                  '<span style="font-size:13px;width:18px;text-align:center;flex-shrink:0;">' + icon + '</span>' +
+                  '<span style="font-size:11.5px;color:#334155;font-weight:500;">' + escapeHtml(val) + '</span>' +
+                '</div>'
+              ).join('') +
+            '</div>'
+          : '') +
+
+        // Decision makers or find button
+        (ppl.length > 0
+          ? dmCardsHtml(ppl)
+          : '<button class="hirely-btn" id="hirely-find-dm">Find Decision Makers</button>' +
+            '<div style="font-size:10px;color:#94A3B8;text-align:center;margin-top:6px;">Save contacts → find emails on dashboard</div>'
+        )
+      );
+    }
+
+    buildPanel(fullBodyHtml(people));
+    wireSaveButtons(people);
+
+    const findBtn = panel.querySelector('#hirely-find-dm');
+    if (findBtn) {
+      findBtn.addEventListener('click', async () => {
+        findBtn.textContent = 'Searching…';
+        findBtn.disabled = true;
+        const dmRes = await sendMsg({ type: 'HIRELY_HUNTER_SEARCH', domain: info?.domain || '' });
+        const newPeople = dmRes.people || [];
+        buildPanel(fullBodyHtml(newPeople));
+        wireSaveButtons(newPeople);
+        if (!newPeople.length) {
+          const body = panel.querySelector('.hirely-body');
+          if (body) body.innerHTML += '<div class="hirely-no-results">No contacts found for this company.<br/><a class="hirely-link" href="' + escapeAttr(window.location.href.split('?')[0].replace(/\/$/, '') + '/people/') + '" target="_blank">Browse employees on LinkedIn ↗</a></div>';
+        }
+      });
+    }
+
+    function wireSaveButtons(ppl) {
+      panel.querySelectorAll('.hirely-person-save').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const i = parseInt(btn.dataset.index);
+          const p = ppl[i];
+          if (!p) return;
+          btn.textContent = 'Saving…'; btn.disabled = true;
+          const saveRes = await sendMsg({ type: 'HIRELY_SAVE_CONTACT', payload: {
+            firstName: p.first_name || '',
+            lastName: p.last_name || '',
+            headline: p.position || '',
+            company: info?.name || company.name,
+            email: null,
+            url: p.linkedin || ''
+          }});
+          if (saveRes.ok || saveRes.error === 'ALREADY_EXISTS') {
+            btn.textContent = saveRes.error === 'ALREADY_EXISTS' ? 'In Pipeline' : 'Saved ✓';
+            btn.classList.add('saved');
+          } else {
+            btn.textContent = 'Error'; btn.disabled = false;
+          }
+        });
+      });
+    }
+  }
+
+
+  // ── OPEN / CLOSE (with storage persistence) ──────────────────────────
+  const PROFILE_URL_RE = /linkedin\.com\/in\/[^/?#]+/;
+
+  function openHirely() {
+    panel.classList.add("open");
+    chrome.storage.local.set({ hirely_panel_open: true });
+    renderAndPatchClose();
+  }
+  function closeHirely() {
+    panel.classList.remove("open");
+    chrome.storage.local.set({ hirely_panel_open: false });
+  }
+  async function renderAndPatchClose() {
+    await render();
+    // close buttons are now wired inside renderLogin/renderProfile directly
+  }
+
+  tab.addEventListener("click", openHirely);
+
+  chrome.storage.local.get("hirely_panel_open", ({ hirely_panel_open }) => {
+    if (hirely_panel_open && (PROFILE_URL_RE.test(window.location.href) || /linkedin\.com\/company\/[^/?#]+/.test(window.location.href))) {
+      openHirely();
+    }
+  });
+
+  // ── SPA URL WATCHER ───────────────────────────────────────────────────
   let lastUrl = window.location.href;
   setInterval(() => {
-    if (window.location.href !== lastUrl) {
-      lastUrl = window.location.href;
-      closePanel();
+    const cur = window.location.href;
+    if (cur === lastUrl) return;
+    lastUrl = cur;
+    if (!PROFILE_URL_RE.test(cur) && !/linkedin\.com\/company\/[^/?#]+/.test(cur)) { closeHirely(); return; }
+    if (panel.classList.contains("open")) {
+      setTimeout(render, 900);
     }
-  }, 1000);
+  }, 600);
+
 })();

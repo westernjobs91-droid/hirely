@@ -9,7 +9,6 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
@@ -20,11 +19,16 @@
   "host_permissions": [
     "https://www.linkedin.com/*",
     "https://rjxlnutucxxefgqtohnc.supabase.co/*",
-    "https://app.hirelypro.com/*"
+    "https://app.hirelypro.com/*",
+    "https://api.hunter.io/*",
+    "https://api.peopledatalabs.com/*"
   ],
   "content_scripts": [
     {
-      "matches": ["https://www.linkedin.com/in/*"],
+      "matches": [
+        "https://www.linkedin.com/in/*",
+        "https://www.linkedin.com/company/*"
+      ],
       "js": ["config.js", "content.js"],
       "run_at": "document_idle"
     }
