@@ -12,6 +12,41 @@ interface ContactPanelProps {
 
 type Tab = 'info' | 'drafts' | 'activity' | 'notes'
 
+function InfoRow({ icon, label, value, href, isEmail }: {
+  icon: React.ReactNode
+  label: string
+  value: string
+  href?: string
+  isEmail?: boolean
+}) {
+  if (!value) return null
+  return (
+    <div className="flex items-start gap-3 py-2.5 border-b border-slate-50 last:border-0">
+      <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[9.5px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">{label}</p>
+        {href ? (
+          <a href={href} target="_blank" rel="noopener noreferrer"
+            className="text-[12px] text-blue-600 hover:underline truncate block font-medium">{value}</a>
+        ) : (
+          <p className={`text-[12px] font-medium truncate ${isEmail ? 'text-slate-900' : 'text-slate-700'}`}>{value}</p>
+        )}
+      </div>
+      {isEmail && (
+        <a href={`mailto:${value}`}
+          className="flex-shrink-0 w-7 h-7 rounded-lg bg-blue-50 hover:bg-blue-100 flex items-center justify-center transition-colors"
+          title="Send email">
+          <svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+          </svg>
+        </a>
+      )}
+    </div>
+  )
+}
+
 export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateContact }: ContactPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>('info')
   const [sentDrafts, setSentDrafts] = useState<Set<string>>(new Set())
@@ -24,6 +59,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
   const [saving, setSaving] = useState(false)
   const [generatingDrafts, setGeneratingDrafts] = useState(false)
   const [draftsError, setDraftsError] = useState<string | null>(null)
+  const [savingNote, setSavingNote] = useState(false)
 
   useEffect(() => {
     setFindEmailError(null)
@@ -32,28 +68,29 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
     setEditing(false)
     setSaving(false)
     setDraftsError(null)
+    setNotes(contact?.notes || '')
   }, [contact?.id])
 
   if (!contact) {
     return (
-      <div className="w-68 min-w-[272px] border-l border-slate-100 bg-white flex flex-col">
-        <div className="px-4 py-3 border-b border-slate-100">
-          <h2 className="text-sm font-semibold text-slate-900 tracking-tight">Contact details</h2>
-        </div>
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
-          <div className="w-14 h-14 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100">
-            <svg className="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1}>
+      <div className="w-80 min-w-[320px] border-l border-slate-100 bg-white flex flex-col">
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-3">
+          <div className="w-16 h-16 bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl flex items-center justify-center border border-slate-200">
+            <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed max-w-[160px]">Select a contact to view their profile and AI-written follow-up drafts</p>
+          <div>
+            <p className="text-sm font-semibold text-slate-600">No contact selected</p>
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed">Click any contact in your pipeline to view their details and AI follow-up drafts</p>
+          </div>
         </div>
       </div>
     )
   }
 
   const drafts = contact.aiDrafts || []
-  const initials = `${contact.firstName[0]}${contact.lastName[0]}`
+  const initials = `${contact.firstName?.[0] || ''}${contact.lastName?.[0] || ''}`.toUpperCase()
 
   const handleSend = (draft: AIDraft) => {
     const next = new Set(Array.from(sentDrafts))
@@ -61,35 +98,20 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
     setSentDrafts(next)
     onSendDraft(draft, contact)
     setTimeout(() => {
-      setSentDrafts(prev => {
-        const n = new Set(Array.from(prev))
-        n.delete(draft.id)
-        return n
-      })
+      setSentDrafts(prev => { const n = new Set(Array.from(prev)); n.delete(draft.id); return n })
     }, 3000)
   }
 
   const startEditing = () => {
-    setEditForm({
-      email: contact.email || '',
-      phone: contact.phone || '',
-      company: contact.company || '',
-      jobTitle: contact.jobTitle || '',
-      linkedinUrl: contact.linkedinUrl || ''
-    })
+    setEditForm({ email: contact.email || '', phone: contact.phone || '', company: contact.company || '', jobTitle: contact.jobTitle || '', linkedinUrl: contact.linkedinUrl || '' })
     setEditing(true)
   }
-
-  const cancelEditing = () => setEditing(false)
 
   const saveEditing = async () => {
     setSaving(true)
     const ok = await onUpdateContact(contact.id, {
-      email: editForm.email.trim(),
-      phone: editForm.phone.trim(),
-      company: editForm.company.trim(),
-      jobTitle: editForm.jobTitle.trim(),
-      linkedinUrl: editForm.linkedinUrl.trim()
+      email: editForm.email.trim(), phone: editForm.phone.trim(),
+      company: editForm.company.trim(), jobTitle: editForm.jobTitle.trim(), linkedinUrl: editForm.linkedinUrl.trim()
     })
     setSaving(false)
     if (ok) setEditing(false)
@@ -102,13 +124,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
       const res = await fetch('/api/generate-drafts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firstName: contact.firstName,
-          lastName: contact.lastName,
-          company: contact.company,
-          jobTitle: contact.jobTitle,
-          originalEmail: contact.originalEmail
-        })
+        body: JSON.stringify({ firstName: contact.firstName, lastName: contact.lastName, company: contact.company, jobTitle: contact.jobTitle, originalEmail: contact.originalEmail })
       })
       const data = await res.json()
       if (data.drafts) {
@@ -117,7 +133,6 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
         setDraftsError(data.error || 'Could not generate drafts. Try again.')
       }
     } catch (e) {
-      console.error('Generate drafts failed', e)
       setDraftsError('Something went wrong. Try again.')
     } finally {
       setGeneratingDrafts(false)
@@ -125,360 +140,344 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
   }
 
   const handleFindEmail = async () => {
-    if (!contact.firstName || !contact.company) {
-      setFindEmailError('Need a company name to search')
-      return
-    }
-    setFindingEmail(true)
-    setFindEmailError(null)
-    setFindEmailNote(null)
+    if (!contact.firstName || !contact.company) { setFindEmailError('Need a company name to search'); return }
+    setFindingEmail(true); setFindEmailError(null); setFindEmailNote(null)
     try {
       const res = await fetch('/api/enrich', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firstName: contact.firstName,
-          lastName: contact.lastName,
-          company: contact.company
-        })
+        body: JSON.stringify({ firstName: contact.firstName, lastName: contact.lastName, company: contact.company })
       })
       const data = await res.json()
-
       if (data.enriched && data.email) {
         const updates: Partial<Contact> = { email: data.email, enriched: true }
         if (data.phone) updates.phone = data.phone
         if (data.linkedinUrl && !contact.linkedinUrl) updates.linkedinUrl = data.linkedinUrl
         if (data.title && !contact.jobTitle) updates.jobTitle = data.title
-        // Apollo sometimes has to resolve the real registered entity behind
-        // a brand/product name LinkedIn shows (e.g. "Kruger Products" ->
-        // "Kruger Inc.") — carry that correction back into the contact.
-        if (data.resolvedCompany && data.resolvedCompany !== contact.company) {
-          updates.company = data.resolvedCompany
-        }
+        if (data.resolvedCompany && data.resolvedCompany !== contact.company) updates.company = data.resolvedCompany
         await onUpdateContact(contact.id, updates)
-        // A pattern-guessed email (built from the company's standard format
-        // and verified for deliverability, but not a specific indexed match
-        // for this person) is a good bet, not a certainty — flag it clearly
-        // rather than presenting it with the same confidence as a direct find.
         if (data.guessed) {
-          setFindEmailNote(
-            `Best guess based on ${contact.company}'s email format${
-              typeof data.confidence === 'number' ? ` (${data.confidence}% confidence)` : ''
-            } — worth confirming before sending.`
-          )
+          setFindEmailNote(`Best guess based on ${contact.company}'s email format — confirm before sending.`)
         }
       } else {
         setFindEmailError('No email found for this contact')
       }
     } catch (e) {
-      console.error('Find email failed', e)
       setFindEmailError('Something went wrong — try again')
     } finally {
       setFindingEmail(false)
     }
   }
 
+  const handleSaveNote = async () => {
+    setSavingNote(true)
+    await onUpdateContact(contact.id, { notes })
+    setSavingNote(false)
+  }
+
   const tabs: { id: Tab; label: string }[] = [
     { id: 'info', label: 'Info' },
-    { id: 'drafts', label: 'AI drafts' },
+    { id: 'drafts', label: 'AI Drafts' },
     { id: 'activity', label: 'Activity' },
     { id: 'notes', label: 'Notes' },
   ]
 
   return (
-    <div className="w-68 min-w-[272px] border-l border-slate-100 bg-white flex flex-col h-full overflow-hidden">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
-        <h2 className="text-sm font-semibold text-slate-900 truncate tracking-tight">{contact.firstName} {contact.lastName}</h2>
-        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+    <div className="w-80 min-w-[320px] border-l border-slate-100 bg-white flex flex-col h-full overflow-hidden">
+
+      {/* Profile header */}
+      <div className="relative flex-shrink-0">
+        {/* Gradient banner */}
+        <div className="h-16 w-full" style={{ background: `linear-gradient(135deg, ${contact.avatarColor}22, ${contact.avatarColor}44)` }} />
+
+        {/* Close button */}
+        <button onClick={onClose} className="absolute top-3 right-3 w-7 h-7 bg-white/80 backdrop-blur-sm rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-white transition-all shadow-sm">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
-      </div>
 
-      {/* Profile */}
-      <div className="px-4 pt-4 pb-3 border-b border-slate-100 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div
-            className="w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold text-white flex-shrink-0 tracking-wide"
-            style={{ background: contact.avatarColor }}
-          >
-            {initials}
+        {/* Avatar overlapping banner */}
+        <div className="px-4 pb-4">
+          <div className="flex items-end gap-3 -mt-6">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-base font-black text-white flex-shrink-0 ring-4 ring-white shadow-md"
+              style={{ background: contact.avatarColor }}>
+              {initials}
+            </div>
+            <div className="min-w-0 pb-1">
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-sm font-bold text-slate-900 truncate">{contact.firstName} {contact.lastName}</h2>
+                {contact.enriched && (
+                  <span title="Email verified" className="flex-shrink-0 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center">
+                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 truncate">{contact.jobTitle}{contact.jobTitle && contact.company ? ' · ' : ''}{contact.company}</p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-900 tracking-tight">{contact.firstName} {contact.lastName}</p>
-            <p className="text-[11px] text-slate-400 truncate">{contact.jobTitle} - {contact.company}</p>
-            {contact.enriched && (
-              <span className="inline-flex items-center gap-1 text-[9px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full mt-1 font-semibold">
-                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+
+          {/* Quick action row */}
+          <div className="flex gap-2 mt-3">
+            {contact.email ? (
+              <a href={`mailto:${contact.email}`}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[11px] font-semibold transition-colors shadow-sm">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
-                Contact data enriched automatically
-              </span>
+                Send email
+              </a>
+            ) : (
+              <button onClick={handleFindEmail} disabled={findingEmail}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white rounded-xl text-[11px] font-semibold transition-colors shadow-sm">
+                {findingEmail ? (
+                  <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                  </svg>
+                ) : (
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+                  </svg>
+                )}
+                {findingEmail ? 'Searching...' : 'Find email'}
+              </button>
             )}
+            <button onClick={() => setActiveTab('drafts')}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[11px] font-semibold transition-colors">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              AI drafts
+            </button>
           </div>
+
+          {findEmailError && <p className="text-[10px] text-red-600 bg-red-50 border border-red-100 rounded-lg px-2.5 py-1.5 mt-2">{findEmailError}</p>}
+          {findEmailNote && <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5 mt-2">{findEmailNote}</p>}
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="px-3 pt-2.5 flex-shrink-0">
-        <div className="flex bg-slate-100 rounded-lg p-0.5 gap-0.5">
+      <div className="px-4 border-b border-slate-100 flex-shrink-0">
+        <div className="flex">
           {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 py-1.5 text-[10.5px] rounded-md transition-all font-medium ${
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 py-2.5 text-[11px] font-semibold border-b-2 transition-all ${
                 activeTab === tab.id
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-slate-400 hover:text-slate-700'
+              }`}>
               {tab.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-3">
+      {/* Tab content */}
+      <div className="flex-1 overflow-y-auto">
 
+        {/* INFO TAB */}
         {activeTab === 'info' && (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Contact info</p>
-              {!editing && (
-                <button
-                  onClick={startEditing}
-                  className="text-[10px] text-blue-600 font-semibold hover:underline flex items-center gap-1"
-                >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  Edit
-                </button>
-              )}
-            </div>
+          <div className="p-4">
+            {!editing ? (
+              <>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Contact info</p>
+                  <button onClick={startEditing} className="text-[10px] text-blue-600 font-semibold hover:underline flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Edit
+                  </button>
+                </div>
 
-            {editing ? (
-              <div className="space-y-2 mb-4">
+                {!contact.email && !contact.phone && !contact.company && !contact.linkedinUrl ? (
+                  <div className="py-6 text-center">
+                    <p className="text-xs text-slate-400 mb-2">No contact info yet</p>
+                    <button onClick={startEditing} className="text-xs text-blue-600 font-semibold hover:underline">+ Add info</button>
+                  </div>
+                ) : (
+                  <div>
+                    <InfoRow
+                      icon={<svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}
+                      label="Email" value={contact.email} isEmail
+                    />
+                    <InfoRow
+                      icon={<svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>}
+                      label="Phone" value={contact.phone}
+                    />
+                    <InfoRow
+                      icon={<svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>}
+                      label="Company" value={contact.company}
+                    />
+                    <InfoRow
+                      icon={<svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}
+                      label="Job title" value={contact.jobTitle}
+                    />
+                    {contact.linkedinUrl && (
+                      <InfoRow
+                        icon={<svg className="w-3.5 h-3.5 text-[#0A66C2]" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>}
+                        label="LinkedIn" value="View profile" href={contact.linkedinUrl}
+                      />
+                    )}
+                  </div>
+                )}
+
+                {/* Status block */}
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3">Status</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-slate-50 rounded-xl p-2.5">
+                      <p className="text-[9px] text-slate-400 font-medium mb-1">Stage</p>
+                      <p className="text-xs font-bold text-slate-700">{contact.statusLabel || 'New'}</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-2.5">
+                      <p className="text-[9px] text-slate-400 font-medium mb-1">First contact</p>
+                      <p className="text-xs font-bold text-slate-700">{contact.sentDate || '—'}</p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Edit contact</p>
+                </div>
                 {[
-                  { key: 'company' as const, label: 'Company', placeholder: 'Company name' },
-                  { key: 'jobTitle' as const, label: 'Job title', placeholder: 'Job title' },
-                  { key: 'email' as const, label: 'Email', placeholder: 'name@company.com' },
-                  { key: 'phone' as const, label: 'Phone', placeholder: 'Phone number' },
-                  { key: 'linkedinUrl' as const, label: 'LinkedIn URL', placeholder: 'https://linkedin.com/in/...' },
+                  { key: 'email', label: 'Email', type: 'email', placeholder: 'name@company.com' },
+                  { key: 'phone', label: 'Phone', type: 'tel', placeholder: '+1 (416) 000-0000' },
+                  { key: 'company', label: 'Company', type: 'text', placeholder: 'Company name' },
+                  { key: 'jobTitle', label: 'Job title', type: 'text', placeholder: 'e.g. HR Manager' },
+                  { key: 'linkedinUrl', label: 'LinkedIn URL', type: 'url', placeholder: 'linkedin.com/in/...' },
                 ].map(field => (
-                  <div key={field.key}>
-                    <label className="block text-[9px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{field.label}</label>
+                  <div key={field.key} className="mb-3">
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-1 uppercase tracking-wide">{field.label}</label>
                     <input
-                      value={editForm[field.key]}
+                      type={field.type}
+                      value={editForm[field.key as keyof typeof editForm]}
                       onChange={e => setEditForm(prev => ({ ...prev, [field.key]: e.target.value }))}
                       placeholder={field.placeholder}
-                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-[11px] text-slate-900 bg-white focus:outline-none focus:border-blue-400 focus:shadow-[0_0_0_2px_rgba(37,99,235,.1)] transition-all"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-[12px] text-slate-800 placeholder:text-slate-300 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
                     />
                   </div>
                 ))}
-                <div className="flex gap-2 pt-1">
-                  <button
-                    onClick={cancelEditing}
-                    disabled={saving}
-                    className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-[11px] text-slate-600 hover:bg-slate-50 transition-colors font-medium disabled:opacity-60"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={saveEditing}
-                    disabled={saving}
-                    className="flex-1 px-2 py-1.5 text-white rounded-lg text-[11px] font-medium transition-all disabled:opacity-60"
-                    style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)' }}
-                  >
-                    {saving ? 'Saving...' : 'Save'}
+                <div className="flex gap-2 mt-4">
+                  <button onClick={() => setEditing(false)} className="flex-1 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
+                  <button onClick={saveEditing} disabled={saving} className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-60">
+                    {saving ? 'Saving...' : 'Save changes'}
                   </button>
                 </div>
               </div>
-            ) : (
-              <div className="space-y-2 mb-4">
-                {[
-                  { icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', value: contact.email },
-                  { icon: 'M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z', value: contact.phone },
-                  { icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', value: contact.company },
-                  { icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1', value: contact.linkedinUrl, isLink: true },
-                ].map((row, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <svg className="w-3.5 h-3.5 text-slate-300 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d={row.icon} />
-                    </svg>
-                    {row.value ? (
-                      row.isLink ? (
-                        <a href={row.value} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-600 truncate hover:underline">{row.value}</a>
-                      ) : (
-                        <span className="text-[11px] text-slate-600 truncate">{row.value}</span>
-                      )
-                    ) : (
-                      <span className="text-[11px] text-slate-300 italic">Not set</span>
-                    )}
-                  </div>
-                ))}
-              </div>
             )}
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Status</p>
-            <div className="flex items-center gap-2 text-[11px] text-slate-500 mb-4">
-              <svg className="w-3.5 h-3.5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
-              First email: {contact.sentDate}
-            </div>
-            {findEmailError && (
-              <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 mb-2">{findEmailError}</p>
-            )}
-            {findEmailNote && (
-              <p className="text-[10px] text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1.5 mb-2">{findEmailNote}</p>
-            )}
-            <div className="flex gap-2">
-              {contact.email ? (
-                <a
-                  href={`mailto:${contact.email}`}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50 transition-colors font-medium"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  Email
-                </a>
-              ) : (
-                <button
-                  onClick={handleFindEmail}
-                  disabled={findingEmail}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50 transition-colors font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {findingEmail ? (
-                    <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                    </svg>
-                  ) : (
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
-                    </svg>
-                  )}
-                  {findingEmail ? 'Searching...' : 'Find email'}
-                </button>
-              )}
-              <button
-                onClick={() => setActiveTab('drafts')}
-                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-white rounded-lg text-xs font-medium transition-all"
-                style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)', boxShadow: '0 2px 6px rgba(37,99,235,.25)' }}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-                AI drafts
-              </button>
-            </div>
           </div>
         )}
 
+        {/* DRAFTS TAB */}
         {activeTab === 'drafts' && (
-          <div className="space-y-3">
-            {draftsError && (
-              <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">{draftsError}</p>
-            )}
+          <div className="p-4 space-y-3">
+            {draftsError && <p className="text-[10px] text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{draftsError}</p>}
 
             {drafts.length === 0 && !generatingDrafts && (
-              <div className="text-center py-8">
-                <p className="text-xs text-slate-400 mb-3">No drafts generated yet.</p>
-                <button
-                  onClick={handleGenerateDrafts}
-                  className="px-4 py-2 text-white rounded-lg text-xs font-semibold transition-all"
-                  style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)', boxShadow: '0 2px 6px rgba(37,99,235,.25)' }}
-                >
+              <div className="text-center py-10">
+                <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-7 h-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+                <p className="text-sm font-semibold text-slate-700 mb-1">No drafts yet</p>
+                <p className="text-[11px] text-slate-400 mb-4">Generate 3 personalized follow-up emails for {contact.firstName}</p>
+                <button onClick={handleGenerateDrafts}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm">
                   Generate AI drafts
                 </button>
               </div>
             )}
 
             {generatingDrafts && (
-              <div className="text-center py-8">
-                <svg className="w-5 h-5 animate-spin text-blue-600 mx-auto mb-2" fill="none" viewBox="0 0 24 24">
+              <div className="text-center py-10">
+                <svg className="w-6 h-6 animate-spin text-blue-600 mx-auto mb-3" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                 </svg>
-                <p className="text-xs text-slate-400">Writing drafts based on {contact.firstName}&apos;s profile...</p>
+                <p className="text-xs text-slate-500 font-medium">Writing personalized drafts for {contact.firstName}...</p>
+                <p className="text-[10px] text-slate-400 mt-1">This takes a few seconds</p>
               </div>
             )}
 
-            {drafts.length > 0 && !generatingDrafts && drafts.map(draft => (
-              <div key={draft.id} className="bg-slate-50 border border-slate-200 rounded-xl p-3 hover:border-slate-300 transition-colors">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full tracking-wide">
-                    {draft.label}
-                  </span>
-                  <span className="text-[9px] text-slate-400 italic">AI generated</span>
+            {drafts.length > 0 && !generatingDrafts && drafts.map((draft, idx) => (
+              <div key={draft.id} className="border border-slate-200 rounded-xl overflow-hidden hover:border-slate-300 transition-colors">
+                <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-100">
+                  <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">{draft.label}</span>
+                  <span className="text-[9px] text-slate-400 font-medium">Draft {idx + 1} of {drafts.length}</span>
                 </div>
-                <p className="text-[11px] text-slate-600 leading-relaxed">{draft.body}</p>
-                <div className="flex gap-1.5 mt-2.5">
-                  <button
-                    onClick={() => navigator.clipboard?.writeText(draft.body)}
-                    className="px-2.5 py-1.5 text-[10px] border border-slate-200 rounded-lg text-slate-600 hover:bg-white transition-colors font-medium"
-                  >
-                    Copy
-                  </button>
-                  <button
-                    onClick={() => handleSend(draft)}
-                    className="px-2.5 py-1.5 text-[10px] rounded-lg font-medium transition-all text-white"
-                    style={{
-                      background: sentDrafts.has(draft.id)
-                        ? 'linear-gradient(135deg,#10B981,#059669)'
-                        : 'linear-gradient(135deg,#2563EB,#1D4ED8)',
-                      boxShadow: '0 1px 4px rgba(37,99,235,.2)'
-                    }}
-                  >
-                    {sentDrafts.has(draft.id) ? 'Sent!' : 'Send now'}
-                  </button>
+                <div className="p-3">
+                  <p className="text-[11.5px] text-slate-700 leading-relaxed">{draft.body}</p>
+                  <div className="flex gap-1.5 mt-3">
+                    <button onClick={() => navigator.clipboard?.writeText(draft.body)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors font-medium">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                      Copy
+                    </button>
+                    <button onClick={() => handleSend(draft)}
+                      className={`flex items-center gap-1 px-2.5 py-1.5 text-[10px] rounded-lg font-semibold transition-all text-white ${sentDrafts.has(draft.id) ? 'bg-emerald-500' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                      {sentDrafts.has(draft.id) ? '✓ Sent!' : 'Send now'}
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
 
             {drafts.length > 0 && !generatingDrafts && (
-              <button
-                onClick={handleGenerateDrafts}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-[11px] text-slate-600 hover:bg-slate-50 transition-colors font-medium"
-              >
-                Regenerate drafts
+              <button onClick={handleGenerateDrafts}
+                className="w-full py-2 border border-slate-200 rounded-xl text-[11px] text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors font-medium">
+                ↻ Regenerate drafts
               </button>
             )}
           </div>
         )}
 
+        {/* ACTIVITY TAB */}
         {activeTab === 'activity' && (
-          <div>
-            {contact.activity.map((item, i) => (
-              <div key={i} className="flex gap-2.5 py-2.5 border-b border-slate-50 last:border-0">
-                <div className="w-5 h-5 rounded-md bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <svg className="w-2.5 h-2.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <p className="text-[11px] text-slate-600 leading-relaxed">{item}</p>
+          <div className="p-4">
+            {contact.activity && contact.activity.length > 0 ? (
+              <div className="relative">
+                <div className="absolute left-[13px] top-0 bottom-0 w-px bg-slate-100" />
+                {contact.activity.map((item: string, i: number) => (
+                  <div key={i} className="flex gap-3 pb-4 last:pb-0 relative">
+                    <div className="w-7 h-7 rounded-full bg-blue-50 border-2 border-white shadow-sm flex items-center justify-center flex-shrink-0 z-10">
+                      <svg className="w-3 h-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl px-3 py-2.5 flex-1 min-w-0">
+                      <p className="text-[11.5px] text-slate-700 leading-relaxed">{item}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            ) : (
+              <div className="text-center py-10">
+                <p className="text-xs font-medium text-slate-500">No activity yet</p>
+                <p className="text-[10px] text-slate-400 mt-1">Activity will appear here as you interact with this contact</p>
+              </div>
+            )}
           </div>
         )}
 
+        {/* NOTES TAB */}
         {activeTab === 'notes' && (
-          <div>
+          <div className="p-4">
             <textarea
-              value={notes || contact.notes}
+              value={notes}
               onChange={e => setNotes(e.target.value)}
               placeholder={`Add notes about ${contact.firstName}...`}
-              className="w-full p-2.5 border border-slate-200 rounded-xl text-[11px] text-slate-700 bg-slate-50 resize-none min-h-[110px] focus:outline-none focus:border-blue-300 focus:bg-white focus:shadow-[0_0_0_3px_rgba(37,99,235,.08)] leading-relaxed font-sans transition-all"
+              className="w-full p-3 border border-slate-200 rounded-xl text-[12px] text-slate-700 bg-slate-50 resize-none min-h-[160px] focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 focus:bg-white leading-relaxed transition-all placeholder:text-slate-300"
             />
-            <button className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50 transition-colors font-medium">
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-              </svg>
-              Save note
+            <button onClick={handleSaveNote} disabled={savingNote}
+              className="mt-2 w-full flex items-center justify-center gap-1.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[11px] font-semibold transition-colors disabled:opacity-60">
+              {savingNote ? 'Saving...' : 'Save note'}
             </button>
           </div>
         )}

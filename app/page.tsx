@@ -15,8 +15,25 @@ import ImportModal from '@/components/ImportModal'
 import Toast from '@/components/Toast'
 import { Contact, NavItem, AIDraft } from '@/types'
 
-const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 const filters = ['All', 'This week', 'Overdue', 'Replied']
+
+function getGreeting(name: string) {
+  const hour = new Date().getHours()
+  const first = name.split(' ')[0]
+  if (hour < 12) return `Good morning, ${first}`
+  if (hour < 17) return `Good afternoon, ${first}`
+  return `Good evening, ${first}`
+}
+
+function getPipelineHealth(contacts: Contact[]) {
+  if (contacts.length === 0) return { score: 0, label: 'No contacts yet', color: 'text-slate-400' }
+  const overdue = contacts.filter(c => c.status === 'overdue').length
+  const replied = contacts.filter(c => c.status === 'replied' || c.status === 'meeting-set').length
+  const score = Math.max(0, Math.round(100 - (overdue / contacts.length) * 100 + (replied / contacts.length) * 20))
+  if (score >= 80) return { score, label: 'Healthy', color: 'text-emerald-600' }
+  if (score >= 50) return { score, label: 'Needs attention', color: 'text-amber-600' }
+  return { score, label: 'Action required', color: 'text-red-600' }
+}
 
 export default function Dashboard() {
   const router = useRouter()
@@ -110,7 +127,7 @@ export default function Dashboard() {
     }).select().single()
     if (error) { console.error(error); setToast('Error saving contact'); return }
     setContacts(prev => [{ ...contact, id: data.id }, ...prev])
-    setToast('Contact saved - Hunter.io enriching...')
+    setToast('Contact saved!')
   }, [user])
 
   const handleDelete = useCallback(async (id: string) => {
@@ -134,14 +151,8 @@ export default function Dashboard() {
     if (updates.jobTitle !== undefined) dbUpdates.job_title = updates.jobTitle
     if (updates.enriched !== undefined) dbUpdates.enriched = updates.enriched
     if (updates.aiDrafts !== undefined) dbUpdates.ai_drafts = updates.aiDrafts
-
     const { error } = await supabase.from('contacts').update(dbUpdates).eq('id', id)
-    if (error) {
-      console.error('Failed to update contact:', error)
-      setToast('Error updating contact')
-      return false
-    }
-
+    if (error) { console.error('Failed to update contact:', error); setToast('Error updating contact'); return false }
     setContacts(prev => prev.map(c => (c.id === id ? { ...c, ...updates } : c)))
     setSelected(prev => (prev && prev.id === id ? { ...prev, ...updates } : prev))
     return true
@@ -151,6 +162,9 @@ export default function Dashboard() {
   const upcomingCol = contacts.filter(c => c.column === 'upcoming')
   const doneCol = contacts.filter(c => c.column === 'done')
   const overdueCount = contacts.filter(c => c.status === 'overdue').length
+  const enrichedCount = contacts.filter(c => c.enriched).length
+  const repliedCount = contacts.filter(c => c.status === 'replied' || c.status === 'meeting-set').length
+  const health = getPipelineHealth(contacts)
 
   const matchesSearch = (c: Contact, query: string) => {
     if (!query.trim()) return true
@@ -169,19 +183,14 @@ export default function Dashboard() {
     .filter(c => c.status === 'overdue' || c.status === 'due-today')
     .filter(c => matchesSearch(c, searchQuery))
 
-  const statConfig = [
-    { label: 'Follow-ups due', val: overdueCount, accent: 'from-red-500 to-red-600', valColor: 'text-red-500', sub: `${overdueCount} overdue now`, subColor: 'text-red-400' },
-    { label: 'Total contacts', val: contacts.length, accent: 'from-blue-600 to-violet-600', valColor: 'text-slate-900', sub: 'All time', subColor: 'text-emerald-500' },
-    { label: 'Reply rate', val: '34%', accent: 'from-emerald-500 to-teal-600', valColor: 'text-emerald-500', sub: 'Above average', subColor: 'text-emerald-500' },
-    { label: 'Emails sent', val: 0, accent: 'from-amber-400 to-orange-500', valColor: 'text-slate-900', sub: 'This month', subColor: 'text-slate-400' },
-  ]
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#F8FAFC,#EFF6FF)' }}>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)' }}>
-            <svg viewBox="0 0 19 19" fill="none" className="w-6 h-6">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)' }}>
+            <svg viewBox="0 0 19 19" fill="none" className="w-7 h-7">
               <rect x="1" y="1" width="4.5" height="17" fill="white"/>
               <rect x="13.5" y="1" width="4.5" height="17" fill="white"/>
               <polygon points="5.5,7.5 13.5,7.5 13.5,11.5 5.5,11.5" fill="white"/>
@@ -207,11 +216,13 @@ export default function Dashboard() {
         searchQuery={searchQuery} onSearchChange={setSearchQuery} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-slate-100 flex-shrink-0">
+
+        {/* Top bar */}
+        <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-slate-100 flex-shrink-0">
           <div>
-            <h1 className="text-sm font-semibold text-slate-900 tracking-tight">
+            <h1 className="text-sm font-bold text-slate-900 tracking-tight">
               {activeNav === 'dashboard' && 'Dashboard'}
-              {activeNav === 'contacts' && 'Contacts'}
+              {activeNav === 'contacts' && 'All Contacts'}
               {activeNav === 'followups' && 'Follow-ups'}
               {activeNav === 'ai-drafts' && 'AI Drafts'}
               {activeNav === 'analytics' && 'Analytics'}
@@ -219,127 +230,235 @@ export default function Dashboard() {
               {activeNav === 'settings' && 'Integrations'}
             </h1>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              {activeNav === 'dashboard' && `${today} - ${overdueCount} follow-up${overdueCount !== 1 ? 's' : ''} overdue today`}
+              {activeNav === 'dashboard' && today}
               {activeNav === 'contacts' && `${allContactsFiltered.length} of ${contacts.length} contacts`}
-              {activeNav === 'followups' && `${followupsFiltered.length} needing follow-up`}
+              {activeNav === 'followups' && `${followupsFiltered.length} needing attention`}
             </p>
           </div>
-          {(activeNav === 'dashboard' || activeNav === 'contacts') && (
-            <div className="flex items-center gap-2">
-              <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50 transition-colors font-medium">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                Import
-              </button>
-              <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-white rounded-lg text-xs font-semibold transition-all" style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)', boxShadow: '0 2px 8px rgba(37,99,235,.25)' }}>
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                Add contact
-              </button>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {(activeNav === 'dashboard' || activeNav === 'contacts') && (
+              <>
+                <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50 transition-colors font-medium">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                  Import
+                </button>
+                <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 px-3.5 py-1.5 text-white rounded-lg text-xs font-semibold shadow-sm transition-all hover:shadow-md" style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)' }}>
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                  Add contact
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
+
+          {/* ── DASHBOARD VIEW ── */}
           {activeNav === 'dashboard' && (
-          <>
-          <div className="grid grid-cols-4 gap-3 px-5 py-3.5 bg-white border-b border-slate-100">
-            {statConfig.map((s, i) => (
-              <div key={i} className="bg-slate-50 rounded-xl p-3 relative overflow-hidden border border-slate-100">
-                <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${s.accent}`} />
-                <p className="text-[10px] text-slate-400 font-medium mb-1">{s.label}</p>
-                <p className={`text-2xl font-bold tracking-tight ${s.valColor}`}>{s.val}</p>
-                <p className={`text-[10px] mt-1 font-medium ${s.subColor}`}>{s.sub}</p>
-              </div>
-            ))}
-          </div>
+            <div className="p-6 space-y-5">
 
-          <div className="px-5 py-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-slate-900 tracking-tight">Recruiter pipeline</h2>
-              <div className="flex bg-slate-100 rounded-lg p-0.5 gap-0.5">
-                {filters.map(f => (
-                  <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1 text-[11px] rounded-md border-none font-medium transition-all ${filter === f ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700 bg-transparent'}`}>{f}</button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { title: 'Follow up today', dot: 'bg-red-500', glow: 'shadow-[0_0_0_3px_rgba(239,68,68,.15)]', contacts: todayCol },
-                { title: 'Coming up', dot: 'bg-amber-400', glow: 'shadow-[0_0_0_3px_rgba(245,158,11,.15)]', contacts: upcomingCol },
-                { title: 'Done', dot: 'bg-emerald-500', glow: 'shadow-[0_0_0_3px_rgba(16,185,129,.15)]', contacts: doneCol },
-              ].map((col) => (
-                <div key={col.title} className="bg-white border border-slate-100 rounded-xl overflow-hidden flex flex-col" style={{ boxShadow: '0 1px 4px rgba(0,0,0,.03)' }}>
-                  <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-50">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-1.5 h-1.5 rounded-full ${col.dot} ${col.glow}`} />
-                      <span className="text-xs font-semibold text-slate-900">{col.title}</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-full font-medium">{col.contacts.length}</span>
+              {/* Greeting + health strip */}
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-5 text-white relative overflow-hidden">
+                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 50%, white 0%, transparent 60%)' }} />
+                <div className="relative flex items-center justify-between">
+                  <div>
+                    <p className="text-blue-200 text-xs font-medium mb-1">{today}</p>
+                    <h2 className="text-xl font-bold tracking-tight">{getGreeting(user?.name || 'there')} 👋</h2>
+                    <p className="text-blue-100 text-sm mt-1">
+                      {overdueCount > 0
+                        ? `You have ${overdueCount} follow-up${overdueCount > 1 ? 's' : ''} overdue — let&apos;s clear them.`
+                        : contacts.length === 0
+                        ? 'Add your first contact to get started.'
+                        : 'All caught up! Keep building your pipeline.'}
+                    </p>
                   </div>
-                  <div className="p-2 flex flex-col gap-1.5 overflow-y-auto max-h-72">
-                    {col.contacts.length === 0 ? (
-                      <div className="py-8 text-center">
-                        <p className="text-xs text-slate-400">No contacts here yet</p>
-                        {col.title === 'Follow up today' && (
-                          <button onClick={() => setShowAdd(true)} className="mt-2 text-xs text-blue-600 font-medium hover:underline">+ Add first contact</button>
-                        )}
-                      </div>
-                    ) : (
-                      col.contacts.map(c => (
-                        <ContactCard
-                          key={c.id}
-                          contact={c}
-                          isSelected={selected?.id === c.id}
-                          onClick={() => setSelected(c)}
-                          onDelete={handleDelete}
-                        />
-                      ))
-                    )}
+                  <div className="text-right flex-shrink-0 ml-6">
+                    <div className="text-3xl font-black">{health.score}</div>
+                    <div className="text-blue-200 text-xs font-medium mt-0.5">Pipeline score</div>
+                    <div className={`text-xs font-semibold mt-1 px-2 py-0.5 rounded-full inline-block ${
+                      health.score >= 80 ? 'bg-emerald-500/20 text-emerald-200' :
+                      health.score >= 50 ? 'bg-amber-500/20 text-amber-200' :
+                      'bg-red-500/20 text-red-200'
+                    }`}>{health.label}</div>
                   </div>
                 </div>
-              ))}
+              </div>
+
+              {/* Stat cards */}
+              <div className="grid grid-cols-4 gap-4">
+                {[
+                  {
+                    label: 'Total contacts',
+                    value: contacts.length,
+                    sub: 'in pipeline',
+                    icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
+                    accent: '#2563EB',
+                    bg: 'bg-blue-50',
+                    iconColor: 'text-blue-600',
+                  },
+                  {
+                    label: 'Follow-ups due',
+                    value: overdueCount,
+                    sub: overdueCount > 0 ? 'action needed' : 'all clear',
+                    icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+                    accent: overdueCount > 0 ? '#EF4444' : '#10B981',
+                    bg: overdueCount > 0 ? 'bg-red-50' : 'bg-emerald-50',
+                    iconColor: overdueCount > 0 ? 'text-red-500' : 'text-emerald-500',
+                  },
+                  {
+                    label: 'Emails enriched',
+                    value: enrichedCount,
+                    sub: `${contacts.length > 0 ? Math.round((enrichedCount / contacts.length) * 100) : 0}% of contacts`,
+                    icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+                    accent: '#7C3AED',
+                    bg: 'bg-violet-50',
+                    iconColor: 'text-violet-600',
+                  },
+                  {
+                    label: 'Replies received',
+                    value: repliedCount,
+                    sub: contacts.length > 0 ? `${Math.round((repliedCount / contacts.length) * 100)}% reply rate` : 'reply rate',
+                    icon: 'M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6',
+                    accent: '#059669',
+                    bg: 'bg-emerald-50',
+                    iconColor: 'text-emerald-600',
+                  },
+                ].map((stat, i) => (
+                  <div key={i} className="bg-white border border-slate-100 rounded-2xl p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className={`w-9 h-9 rounded-xl ${stat.bg} flex items-center justify-center`}>
+                        <svg className={`w-4.5 h-4.5 ${stat.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d={stat.icon} />
+                        </svg>
+                      </div>
+                      <div className="w-1 h-8 rounded-full" style={{ background: stat.accent, opacity: 0.3 }} />
+                    </div>
+                    <div className="text-2xl font-black text-slate-900 tracking-tight">{stat.value}</div>
+                    <div className="text-[11px] font-semibold text-slate-500 mt-0.5">{stat.label}</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">{stat.sub}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Pipeline */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-sm font-bold text-slate-900">Recruiter Pipeline</h2>
+                    <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-medium">{contacts.length} contacts</span>
+                  </div>
+                  <div className="flex bg-slate-100 rounded-lg p-0.5 gap-0.5">
+                    {filters.map(f => (
+                      <button key={f} onClick={() => setFilter(f)}
+                        className={`px-2.5 py-1 text-[11px] rounded-md font-medium transition-all ${filter === f ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700 bg-transparent'}`}>
+                        {f}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  {[
+                    {
+                      title: 'Follow up today',
+                      count: todayCol.length,
+                      dot: 'bg-red-500',
+                      ring: 'ring-red-100',
+                      headerBg: 'bg-red-50',
+                      badge: 'bg-red-100 text-red-700',
+                      contacts: todayCol,
+                      empty: 'No urgent follow-ups',
+                      emptySub: 'You\'re on top of things!'
+                    },
+                    {
+                      title: 'Coming up',
+                      count: upcomingCol.length,
+                      dot: 'bg-amber-400',
+                      ring: 'ring-amber-100',
+                      headerBg: 'bg-amber-50',
+                      badge: 'bg-amber-100 text-amber-700',
+                      contacts: upcomingCol,
+                      empty: 'Pipeline is empty',
+                      emptySub: 'Add contacts to get started'
+                    },
+                    {
+                      title: 'Done',
+                      count: doneCol.length,
+                      dot: 'bg-emerald-500',
+                      ring: 'ring-emerald-100',
+                      headerBg: 'bg-emerald-50',
+                      badge: 'bg-emerald-100 text-emerald-700',
+                      contacts: doneCol,
+                      empty: 'Nothing completed yet',
+                      emptySub: 'Closed contacts appear here'
+                    },
+                  ].map((col) => (
+                    <div key={col.title} className="bg-white border border-slate-100 rounded-2xl overflow-hidden flex flex-col shadow-sm">
+                      {/* Column header */}
+                      <div className={`flex items-center justify-between px-4 py-3 ${col.headerBg} border-b border-slate-100`}>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${col.dot}`} />
+                          <span className="text-xs font-bold text-slate-700">{col.title}</span>
+                        </div>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${col.badge}`}>{col.count}</span>
+                      </div>
+
+                      {/* Cards */}
+                      <div className="p-3 flex flex-col gap-2 overflow-y-auto" style={{ minHeight: 280, maxHeight: 400 }}>
+                        {col.contacts.length === 0 ? (
+                          <div className="flex-1 flex flex-col items-center justify-center text-center py-10">
+                            <div className={`w-10 h-10 rounded-full ${col.headerBg} flex items-center justify-center mb-3`}>
+                              <div className={`w-3 h-3 rounded-full ${col.dot} opacity-50`} />
+                            </div>
+                            <p className="text-xs font-medium text-slate-500">{col.empty}</p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">{col.emptySub}</p>
+                            {col.title === 'Coming up' && (
+                              <button onClick={() => setShowAdd(true)} className="mt-3 text-[11px] text-blue-600 font-semibold hover:underline">+ Add contact</button>
+                            )}
+                          </div>
+                        ) : (
+                          col.contacts.map(c => (
+                            <ContactCard key={c.id} contact={c} isSelected={selected?.id === c.id}
+                              onClick={() => setSelected(c)} onDelete={handleDelete} />
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
             </div>
-          </div>
-          </>
           )}
 
           {activeNav === 'contacts' && (
-            <div className="px-5 py-4">
-              <ContactListView
-                contacts={allContactsFiltered}
-                selectedId={selected?.id}
-                onSelect={setSelected}
-                onDelete={handleDelete}
-                emptyMessage={searchQuery ? 'No contacts match your search.' : 'No contacts yet — add one to get started.'}
-              />
+            <div className="px-6 py-4">
+              <ContactListView contacts={allContactsFiltered} selectedId={selected?.id} onSelect={setSelected}
+                onDelete={handleDelete} emptyMessage={searchQuery ? 'No contacts match your search.' : 'No contacts yet — add one to get started.'} />
             </div>
           )}
 
           {activeNav === 'followups' && (
-            <div className="px-5 py-4">
-              <ContactListView
-                contacts={followupsFiltered}
-                selectedId={selected?.id}
-                onSelect={setSelected}
-                onDelete={handleDelete}
-                emptyMessage="Nothing due — you're all caught up."
-              />
+            <div className="px-6 py-4">
+              <ContactListView contacts={followupsFiltered} selectedId={selected?.id} onSelect={setSelected}
+                onDelete={handleDelete} emptyMessage="Nothing due — you're all caught up! 🎉" />
             </div>
           )}
 
           {activeNav === 'analytics' && <AnalyticsView contacts={contacts} />}
-
-          {activeNav === 'enrichment' && (
-            <EnrichmentView contacts={contacts} onSelect={setSelected} onUpdateContact={handleUpdateContact} />
-          )}
-
+          {activeNav === 'enrichment' && <EnrichmentView contacts={contacts} onSelect={setSelected} onUpdateContact={handleUpdateContact} />}
           {activeNav === 'settings' && <IntegrationsView />}
 
           {activeNav === 'ai-drafts' && (
             <div className="flex items-center justify-center py-24">
               <div className="text-center max-w-sm">
-                <p className="text-sm font-medium text-slate-600 mb-1">A dedicated AI Drafts view is coming soon.</p>
-                <p className="text-xs text-slate-400">For now, generate and manage drafts from each contact&apos;s own panel.</p>
+                <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+                <p className="text-sm font-semibold text-slate-700 mb-1">AI drafts live inside each contact</p>
+                <p className="text-xs text-slate-400">Click any contact in your pipeline, then open the AI drafts tab to generate personalized follow-ups.</p>
               </div>
             </div>
           )}
