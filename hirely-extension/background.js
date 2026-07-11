@@ -164,59 +164,47 @@ async function saveContact(payload) {
 
 
 
-// ── PEOPLE DATA LABS + HUNTER (company enrichment) ───────────────────────
-async function pdlCompanyEnrich(companyName, linkedinSlug) {
-  let url = `https://api.peopledatalabs.com/v5/company/enrich?api_key=${HIRELY_CONFIG.PDL_API_KEY}`;
-  if (linkedinSlug) url += `&linkedin_url=${encodeURIComponent('https://www.linkedin.com/company/' + linkedinSlug)}`;
-  url += `&name=${encodeURIComponent(companyName)}`;
-
-  console.log('[Hirely BG] PDL fetch:', url);
+// ── COMPANY ENRICHMENT + HUNTER (proxied through backend - keys never in extension) ──
+async function enrichCompany(companyName, linkedinSlug) {
+  const session = await getSession();
+  if (!session) return { info: null, people: [] };
   try {
-    const res = await fetch(url, { method: 'GET' });
-    console.log('[Hirely BG] PDL status:', res.status);
-    if (!res.ok) { console.log('[Hirely BG] PDL not ok'); return null; }
-    const data = await res.json();
-    console.log('[Hirely BG] PDL data status:', data.status, 'name:', data.name);
-    if (data.status !== 200) return null;
-    return data;
+    const res = await fetch(`${HIRELY_CONFIG.API_BASE}/api/extension/enrich-company`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({ companyName, linkedinSlug })
+    });
+    if (!res.ok) return { info: null, people: [] };
+    return await res.json();
   } catch(e) {
-    console.log('[Hirely BG] PDL error:', e.message);
-    return null;
+    console.log('[Hirely BG] enrich-company error:', e.message);
+    return { info: null, people: [] };
   }
 }
 
 async function hunterDomainSearch(domain) {
   if (!domain) return [];
-  const res = await fetch(
-    `https://api.hunter.io/v2/domain-search?domain=${encodeURIComponent(domain)}&limit=10&api_key=${HIRELY_CONFIG.HUNTER_API_KEY}`,
-    { method: 'GET' }
-  );
-  if (!res.ok) return [];
-  const data = await res.json();
-  return (data.data && data.data.emails) ? data.data.emails : [];
-}
-
-async function enrichCompany(companyName, linkedinSlug) {
-  // 1. PDL → get company info + domain
-  const pdl = await pdlCompanyEnrich(companyName, linkedinSlug);
-  if (!pdl) return { info: null, people: [] };
-
-  const info = {
-    name: pdl.display_name || pdl.name || companyName,
-    website: pdl.website || '',
-    domain: pdl.website ? pdl.website.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0] : '',
-    industry: pdl.industry || '',
-    size: pdl.size || '',
-    employeeCount: pdl.employee_count || null,
-    founded: pdl.founded || null,
-    location: [pdl.location?.locality, pdl.location?.region, pdl.location?.country].filter(Boolean).join(', '),
-    summary: pdl.summary || '',
-    tags: pdl.tags || [],
-    linkedinUrl: pdl.linkedin_url || '',
-  };
-
-  // Hunter is called on-demand via HIRELY_HUNTER_SEARCH to save credits
-  return { info, people: [] };
+  const session = await getSession();
+  if (!session) return [];
+  try {
+    const res = await fetch(`${HIRELY_CONFIG.API_BASE}/api/extension/hunter-search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({ domain })
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.people || [];
+  } catch(e) {
+    console.log('[Hirely BG] hunter-search error:', e.message);
+    return [];
+  }
 }
 
 // ── MESSAGE ROUTER ───────────────────────────────────────────────────────
