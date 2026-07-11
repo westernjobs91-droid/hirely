@@ -23,14 +23,6 @@ export default function EnrichmentView({ contacts, onSelect, onUpdateContact }: 
   const [rowState, setRowState] = useState<Record<string, RowState>>({})
   const [bulkRunning, setBulkRunning] = useState(false)
   const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 })
-  const [userId, setUserId] = useState<string | null>(null)
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUserId(user.id)
-    })
-  }, [])
-
   const findEmailFor = async (contact: Contact) => {
     if (!contact.company) {
       setRowState(prev => ({ ...prev, [contact.id]: { loading: false, error: 'Need a company name', note: null, done: false } }))
@@ -38,14 +30,15 @@ export default function EnrichmentView({ contacts, onSelect, onUpdateContact }: 
     }
     setRowState(prev => ({ ...prev, [contact.id]: { loading: true, error: null, note: null, done: false } }))
     try {
+      const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch('/api/enrich', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firstName: contact.firstName, lastName: contact.lastName, company: contact.company, userId })
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ firstName: contact.firstName, lastName: contact.lastName, company: contact.company })
       })
       const data = await res.json()
       if (res.status === 402) {
-        setRowState(prev => ({ ...prev, [contact.id]: { loading: false, error: 'Monthly limit reached — upgrade for more enrichments', note: null, done: false } }))
+        setRowState(prev => ({ ...prev, [contact.id]: { loading: false, error: 'Monthly limit reached - upgrade for more enrichments', note: null, done: false } }))
         return false
       }
       if (data.enriched && data.email) {
@@ -55,7 +48,7 @@ export default function EnrichmentView({ contacts, onSelect, onUpdateContact }: 
         if (data.title && !contact.jobTitle) updates.jobTitle = data.title
         if (data.resolvedCompany && data.resolvedCompany !== contact.company) updates.company = data.resolvedCompany
         await onUpdateContact(contact.id, updates)
-        const note = data.guessed ? `Best guess (${data.confidence || '?'}%) — confirm before sending` : null
+        const note = data.guessed ? `Best guess (${data.confidence || '?'}%) - confirm before sending` : null
         setRowState(prev => ({ ...prev, [contact.id]: { loading: false, error: null, note, done: true } }))
         return true
       } else {
@@ -222,7 +215,7 @@ export default function EnrichmentView({ contacts, onSelect, onUpdateContact }: 
                     <p className="text-[12.5px] font-semibold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
                       {contact.firstName} {contact.lastName}
                     </p>
-                    <p className="text-[10.5px] text-slate-400 truncate">{contact.jobTitle || '—'}</p>
+                    <p className="text-[10.5px] text-slate-400 truncate">{contact.jobTitle || '-'}</p>
                   </div>
                 </div>
 
@@ -285,7 +278,7 @@ export default function EnrichmentView({ contacts, onSelect, onUpdateContact }: 
         {/* Footer note */}
         <div className="px-5 py-3 border-t border-slate-50 bg-slate-50">
           <p className="text-[10px] text-slate-400">
-            Uses Apollo + Hunter credits — 1 lookup per contact. Runs sequentially to respect rate limits.
+            Uses Apollo + Hunter credits - 1 lookup per contact. Runs sequentially to respect rate limits.
           </p>
         </div>
       </div>

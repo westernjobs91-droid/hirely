@@ -1,7 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+
+// ── Auth helper ───────────────────────────────────────────────────────────
+async function getAuthenticatedUser(req: NextRequest) {
+  const authHeader = req.headers.get('authorization')
+  const token = authHeader?.replace('Bearer ', '')
+  if (!token) return null
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+  const { data: { user }, error } = await supabase.auth.getUser(token)
+  if (error || !user) return null
+  return user
+}
 
 export async function POST(req: NextRequest) {
   try {
+    // ── Auth check ────────────────────────────────────────────────────────
+    const user = await getAuthenticatedUser(req)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { firstName, lastName, company, jobTitle, originalEmail } = await req.json()
 
     if (!firstName) {
@@ -26,7 +47,7 @@ export async function POST(req: NextRequest) {
     const systemPrompt = `You are a staffing/recruiting assistant helping a recruiter at Western Jobs (a staffing agency in the GTA and Southwestern Ontario) write short, natural follow-up emails to a business contact.
 
 Write exactly 3 follow-up email drafts for a sequence: a 2-week follow-up, a 1-month follow-up, and a final short attempt. Each should:
-- Be brief (3-5 sentences), warm, and professional — not pushy or salesy
+- Be brief (3-5 sentences), warm, and professional - not pushy or salesy
 - Reference the contact's name and company naturally where it fits, without forcing it into every sentence
 - Build on any prior email content given, rather than repeating it
 - Get progressively shorter and lower-pressure across the 3 drafts, ending with an easy no-commitment close on the final one
@@ -47,7 +68,7 @@ Respond with ONLY a JSON array of exactly 3 objects, no markdown fences, no prea
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-5',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1200,
         system: systemPrompt,
         messages: [

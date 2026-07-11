@@ -83,14 +83,11 @@ export default function PricingPage() {
     if (!user) return;
     setLoading(planId);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plan: planId,
-          userId: user.id,
-          userEmail: user.email,
-        }),
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ plan: planId }),
       });
       const { url, error } = await res.json();
       if (error) throw new Error(error);
@@ -105,10 +102,11 @@ export default function PricingPage() {
     if (!user) return;
     setLoading("portal");
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch("/api/stripe/portal", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id }),
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+        body: JSON.stringify({}),
       });
       const { url, error } = await res.json();
       if (error) throw new Error(error);
@@ -195,7 +193,7 @@ export default function PricingPage() {
                     disabled={loading === "portal"}
                     className="w-full py-3 rounded-xl border-2 border-green-500 text-green-600 font-semibold text-sm hover:bg-green-50 transition"
                   >
-                    {loading === "portal" ? "Loading..." : "Current Plan — Manage"}
+                    {loading === "portal" ? "Loading..." : "Current Plan - Manage"}
                   </button>
                 ) : (
                   <button

@@ -121,9 +121,11 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
     setGeneratingDrafts(true)
     setDraftsError(null)
     try {
+      const { supabase: sb } = await import('@/lib/supabase')
+      const { data: { session } } = await sb.auth.getSession()
       const res = await fetch('/api/generate-drafts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
         body: JSON.stringify({ firstName: contact.firstName, lastName: contact.lastName, company: contact.company, jobTitle: contact.jobTitle, originalEmail: contact.originalEmail })
       })
       const data = await res.json()
@@ -144,11 +146,11 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
     setFindingEmail(true); setFindEmailError(null); setFindEmailNote(null)
     try {
       const { supabase: sb } = await import('@/lib/supabase')
-      const { data: { user } } = await sb.auth.getUser()
+      const { data: { session } } = await sb.auth.getSession()
       const res = await fetch('/api/enrich', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firstName: contact.firstName, lastName: contact.lastName, company: contact.company, userId: user?.id })
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ firstName: contact.firstName, lastName: contact.lastName, company: contact.company })
       })
       const data = await res.json()
       if (res.status === 402) {

@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+// ── Auth helper ───────────────────────────────────────────────────────────
+async function getAuthenticatedUser(req: NextRequest) {
+  const authHeader = req.headers.get('authorization')
+  const token = authHeader?.replace('Bearer ', '')
+  if (!token) return null
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+  const { data: { user }, error } = await supabase.auth.getUser(token)
+  if (error || !user) return null
+  return user
+}
+
 // ── Credit check via Supabase RPC ─────────────────────────────────────────
 async function checkAndUseCredit(userId: string): Promise<{
   allowed: boolean
@@ -114,26 +128,30 @@ async function hunterVerifyEmail(hunterKey: string, email: string) {
 // ── Main handler ──────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
-    const { firstName, lastName, company, userId } = await req.json()
+    // ── Auth check — must be a logged-in user ─────────────────────────────
+    const user = await getAuthenticatedUser(req)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { firstName, lastName, company } = await req.json()
 
     if (!firstName || !company) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // ── Credit check ──────────────────────────────────────────────────────
-    if (userId) {
-      const credit = await checkAndUseCredit(userId)
-      if (!credit.allowed) {
-        if (credit.reason === 'limit_reached') {
-          return NextResponse.json({
-            error: 'enrichment_limit_reached',
-            message: `You've used all ${credit.limit} enrichments this month. Upgrade your plan for more.`,
-            used: credit.used,
-            limit: credit.limit,
-          }, { status: 402 })
-        }
-        return NextResponse.json({ error: 'Credit check failed' }, { status: 500 })
+    // ── Credit check — use verified user.id, not client-supplied userId ───
+    const credit = await checkAndUseCredit(user.id)
+    if (!credit.allowed) {
+      if (credit.reason === 'limit_reached') {
+        return NextResponse.json({
+          error: 'enrichment_limit_reached',
+          message: `You've used all ${credit.limit} enrichments this month. Upgrade your plan for more.`,
+          used: credit.used,
+          limit: credit.limit,
+        }, { status: 402 })
       }
+      return NextResponse.json({ error: 'Credit check failed' }, { status: 500 })
     }
 
     const hunterKey = process.env.HUNTER_API_KEY
@@ -214,7 +232,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── All sources exhausted ─────────────────────────────────────────────
     return NextResponse.json({
       enriched: false,
       source: null,
