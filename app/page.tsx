@@ -298,7 +298,7 @@ export default function Dashboard() {
                     <h2 className="text-xl font-bold tracking-tight">{getGreeting(user?.name || 'there')} 👋</h2>
                     <p className="text-blue-100 text-sm mt-1">
                       {overdueCount > 0
-                        ? `You have ${overdueCount} follow-up${overdueCount > 1 ? 's' : ''} overdue — let&apos;s clear them.`
+                        ? `You have ${overdueCount} follow-up${overdueCount > 1 ? 's' : ''} overdue - let&apos;s clear them.`
                         : contacts.length === 0
                         ? 'Add your first contact to get started.'
                         : 'All caught up! Keep building your pipeline.'}
@@ -335,14 +335,14 @@ export default function Dashboard() {
                   icon: 'M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z',
                   color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-100',
                   title: `Find emails for ${noEmail.length} contact${noEmail.length > 1 ? 's' : ''}`,
-                  desc: 'Missing emails mean no follow-ups — fix this first',
+                  desc: 'Missing emails mean no follow-ups - fix this first',
                   cta: 'Go to Enrichment', action: () => setActiveNav('enrichment'),
                 })
                 if (noDrafts.length > 0) actions.push({
                   icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z',
                   color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100',
                   title: `Generate drafts for ${noDrafts.length} contact${noDrafts.length > 1 ? 's' : ''}`,
-                  desc: 'They have emails — write follow-ups with one click',
+                  desc: 'They have emails - write follow-ups with one click',
                   cta: 'Go to AI Drafts', action: () => setActiveNav('ai-drafts'),
                 })
                 if (stale.length > 0) actions.push({
@@ -406,7 +406,7 @@ export default function Dashboard() {
                   {
                     label: 'Emails enriched',
                     value: enrichedCount,
-                    sub: `${contacts.length > 0 ? Math.round((enrichedCount / contacts.length) * 100) : 0}% — click to enrich more`,
+                    sub: `${contacts.length > 0 ? Math.round((enrichedCount / contacts.length) * 100) : 0}% - click to enrich more`,
                     icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
                     accent: '#7C3AED', bg: 'bg-violet-50', iconColor: 'text-violet-600',
                     onClick: () => setActiveNav('enrichment'),
@@ -533,14 +533,14 @@ export default function Dashboard() {
           {activeNav === 'contacts' && (
             <div className="px-6 py-4">
               <ContactListView contacts={allContactsFiltered} selectedId={selected?.id} onSelect={setSelected}
-                onDelete={handleDelete} emptyMessage={searchQuery ? 'No contacts match your search.' : 'No contacts yet — add one to get started.'} />
+                onDelete={handleDelete} emptyMessage={searchQuery ? 'No contacts match your search.' : 'No contacts yet - add one to get started.'} />
             </div>
           )}
 
           {activeNav === 'followups' && (
             <div className="px-6 py-4">
               <ContactListView contacts={followupsFiltered} selectedId={selected?.id} onSelect={setSelected}
-                onDelete={handleDelete} emptyMessage="Nothing due — you're all caught up! 🎉" />
+                onDelete={handleDelete} emptyMessage="Nothing due - you're all caught up! 🎉" />
             </div>
           )}
 

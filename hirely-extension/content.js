@@ -1,6 +1,8 @@
 (() => {
-  if (window.__hirelyInjected) return;
-  window.__hirelyInjected = true;
+  function hirely_init() {
+    if (window.__hirelyInjected) return;
+    if (!document.body) { setTimeout(hirely_init, 150); return; }
+    window.__hirelyInjected = true;
 
   const STYLES = `
     :host { all: initial; }
@@ -1118,4 +1120,11 @@
     }
   }, 600);
 
+  } // end hirely_init
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', hirely_init);
+  } else {
+    hirely_init();
+  }
 })();
