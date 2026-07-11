@@ -60,6 +60,9 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
   const [generatingDrafts, setGeneratingDrafts] = useState(false)
   const [draftsError, setDraftsError] = useState<string | null>(null)
   const [savingNote, setSavingNote] = useState(false)
+  const [followUpDate, setFollowUpDate] = useState('')
+  const [savingFollowUp, setSavingFollowUp] = useState(false)
+  const [followUpSaved, setFollowUpSaved] = useState(false)
 
   useEffect(() => {
     setFindEmailError(null)
@@ -69,6 +72,8 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
     setSaving(false)
     setDraftsError(null)
     setNotes(contact?.notes || '')
+    setFollowUpDate(contact?.sentDate || '')
+    setFollowUpSaved(false)
   }, [contact?.id])
 
   if (!contact) {
@@ -181,6 +186,20 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
     setSavingNote(true)
     await onUpdateContact(contact.id, { notes })
     setSavingNote(false)
+  }
+
+  const handleSaveFollowUp = async () => {
+    if (!contact || !followUpDate) return
+    setSavingFollowUp(true)
+    // Move contact to follow_up_today column with the selected date stored as sentDate
+    await onUpdateContact(contact.id, {
+      sentDate: followUpDate,
+      column: 'today' as Contact['column'],
+      statusLabel: 'Follow Up'
+    })
+    setSavingFollowUp(false)
+    setFollowUpSaved(true)
+    setTimeout(() => setFollowUpSaved(false), 2000)
   }
 
   const tabs: { id: Tab; label: string }[] = [
@@ -335,15 +354,41 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
                 {/* Status block */}
                 <div className="mt-4 pt-4 border-t border-slate-100">
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3">Status</p>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2 mb-3">
                     <div className="bg-slate-50 rounded-xl p-2.5">
                       <p className="text-[9px] text-slate-400 font-medium mb-1">Stage</p>
                       <p className="text-xs font-bold text-slate-700">{contact.statusLabel || 'New'}</p>
                     </div>
                     <div className="bg-slate-50 rounded-xl p-2.5">
-                      <p className="text-[9px] text-slate-400 font-medium mb-1">First contact</p>
-                      <p className="text-xs font-bold text-slate-700">{contact.sentDate || (contact.createdAt ? new Date(contact.createdAt).toLocaleDateString('en-US', {month:'short', day:'numeric'}) : '—')}</p>
+                      <p className="text-[9px] text-slate-400 font-medium mb-1">Added</p>
+                      <p className="text-xs font-bold text-slate-700">{contact.createdAt ? new Date(contact.createdAt).toLocaleDateString('en-US', {month:'short', day:'numeric'}) : '-'}</p>
                     </div>
+                  </div>
+
+                  {/* Follow-up date picker */}
+                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                    <p className="text-[9px] font-bold text-amber-700 uppercase tracking-widest mb-2">Schedule follow-up</p>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="date"
+                        value={followUpDate}
+                        min={new Date().toISOString().split('T')[0]}
+                        onChange={e => { setFollowUpDate(e.target.value); setFollowUpSaved(false) }}
+                        className="flex-1 px-2.5 py-1.5 border border-amber-200 rounded-lg text-[11px] text-slate-700 bg-white focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-50 transition-all"
+                      />
+                      <button
+                        onClick={handleSaveFollowUp}
+                        disabled={!followUpDate || savingFollowUp}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap disabled:opacity-50 ${
+                          followUpSaved
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-amber-500 hover:bg-amber-600 text-white'
+                        }`}
+                      >
+                        {savingFollowUp ? '...' : followUpSaved ? 'Saved ✓' : 'Set'}
+                      </button>
+                    </div>
+                    <p className="text-[9.5px] text-amber-600 mt-1.5">Moves contact to Follow up today on this date</p>
                   </div>
                 </div>
               </>

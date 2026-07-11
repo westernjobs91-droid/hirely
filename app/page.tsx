@@ -175,7 +175,7 @@ export default function Dashboard() {
   }, [])
 
   const handleUpdateContact = useCallback(async (id: string, updates: Partial<Contact>) => {
-    const dbUpdates: Record<string, string | boolean | Contact['aiDrafts']> = {}
+    const dbUpdates: Record<string, unknown> = {}
     if (updates.email !== undefined) dbUpdates.email = updates.email
     if (updates.phone !== undefined) dbUpdates.phone = updates.phone
     if (updates.company !== undefined) dbUpdates.company = updates.company
@@ -183,6 +183,10 @@ export default function Dashboard() {
     if (updates.jobTitle !== undefined) dbUpdates.job_title = updates.jobTitle
     if (updates.enriched !== undefined) dbUpdates.enriched = updates.enriched
     if (updates.aiDrafts !== undefined) dbUpdates.ai_drafts = updates.aiDrafts
+    if (updates.sentDate !== undefined) dbUpdates.sent_date = updates.sentDate
+    if (updates.column !== undefined) dbUpdates.column_name = updates.column
+    if (updates.statusLabel !== undefined) dbUpdates.status_label = updates.statusLabel
+    if (updates.notes !== undefined) dbUpdates.notes = updates.notes
     const { error } = await supabase.from('contacts').update(dbUpdates).eq('id', id)
     if (error) { console.error('Failed to update contact:', error); setToast('Error updating contact'); return false }
     setContacts(prev => prev.map(c => (c.id === id ? { ...c, ...updates } : c)))
