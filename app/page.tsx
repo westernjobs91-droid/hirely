@@ -13,6 +13,7 @@ import ContactPanel from '@/components/ContactPanel'
 import AddContactModal from '@/components/AddContactModal'
 import ImportModal from '@/components/ImportModal'
 import Toast from '@/components/Toast'
+import AIDraftsView from '@/components/AIDraftsView'
 import { Contact, NavItem, AIDraft } from '@/types'
 
 const filters = ['All', 'This week', 'Overdue', 'Replied']
@@ -450,22 +451,12 @@ export default function Dashboard() {
           {activeNav === 'settings' && <IntegrationsView />}
 
           {activeNav === 'ai-drafts' && (
-            <div className="flex items-center justify-center py-24">
-              <div className="text-center max-w-sm">
-                <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                </div>
-                <p className="text-sm font-semibold text-slate-700 mb-1">AI drafts live inside each contact</p>
-                <p className="text-xs text-slate-400">Click any contact in your pipeline, then open the AI drafts tab to generate personalized follow-ups.</p>
-              </div>
-            </div>
+            <AIDraftsView contacts={contacts} onSelect={(c) => { setSelected(c); setActiveNav('contacts'); }} />
           )}
         </div>
       </div>
 
-      {(activeNav === 'dashboard' || activeNav === 'contacts' || activeNav === 'followups') && (
+      {(activeNav === 'dashboard' || activeNav === 'contacts' || activeNav === 'followups') && selected && (
         <ContactPanel contact={selected} onClose={() => setSelected(null)} onSendDraft={handleSend} onUpdateContact={handleUpdateContact} />
       )}
       {showAdd && <AddContactModal onClose={() => setShowAdd(false)} onAdd={handleAdd} />}
