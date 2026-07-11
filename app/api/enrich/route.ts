@@ -32,9 +32,9 @@ async function getAuthenticatedUser(req: NextRequest) {
 }
 
 // ── Credit check ──────────────────────────────────────────────────────────
-async function checkAndUseCredit(userId: string) {
+async function checkAndUseCredit(userId: string): Promise<{ allowed: boolean; used: number; limit: number; remaining: number; reason?: string }> {
   const { data, error } = await serviceClient().rpc('check_and_use_enrichment_credit', { user_id: userId })
-  if (error) return { allowed: false, reason: 'credit_check_failed' }
+  if (error) return { allowed: false, used: 0, limit: 0, remaining: 0, reason: 'credit_check_failed' }
   return data as { allowed: boolean; used: number; limit: number; remaining: number; reason?: string }
 }
 
@@ -81,7 +81,7 @@ async function setCompanyCache(key: string, companyName: string, data: Record<st
     cache_key: key,
     company_name: companyName,
     data,
-    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    expires_at: '2099-01-01T00:00:00.000Z',
   }, { onConflict: 'cache_key' })
 }
 
