@@ -1,10 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+// ── Service client (for cache reads/writes — bypasses RLS) ────────────────
+function serviceClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
+
+// ── Cache key helpers ─────────────────────────────────────────────────────
+function emailCacheKey(firstName: string, lastName: string, company: string) {
+  return `${firstName.toLowerCase().trim()}|${(lastName || '').toLowerCase().trim()}|${company.toLowerCase().trim()}`
+}
+
+function companyCacheKey(companyName: string) {
+  return companyName.toLowerCase().trim()
+}
+
 // ── Auth helper ───────────────────────────────────────────────────────────
 async function getAuthenticatedUser(req: NextRequest) {
-  const authHeader = req.headers.get('authorization')
-  const token = authHeader?.replace('Bearer ', '')
+  const token = req.headers.get('authorization')?.replace('Bearer ', '')
   if (!token) return null
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,26 +31,58 @@ async function getAuthenticatedUser(req: NextRequest) {
   return user
 }
 
-// ── Credit check via Supabase RPC ─────────────────────────────────────────
-async function checkAndUseCredit(userId: string): Promise<{
-  allowed: boolean
-  used?: number
-  limit?: number
-  remaining?: number
-  reason?: string
-}> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-  const { data, error } = await supabase.rpc('check_and_use_enrichment_credit', {
-    user_id: userId
-  })
-  if (error) {
-    console.error('Credit check error:', error)
-    return { allowed: false, reason: 'credit_check_failed' }
-  }
+// ── Credit check ──────────────────────────────────────────────────────────
+async function checkAndUseCredit(userId: string) {
+  const { data, error } = await serviceClient().rpc('check_and_use_enrichment_credit', { user_id: userId })
+  if (error) return { allowed: false, reason: 'credit_check_failed' }
   return data as { allowed: boolean; used: number; limit: number; remaining: number; reason?: string }
+}
+
+// ── Email cache ───────────────────────────────────────────────────────────
+async function getEmailCache(key: string) {
+  const { data } = await serviceClient()
+    .from('email_cache')
+    .select('*')
+    .eq('cache_key', key)
+    .gt('expires_at', new Date().toISOString())
+    .single()
+  return data || null
+}
+
+async function setEmailCache(key: string, firstName: string, lastName: string, company: string, result: {
+  email: string; source: string; guessed?: boolean; extra_data?: Record<string, unknown>
+}) {
+  await serviceClient().from('email_cache').upsert({
+    cache_key: key,
+    first_name: firstName,
+    last_name: lastName,
+    company,
+    email: result.email,
+    source: result.source,
+    guessed: result.guessed || false,
+    extra_data: result.extra_data || null,
+    expires_at: '2099-01-01T00:00:00.000Z',
+  }, { onConflict: 'cache_key' })
+}
+
+// ── Company cache ─────────────────────────────────────────────────────────
+async function getCompanyCache(key: string) {
+  const { data } = await serviceClient()
+    .from('company_cache')
+    .select('*')
+    .eq('cache_key', key)
+    .gt('expires_at', new Date().toISOString())
+    .single()
+  return data || null
+}
+
+async function setCompanyCache(key: string, companyName: string, data: Record<string, unknown>) {
+  await serviceClient().from('company_cache').upsert({
+    cache_key: key,
+    company_name: companyName,
+    data,
+    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+  }, { onConflict: 'cache_key' })
 }
 
 // ── Apollo org resolution ─────────────────────────────────────────────────
@@ -42,50 +90,28 @@ async function resolveOrganizationDomain(apolloKey: string, company: string): Pr
   try {
     const res = await fetch('https://api.apollo.io/api/v1/mixed_companies/search', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache',
-        Authorization: `Bearer ${apolloKey}`,
-      },
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache', Authorization: `Bearer ${apolloKey}` },
       body: JSON.stringify({ q_organization_name: company, page: 1, per_page: 1 })
     })
-    const text = await res.text()
     if (!res.ok) return null
-    const data = JSON.parse(text)
+    const data = await res.json()
     const org = data?.organizations?.[0] || data?.accounts?.[0]
     return org?.primary_domain || org?.website_url?.replace(/^https?:\/\//, '').replace(/\/$/, '') || null
-  } catch (e) {
-    return null
-  }
+  } catch { return null }
 }
 
 // ── Apollo people match ───────────────────────────────────────────────────
-async function apolloPeopleMatch(
-  apolloKey: string,
-  firstName: string,
-  lastName: string,
-  params: { organization_name?: string; domain?: string }
-) {
+async function apolloPeopleMatch(apolloKey: string, firstName: string, lastName: string, params: { organization_name?: string; domain?: string }) {
   const res = await fetch('https://api.apollo.io/api/v1/people/match', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache',
-      Authorization: `Bearer ${apolloKey}`,
-    },
-    body: JSON.stringify({
-      first_name: firstName,
-      last_name: lastName || '',
-      reveal_personal_emails: false,
-      ...params,
-    })
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache', Authorization: `Bearer ${apolloKey}` },
+    body: JSON.stringify({ first_name: firstName, last_name: lastName || '', reveal_personal_emails: false, ...params })
   })
-  const text = await res.text()
   if (!res.ok) return {}
-  try { return JSON.parse(text) } catch { return {} }
+  try { return await res.json() } catch { return {} }
 }
 
-// ── Hunter domain search ──────────────────────────────────────────────────
+// ── Hunter helpers ────────────────────────────────────────────────────────
 async function hunterDomainSearch(hunterKey: string, domainOrCompany: { domain?: string; company?: string }) {
   try {
     const params = new URLSearchParams({ api_key: hunterKey, limit: '1' })
@@ -94,29 +120,22 @@ async function hunterDomainSearch(hunterKey: string, domainOrCompany: { domain?:
     else return null
     const res = await fetch(`https://api.hunter.io/v2/domain-search?${params.toString()}`)
     const data = await res.json()
-    return {
-      pattern: data?.data?.pattern || null,
-      domain: data?.data?.domain || domainOrCompany.domain || null,
-    }
+    return { pattern: data?.data?.pattern || null, domain: data?.data?.domain || domainOrCompany.domain || null }
   } catch { return null }
 }
 
-// ── Email pattern builder ─────────────────────────────────────────────────
 function buildEmailFromPattern(pattern: string, firstName: string, lastName: string, domain: string): string | null {
   if (!pattern || !domain) return null
   const first = firstName.toLowerCase().replace(/[^a-z]/g, '')
   const last = (lastName || '').toLowerCase().replace(/[^a-z]/g, '')
   if (!first) return null
   const local = pattern
-    .replace(/\{first\}/g, first)
-    .replace(/\{last\}/g, last)
-    .replace(/\{f\}/g, first[0] || '')
-    .replace(/\{l\}/g, last[0] || '')
+    .replace(/\{first\}/g, first).replace(/\{last\}/g, last)
+    .replace(/\{f\}/g, first[0] || '').replace(/\{l\}/g, last[0] || '')
   if (!local || local.includes('{')) return null
   return `${local}@${domain}`
 }
 
-// ── Hunter email verifier ─────────────────────────────────────────────────
 async function hunterVerifyEmail(hunterKey: string, email: string) {
   try {
     const res = await fetch(`https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}&api_key=${hunterKey}`)
@@ -128,58 +147,82 @@ async function hunterVerifyEmail(hunterKey: string, email: string) {
 // ── Main handler ──────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
-    // ── Auth check — must be a logged-in user ─────────────────────────────
     const user = await getAuthenticatedUser(req)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { firstName, lastName, company } = await req.json()
+    if (!firstName || !company) return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
 
-    if (!firstName || !company) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-    }
-
-    // ── Credit check — use verified user.id, not client-supplied userId ───
-    const credit = await checkAndUseCredit(user.id)
-    if (!credit.allowed) {
-      if (credit.reason === 'limit_reached') {
-        return NextResponse.json({
-          error: 'enrichment_limit_reached',
-          message: `You've used all ${credit.limit} enrichments this month. Upgrade your plan for more.`,
-          used: credit.used,
-          limit: credit.limit,
-        }, { status: 402 })
-      }
-      return NextResponse.json({ error: 'Credit check failed' }, { status: 500 })
+    // ── Check email cache FIRST — no credit burned if cached ──────────────
+    const eKey = emailCacheKey(firstName, lastName, company)
+    const cachedEmail = await getEmailCache(eKey)
+    if (cachedEmail) {
+      console.log('[enrich] email cache hit:', eKey)
+      return NextResponse.json({
+        email: cachedEmail.email,
+        enriched: true,
+        source: cachedEmail.source,
+        guessed: cachedEmail.guessed || false,
+        fromCache: true,
+        ...(cachedEmail.extra_data || {}),
+      })
     }
 
     const hunterKey = process.env.HUNTER_API_KEY
     const apolloKey = process.env.APOLLO_API_KEY
     let resolvedDomain: string | null = null
 
+    // ── Check company domain cache to skip Apollo org lookup ──────────────
+    const cKey = companyCacheKey(company)
+    const cachedCompany = await getCompanyCache(cKey)
+    if (cachedCompany?.data?.domain) {
+      resolvedDomain = cachedCompany.data.domain as string
+      console.log('[enrich] company domain cache hit:', company, '->', resolvedDomain)
+    }
+
     // ── Step 1: Apollo people match ───────────────────────────────────────
     if (apolloKey) {
       try {
-        let apolloData = await apolloPeopleMatch(apolloKey, firstName, lastName, { organization_name: company })
+        let apolloData: any = {}
 
-        if (!apolloData?.person?.email) {
-          resolvedDomain = await resolveOrganizationDomain(apolloKey, company)
-          if (resolvedDomain) {
-            apolloData = await apolloPeopleMatch(apolloKey, firstName, lastName, { domain: resolvedDomain })
+        if (resolvedDomain) {
+          apolloData = await apolloPeopleMatch(apolloKey, firstName, lastName, { domain: resolvedDomain })
+        } else {
+          apolloData = await apolloPeopleMatch(apolloKey, firstName, lastName, { organization_name: company })
+          if (!apolloData?.person?.email) {
+            resolvedDomain = await resolveOrganizationDomain(apolloKey, company)
+            if (resolvedDomain) {
+              // Cache the resolved domain for future lookups
+              await setCompanyCache(cKey, company, { domain: resolvedDomain })
+              apolloData = await apolloPeopleMatch(apolloKey, firstName, lastName, { domain: resolvedDomain })
+            }
           }
         }
 
         if (apolloData?.person?.email) {
-          return NextResponse.json({
+          const result = {
             email: apolloData.person.email,
+            enriched: true,
+            source: 'apollo',
             phone: apolloData.person.phone_numbers?.[0]?.sanitized_number || null,
             linkedinUrl: apolloData.person.linkedin_url || null,
             title: apolloData.person.title || null,
             resolvedCompany: apolloData.person.organization?.name || null,
-            enriched: true,
-            source: 'apollo',
+          }
+          // Only deduct credit when email actually found
+          const credit = await checkAndUseCredit(user.id)
+          if (!credit.allowed) {
+            return NextResponse.json({
+              error: 'enrichment_limit_reached',
+              message: `You've used all ${credit.limit} enrichments this month. Upgrade your plan for more.`,
+              used: credit.used, limit: credit.limit,
+            }, { status: 402 })
+          }
+          await setEmailCache(eKey, firstName, lastName, company, {
+            email: result.email, source: 'apollo',
+            extra_data: { phone: result.phone, linkedinUrl: result.linkedinUrl, title: result.title, resolvedCompany: result.resolvedCompany }
           })
+          return NextResponse.json(result)
         }
       } catch (e) {
         console.error('Apollo error:', e)
@@ -193,14 +236,18 @@ export async function POST(req: NextRequest) {
           ? `domain=${encodeURIComponent(resolvedDomain)}`
           : `company=${encodeURIComponent(company)}`
         const hunterUrl = `https://api.hunter.io/v2/email-finder?first_name=${encodeURIComponent(firstName)}&last_name=${encodeURIComponent(lastName || '')}&${hunterQuery}&api_key=${hunterKey}`
-        const hunterRes = await fetch(hunterUrl)
-        const hunterData = await hunterRes.json()
+        const hunterData = await (await fetch(hunterUrl)).json()
         if (hunterData?.data?.email) {
-          return NextResponse.json({
-            email: hunterData.data.email,
-            enriched: true,
-            source: 'hunter',
-          })
+          const credit = await checkAndUseCredit(user.id)
+          if (!credit.allowed) {
+            return NextResponse.json({
+              error: 'enrichment_limit_reached',
+              message: `You've used all ${credit.limit} enrichments this month. Upgrade your plan for more.`,
+              used: credit.used, limit: credit.limit,
+            }, { status: 402 })
+          }
+          await setEmailCache(eKey, firstName, lastName, company, { email: hunterData.data.email, source: 'hunter' })
+          return NextResponse.json({ email: hunterData.data.email, enriched: true, source: 'hunter' })
         }
       } catch (e) {
         console.error('Hunter error:', e)
@@ -208,22 +255,29 @@ export async function POST(req: NextRequest) {
 
       // ── Step 3: Hunter pattern guess ──────────────────────────────────
       try {
-        const domainInfo = await hunterDomainSearch(
-          hunterKey,
-          resolvedDomain ? { domain: resolvedDomain } : { company }
-        )
+        const domainInfo = await hunterDomainSearch(hunterKey, resolvedDomain ? { domain: resolvedDomain } : { company })
         if (domainInfo?.pattern && domainInfo.domain) {
+          // Cache domain pattern for this company
+          if (!cachedCompany) {
+            await setCompanyCache(cKey, company, { domain: domainInfo.domain, pattern: domainInfo.pattern })
+          }
           const guessed = buildEmailFromPattern(domainInfo.pattern, firstName, lastName, domainInfo.domain)
           if (guessed) {
             const verification = await hunterVerifyEmail(hunterKey, guessed)
             if (verification.status && verification.status !== 'invalid' && verification.status !== 'disposable') {
-              return NextResponse.json({
-                email: guessed,
-                enriched: true,
-                guessed: true,
-                confidence: verification.score,
-                source: 'hunter-pattern',
+              const credit = await checkAndUseCredit(user.id)
+              if (!credit.allowed) {
+                return NextResponse.json({
+                  error: 'enrichment_limit_reached',
+                  message: `You've used all ${credit.limit} enrichments this month. Upgrade your plan for more.`,
+                  used: credit.used, limit: credit.limit,
+                }, { status: 402 })
+              }
+              await setEmailCache(eKey, firstName, lastName, company, {
+                email: guessed, source: 'hunter-pattern', guessed: true,
+                extra_data: { confidence: verification.score }
               })
+              return NextResponse.json({ email: guessed, enriched: true, guessed: true, confidence: verification.score, source: 'hunter-pattern' })
             }
           }
         }
