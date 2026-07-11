@@ -152,7 +152,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
       })
       const data = await res.json()
       if (res.status === 402) {
-        setFindEmailError('Monthly enrichment limit reached — upgrade your plan for more.')
+        setFindEmailError('Monthly enrichment limit reached - upgrade your plan for more.')
         return
       }
       if (data.enriched && data.email) {
@@ -163,13 +163,13 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
         if (data.resolvedCompany && data.resolvedCompany !== contact.company) updates.company = data.resolvedCompany
         await onUpdateContact(contact.id, updates)
         if (data.guessed) {
-          setFindEmailNote(`Best guess based on ${contact.company}'s email format — confirm before sending.`)
+          setFindEmailNote(`Best guess based on ${contact.company}'s email format - confirm before sending.`)
         }
       } else {
         setFindEmailError('No email found for this contact')
       }
     } catch (e) {
-      setFindEmailError('Something went wrong — try again')
+      setFindEmailError('Something went wrong - try again')
     } finally {
       setFindingEmail(false)
     }
@@ -449,7 +449,39 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
             {contact.activity && contact.activity.length > 0 ? (
               <div className="relative">
                 <div className="absolute left-[13px] top-0 bottom-0 w-px bg-slate-100" />
-                {contact.activity.map((item: string, i: number) => (
+                {contact.activity.map((item: string, i: number) => {
+                  let label = item
+                  let dateStr = ''
+                  try {
+                    const parsed = JSON.parse(item)
+                    const sourceMap: Record<string, string> = {
+                      'LinkedIn Extension': 'Added via LinkedIn',
+                      'Outlook Add-in': 'Added via Outlook',
+                      'Manual': 'Added manually',
+                      'manual': 'Added manually',
+                    }
+                    const typeMap: Record<string, string> = {
+                      created: 'Contact added',
+                      updated: 'Contact updated',
+                      email_found: 'Email found',
+                      draft_generated: 'AI drafts generated',
+                      email_sent: 'Email sent',
+                    }
+                    if (parsed.source && sourceMap[parsed.source]) {
+                      label = sourceMap[parsed.source]
+                    } else if (parsed.type && typeMap[parsed.type]) {
+                      label = typeMap[parsed.type]
+                      if (parsed.source) label += ` via ${parsed.source}`
+                    } else if (parsed.type) {
+                      label = parsed.type.replace(/_/g, ' ')
+                    }
+                    if (parsed.date) {
+                      dateStr = new Date(parsed.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                    }
+                  } catch {
+                    // not JSON, render as-is
+                  }
+                  return (
                   <div key={i} className="flex gap-3 pb-4 last:pb-0 relative">
                     <div className="w-7 h-7 rounded-full bg-blue-50 border-2 border-white shadow-sm flex items-center justify-center flex-shrink-0 z-10">
                       <svg className="w-3 h-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
@@ -457,10 +489,12 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
                       </svg>
                     </div>
                     <div className="bg-slate-50 rounded-xl px-3 py-2.5 flex-1 min-w-0">
-                      <p className="text-[11.5px] text-slate-700 leading-relaxed">{item}</p>
+                      <p className="text-[11.5px] text-slate-700 leading-relaxed font-medium">{label}</p>
+                      {dateStr && <p className="text-[10px] text-slate-400 mt-0.5">{dateStr}</p>}
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             ) : (
               <div className="text-center py-10">

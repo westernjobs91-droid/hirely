@@ -659,7 +659,7 @@
       const statusLabel = existing.status_label || 'Active';
       const emailDisplay = existing.email
         ? '<div class="hirely-email-row">✉ <span class="hirely-email-val">' + escapeHtml(existing.email) + '</span><button class="hirely-copy-btn" data-copy="' + escapeAttr(existing.email) + '">Copy</button></div>'
-        : '<div class="hirely-email-missing">✉ No email yet — find it in the dashboard</div>';
+        : '<div class="hirely-email-missing">✉ No email yet - find it in the dashboard</div>';
 
       container.innerHTML =
         '<div class="hirely-pipeline-badge in-pipeline"><span class="hirely-badge-dot"></span>Already in your pipeline</div>' +
@@ -889,10 +889,12 @@
     const url = window.location.href;
     const slugMatch = url.match(/linkedin\.com\/company\/([^/?#]+)/);
     const slug = slugMatch ? slugMatch[1].replace(/-\d+$/, '') : '';
-    const name =
+    // h1 on company pages can render lowercase via CSS — always titleCase it
+    const rawName =
       document.querySelector('h1')?.innerText?.trim() ||
       getMeta('og:title')?.replace(/\s*\|\s*LinkedIn\s*$/i, '').trim() ||
       slug;
+    const name = titleCase(rawName);
 
     // Get logo from actual DOM img element
     const logo = (() => {
@@ -966,7 +968,13 @@
       '<div class="hirely-loading">Fetching company details…</div>'
     );
 
-    const res = await sendMsg({ type: 'HIRELY_ENRICH_COMPANY', companyName: company.name, linkedinSlug: company.slug });
+    let res = await sendMsg({ type: 'HIRELY_ENRICH_COMPANY', companyName: company.name, linkedinSlug: company.slug });
+    // Retry once if PDL returned nothing — slug may have been scraped before DOM settled
+    if (!res.info) {
+      await new Promise(r => setTimeout(r, 1200));
+      const freshCompany = scrapeCompany();
+      res = await sendMsg({ type: 'HIRELY_ENRICH_COMPANY', companyName: freshCompany.name, linkedinSlug: freshCompany.slug });
+    }
     const info = res.info || null;
     const people = res.people || [];
 
@@ -1116,7 +1124,7 @@
     lastUrl = cur;
     if (!PROFILE_URL_RE.test(cur) && !/linkedin\.com\/company\/[^/?#]+/.test(cur)) { closeHirely(); return; }
     if (panel.classList.contains("open")) {
-      setTimeout(render, 900);
+      setTimeout(render, 1500);
     }
   }, 600);
 

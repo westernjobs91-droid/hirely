@@ -177,7 +177,7 @@ export default function AnalyticsView({ contacts }: AnalyticsViewProps) {
       {/* Row 2 — Weekly bar + Pipeline donut */}
       <div className="grid grid-cols-3 gap-4">
         <div className="col-span-2">
-          <SectionCard title="Contacts added — last 6 weeks">
+          <SectionCard title="Contacts added - last 6 weeks">
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={weeklyData} barSize={28} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                 <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
