@@ -1,6 +1,8 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { NavItem } from '@/types'
+import { supabase } from '@/lib/supabase'
 
 interface SidebarProps {
   activeNav: NavItem
@@ -12,6 +14,12 @@ interface SidebarProps {
   onLogout: () => void
   searchQuery: string
   onSearchChange: (query: string) => void
+}
+
+interface CreditInfo {
+  used: number
+  limit: number
+  plan: string
 }
 
 const mainNav = [
@@ -29,12 +37,39 @@ const insightNav = [
 
 export default function Sidebar({ activeNav, onNavChange, contactCount, overdueCount, userName, userEmail, onLogout, searchQuery, onSearchChange }: SidebarProps) {
   const initials = userName ? userName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : 'U'
+  const [credits, setCredits] = useState<CreditInfo | null>(null)
+
+  useEffect(() => {
+    async function loadCredits() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from('profiles')
+        .select('enrichments_used, enrichments_limit, plan')
+        .eq('id', user.id)
+        .single()
+      if (data) {
+        setCredits({
+          used: data.enrichments_used ?? 0,
+          limit: data.enrichments_limit ?? 10,
+          plan: data.plan ?? 'free',
+        })
+      }
+    }
+    loadCredits()
+  }, [])
+
+  const creditPct = credits ? Math.min((credits.used / credits.limit) * 100, 100) : 0
+  const creditColor = creditPct >= 90 ? '#EF4444' : creditPct >= 70 ? '#F59E0B' : '#2563EB'
+  const remaining = credits ? Math.max(credits.limit - credits.used, 0) : null
 
   return (
     <aside className="w-52 min-w-[208px] bg-white border-r border-slate-100 flex flex-col h-full">
+
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 py-4 border-b border-slate-100">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)', boxShadow: '0 2px 8px rgba(37,99,235,.3)' }}>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)', boxShadow: '0 2px 8px rgba(37,99,235,.3)' }}>
           <svg viewBox="0 0 19 19" fill="none" className="w-5 h-5">
             <rect x="1" y="1" width="4.5" height="17" fill="white"/>
             <rect x="13.5" y="1" width="4.5" height="17" fill="white"/>
@@ -92,6 +127,44 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
         ))}
       </nav>
 
+      {/* Credit counter */}
+      {credits && (
+        <div className="mx-3 mb-2 bg-slate-50 border border-slate-100 rounded-xl p-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-1.5">
+              <svg className="w-3 h-3" style={{ color: creditColor }} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span className="text-[10px] font-semibold text-slate-600">Enrichments</span>
+            </div>
+            <span className="text-[10px] font-bold" style={{ color: creditColor }}>
+              {remaining} left
+            </span>
+          </div>
+
+          {/* Progress bar */}
+          <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden mb-1.5">
+            <div className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${creditPct}%`, backgroundColor: creditColor }} />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] text-slate-400">{credits.used} of {credits.limit} used</span>
+            {creditPct >= 80 && (
+              <a href="/pricing" className="text-[9px] font-semibold text-blue-600 hover:underline">
+                Upgrade →
+              </a>
+            )}
+          </div>
+
+          {creditPct >= 100 && (
+            <div className="mt-2 text-[9.5px] text-red-600 font-medium bg-red-50 rounded-lg px-2 py-1.5 text-center">
+              Limit reached. <a href="/pricing" className="underline">Upgrade</a> for more.
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Bottom */}
       <div className="border-t border-slate-100 p-2">
         <button onClick={() => onNavChange('settings')} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12.5px] text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-all mb-1">
@@ -104,18 +177,16 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
 
         {/* User + Logout */}
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors group">
-          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg,#2563EB,#7C3AED)' }}>
+          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg,#2563EB,#7C3AED)' }}>
             {initials}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium text-slate-900 truncate">{userName}</p>
             <p className="text-[10px] text-slate-400 truncate">{userEmail}</p>
           </div>
-          <button
-            onClick={onLogout}
-            title="Sign out"
-            className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500 p-1 rounded"
-          >
+          <button onClick={onLogout} title="Sign out"
+            className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500 p-1 rounded">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>

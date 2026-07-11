@@ -143,12 +143,18 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
     if (!contact.firstName || !contact.company) { setFindEmailError('Need a company name to search'); return }
     setFindingEmail(true); setFindEmailError(null); setFindEmailNote(null)
     try {
+      const { supabase: sb } = await import('@/lib/supabase')
+      const { data: { user } } = await sb.auth.getUser()
       const res = await fetch('/api/enrich', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firstName: contact.firstName, lastName: contact.lastName, company: contact.company })
+        body: JSON.stringify({ firstName: contact.firstName, lastName: contact.lastName, company: contact.company, userId: user?.id })
       })
       const data = await res.json()
+      if (res.status === 402) {
+        setFindEmailError('Monthly enrichment limit reached — upgrade your plan for more.')
+        return
+      }
       if (data.enriched && data.email) {
         const updates: Partial<Contact> = { email: data.email, enriched: true }
         if (data.phone) updates.phone = data.phone

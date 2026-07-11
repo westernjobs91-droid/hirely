@@ -1,11 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
-// LinkedIn often shows a brand/product name ("Kruger Products") rather than
-// the actual registered entity Apollo/Hunter have on file ("Kruger Inc.").
-// Rather than trying to guess the "real" name from LinkedIn's page (there's
-// nothing more correct sitting in their DOM for us to find), we resolve it
-// against Apollo's own company database — the same correction a recruiter
-// would do by hand, just automatic.
+// ── Credit check via Supabase RPC ─────────────────────────────────────────
+async function checkAndUseCredit(userId: string): Promise<{
+  allowed: boolean
+  used?: number
+  limit?: number
+  remaining?: number
+  reason?: string
+}> {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+  const { data, error } = await supabase.rpc('check_and_use_enrichment_credit', {
+    user_id: userId
+  })
+  if (error) {
+    console.error('Credit check error:', error)
+    return { allowed: false, reason: 'credit_check_failed' }
+  }
+  return data as { allowed: boolean; used: number; limit: number; remaining: number; reason?: string }
+}
+
+// ── Apollo org resolution ─────────────────────────────────────────────────
 async function resolveOrganizationDomain(apolloKey: string, company: string): Promise<string | null> {
   try {
     const res = await fetch('https://api.apollo.io/api/v1/mixed_companies/search', {
@@ -15,26 +33,19 @@ async function resolveOrganizationDomain(apolloKey: string, company: string): Pr
         'Cache-Control': 'no-cache',
         Authorization: `Bearer ${apolloKey}`,
       },
-      body: JSON.stringify({
-        q_organization_name: company,
-        page: 1,
-        per_page: 1,
-      })
+      body: JSON.stringify({ q_organization_name: company, page: 1, per_page: 1 })
     })
     const text = await res.text()
-    if (!res.ok) {
-      console.error('Apollo organization search failed:', res.status, text)
-      return null
-    }
+    if (!res.ok) return null
     const data = JSON.parse(text)
     const org = data?.organizations?.[0] || data?.accounts?.[0]
     return org?.primary_domain || org?.website_url?.replace(/^https?:\/\//, '').replace(/\/$/, '') || null
   } catch (e) {
-    console.error('Apollo organization search error:', e)
     return null
   }
 }
 
+// ── Apollo people match ───────────────────────────────────────────────────
 async function apolloPeopleMatch(
   apolloKey: string,
   firstName: string,
@@ -56,40 +67,27 @@ async function apolloPeopleMatch(
     })
   })
   const text = await res.text()
-  if (!res.ok) {
-    console.error('Apollo people/match failed:', res.status, text)
-    return {}
-  }
-  try {
-    return JSON.parse(text)
-  } catch (e) {
-    console.error('Apollo people/match returned non-JSON:', text)
-    return {}
-  }
+  if (!res.ok) return {}
+  try { return JSON.parse(text) } catch { return {} }
 }
 
-// Hunter's Domain Search returns the company's standard email pattern (e.g.
-// "{first}.{last}") even when they don't have this specific person indexed —
-// most companies use one consistent format across everyone on the team.
+// ── Hunter domain search ──────────────────────────────────────────────────
 async function hunterDomainSearch(hunterKey: string, domainOrCompany: { domain?: string; company?: string }) {
   try {
     const params = new URLSearchParams({ api_key: hunterKey, limit: '1' })
     if (domainOrCompany.domain) params.set('domain', domainOrCompany.domain)
     else if (domainOrCompany.company) params.set('company', domainOrCompany.company)
     else return null
-
     const res = await fetch(`https://api.hunter.io/v2/domain-search?${params.toString()}`)
     const data = await res.json()
     return {
       pattern: data?.data?.pattern || null,
       domain: data?.data?.domain || domainOrCompany.domain || null,
     }
-  } catch (e) {
-    console.error('Hunter domain search error:', e)
-    return null
-  }
+  } catch { return null }
 }
 
+// ── Email pattern builder ─────────────────────────────────────────────────
 function buildEmailFromPattern(pattern: string, firstName: string, lastName: string, domain: string): string | null {
   if (!pattern || !domain) return null
   const first = firstName.toLowerCase().replace(/[^a-z]/g, '')
@@ -100,46 +98,53 @@ function buildEmailFromPattern(pattern: string, firstName: string, lastName: str
     .replace(/\{last\}/g, last)
     .replace(/\{f\}/g, first[0] || '')
     .replace(/\{l\}/g, last[0] || '')
-  if (!local || local.includes('{')) return null // pattern needed a piece we don't have (e.g. no last name)
+  if (!local || local.includes('{')) return null
   return `${local}@${domain}`
 }
 
-// Confirm the pattern-guessed address is actually deliverable before we
-// hand it back — an unverified guess is worse than no email at all.
+// ── Hunter email verifier ─────────────────────────────────────────────────
 async function hunterVerifyEmail(hunterKey: string, email: string) {
   try {
-    const res = await fetch(
-      `https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}&api_key=${hunterKey}`
-    )
+    const res = await fetch(`https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}&api_key=${hunterKey}`)
     const data = await res.json()
     return { status: data?.data?.status || null, score: data?.data?.score ?? null }
-  } catch (e) {
-    console.error('Hunter verify error:', e)
-    return { status: null, score: null }
-  }
+  } catch { return { status: null, score: null } }
 }
 
+// ── Main handler ──────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
-    const { firstName, lastName, company } = await req.json()
+    const { firstName, lastName, company, userId } = await req.json()
 
     if (!firstName || !company) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // ── Credit check ──────────────────────────────────────────────────────
+    if (userId) {
+      const credit = await checkAndUseCredit(userId)
+      if (!credit.allowed) {
+        if (credit.reason === 'limit_reached') {
+          return NextResponse.json({
+            error: 'enrichment_limit_reached',
+            message: `You've used all ${credit.limit} enrichments this month. Upgrade your plan for more.`,
+            used: credit.used,
+            limit: credit.limit,
+          }, { status: 402 })
+        }
+        return NextResponse.json({ error: 'Credit check failed' }, { status: 500 })
+      }
     }
 
     const hunterKey = process.env.HUNTER_API_KEY
     const apolloKey = process.env.APOLLO_API_KEY
     let resolvedDomain: string | null = null
 
+    // ── Step 1: Apollo people match ───────────────────────────────────────
     if (apolloKey) {
       try {
-        // STEP 1 — Try the company name exactly as scraped.
         let apolloData = await apolloPeopleMatch(apolloKey, firstName, lastName, { organization_name: company })
 
-        // STEP 1.5 — Didn't match. Look up the real organization in Apollo's
-        // own database (handles "Kruger Products" -> "Kruger Inc." style
-        // brand-name-vs-legal-entity mismatches) and retry using its domain,
-        // which matches far more reliably than a free-text company name.
         if (!apolloData?.person?.email) {
           resolvedDomain = await resolveOrganizationDomain(apolloKey, company)
           if (resolvedDomain) {
@@ -155,7 +160,7 @@ export async function POST(req: NextRequest) {
             title: apolloData.person.title || null,
             resolvedCompany: apolloData.person.organization?.name || null,
             enriched: true,
-            source: 'apollo'
+            source: 'apollo',
           })
         }
       } catch (e) {
@@ -163,11 +168,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── Step 2: Hunter email finder ───────────────────────────────────────
     if (hunterKey) {
       try {
-        // Prefer the resolved domain over the raw company name here too, if
-        // Apollo's organization search found one — Hunter's domain search is
-        // more reliable than its free-text company search for the same reason.
         const hunterQuery = resolvedDomain
           ? `domain=${encodeURIComponent(resolvedDomain)}`
           : `company=${encodeURIComponent(company)}`
@@ -178,17 +181,14 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({
             email: hunterData.data.email,
             enriched: true,
-            source: 'hunter'
+            source: 'hunter',
           })
         }
       } catch (e) {
         console.error('Hunter error:', e)
       }
 
-      // STEP 3 — Neither service has this specific person indexed. Most
-      // companies use one consistent email format across everyone on the
-      // team (first.last@, flast@, etc.) — look up that pattern and build +
-      // verify a likely address rather than giving up entirely.
+      // ── Step 3: Hunter pattern guess ──────────────────────────────────
       try {
         const domainInfo = await hunterDomainSearch(
           hunterKey,
@@ -204,7 +204,7 @@ export async function POST(req: NextRequest) {
                 enriched: true,
                 guessed: true,
                 confidence: verification.score,
-                source: 'hunter-pattern'
+                source: 'hunter-pattern',
               })
             }
           }
@@ -214,7 +214,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ enriched: false, source: null })
+    // ── All sources exhausted ─────────────────────────────────────────────
+    return NextResponse.json({
+      enriched: false,
+      source: null,
+      message: 'No email found across all sources. Try editing the company name and searching again.',
+    })
 
   } catch (error) {
     console.error('Enrichment error:', error)
