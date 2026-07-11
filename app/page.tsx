@@ -291,53 +291,54 @@ export default function Dashboard() {
                   {
                     label: 'Total contacts',
                     value: contacts.length,
-                    sub: 'in pipeline',
+                    sub: 'Click to view all',
                     icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
-                    accent: '#2563EB',
-                    bg: 'bg-blue-50',
-                    iconColor: 'text-blue-600',
+                    accent: '#2563EB', bg: 'bg-blue-50', iconColor: 'text-blue-600',
+                    onClick: () => setActiveNav('contacts'),
                   },
                   {
                     label: 'Follow-ups due',
                     value: overdueCount,
-                    sub: overdueCount > 0 ? 'action needed' : 'all clear',
+                    sub: overdueCount > 0 ? 'Click to action' : 'All clear',
                     icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
                     accent: overdueCount > 0 ? '#EF4444' : '#10B981',
                     bg: overdueCount > 0 ? 'bg-red-50' : 'bg-emerald-50',
                     iconColor: overdueCount > 0 ? 'text-red-500' : 'text-emerald-500',
+                    onClick: () => setActiveNav('followups'),
                   },
                   {
                     label: 'Emails enriched',
                     value: enrichedCount,
-                    sub: `${contacts.length > 0 ? Math.round((enrichedCount / contacts.length) * 100) : 0}% of contacts`,
+                    sub: `${contacts.length > 0 ? Math.round((enrichedCount / contacts.length) * 100) : 0}% — click to enrich more`,
                     icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
-                    accent: '#7C3AED',
-                    bg: 'bg-violet-50',
-                    iconColor: 'text-violet-600',
+                    accent: '#7C3AED', bg: 'bg-violet-50', iconColor: 'text-violet-600',
+                    onClick: () => setActiveNav('enrichment'),
                   },
                   {
                     label: 'Replies received',
                     value: repliedCount,
                     sub: contacts.length > 0 ? `${Math.round((repliedCount / contacts.length) * 100)}% reply rate` : 'reply rate',
                     icon: 'M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6',
-                    accent: '#059669',
-                    bg: 'bg-emerald-50',
-                    iconColor: 'text-emerald-600',
+                    accent: '#059669', bg: 'bg-emerald-50', iconColor: 'text-emerald-600',
+                    onClick: () => { setActiveNav('contacts') },
                   },
                 ].map((stat, i) => (
-                  <div key={i} className="bg-white border border-slate-100 rounded-2xl p-4 hover:shadow-md transition-shadow">
+                  <button key={i} onClick={stat.onClick}
+                    className="bg-white border border-slate-100 rounded-2xl p-4 hover:shadow-md hover:border-slate-200 hover:-translate-y-0.5 transition-all text-left group w-full">
                     <div className="flex items-start justify-between mb-3">
-                      <div className={`w-9 h-9 rounded-xl ${stat.bg} flex items-center justify-center`}>
+                      <div className={`w-9 h-9 rounded-xl ${stat.bg} flex items-center justify-center group-hover:scale-110 transition-transform`}>
                         <svg className={`w-4.5 h-4.5 ${stat.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
                           <path strokeLinecap="round" strokeLinejoin="round" d={stat.icon} />
                         </svg>
                       </div>
-                      <div className="w-1 h-8 rounded-full" style={{ background: stat.accent, opacity: 0.3 }} />
+                      <svg className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-500 transition-colors mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
                     </div>
                     <div className="text-2xl font-black text-slate-900 tracking-tight">{stat.value}</div>
                     <div className="text-[11px] font-semibold text-slate-500 mt-0.5">{stat.label}</div>
                     <div className="text-[10px] text-slate-400 mt-0.5">{stat.sub}</div>
-                  </div>
+                  </button>
                 ))}
               </div>
 
