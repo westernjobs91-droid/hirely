@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Contact } from '@/types'
+import { supabase } from '@/lib/supabase'
 
 interface EnrichmentViewProps {
   contacts: Contact[]
@@ -22,6 +23,13 @@ export default function EnrichmentView({ contacts, onSelect, onUpdateContact }: 
   const [rowState, setRowState] = useState<Record<string, RowState>>({})
   const [bulkRunning, setBulkRunning] = useState(false)
   const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 })
+  const [userId, setUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUserId(user.id)
+    })
+  }, [])
 
   const findEmailFor = async (contact: Contact) => {
     if (!contact.company) {
@@ -33,9 +41,13 @@ export default function EnrichmentView({ contacts, onSelect, onUpdateContact }: 
       const res = await fetch('/api/enrich', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firstName: contact.firstName, lastName: contact.lastName, company: contact.company })
+        body: JSON.stringify({ firstName: contact.firstName, lastName: contact.lastName, company: contact.company, userId })
       })
       const data = await res.json()
+      if (res.status === 402) {
+        setRowState(prev => ({ ...prev, [contact.id]: { loading: false, error: 'Monthly limit reached — upgrade for more enrichments', note: null, done: false } }))
+        return false
+      }
       if (data.enriched && data.email) {
         const updates: Partial<Contact> = { email: data.email, enriched: true }
         if (data.phone) updates.phone = data.phone
