@@ -285,6 +285,72 @@ export default function Dashboard() {
                 </div>
               </div>
 
+              {/* Quick Actions */}
+              {(() => {
+                const actions = []
+                const noEmail = contacts.filter(c => !c.email)
+                const noDrafts = contacts.filter(c => c.email && (!c.aiDrafts || c.aiDrafts.length === 0))
+                const stale = contacts.filter(c => c.createdAt && Math.floor((Date.now() - new Date(c.createdAt).getTime()) / 86400000) >= 7 && c.column === 'upcoming')
+                const overdue = contacts.filter(c => c.status === 'overdue')
+
+                if (overdue.length > 0) actions.push({
+                  icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+                  color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100',
+                  title: `${overdue.length} overdue follow-up${overdue.length > 1 ? 's' : ''}`,
+                  desc: 'These contacts need your attention today',
+                  cta: 'View now', action: () => setActiveNav('followups'),
+                })
+                if (noEmail.length > 0) actions.push({
+                  icon: 'M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z',
+                  color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-100',
+                  title: `Find emails for ${noEmail.length} contact${noEmail.length > 1 ? 's' : ''}`,
+                  desc: 'Missing emails mean no follow-ups — fix this first',
+                  cta: 'Go to Enrichment', action: () => setActiveNav('enrichment'),
+                })
+                if (noDrafts.length > 0) actions.push({
+                  icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z',
+                  color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100',
+                  title: `Generate drafts for ${noDrafts.length} contact${noDrafts.length > 1 ? 's' : ''}`,
+                  desc: 'They have emails — write follow-ups with one click',
+                  cta: 'Go to AI Drafts', action: () => setActiveNav('ai-drafts'),
+                })
+                if (stale.length > 0) actions.push({
+                  icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+                  color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100',
+                  title: `${stale.length} contact${stale.length > 1 ? 's' : ''} sitting 7+ days`,
+                  desc: 'Move them to Follow up today before they go cold',
+                  cta: 'View contacts', action: () => setActiveNav('contacts'),
+                })
+
+                if (actions.length === 0) return null
+
+                return (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                      <h3 className="text-xs font-bold text-slate-700 uppercase tracking-widest">Suggested actions</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      {actions.slice(0, 4).map((a, i) => (
+                        <button key={i} onClick={a.action}
+                          className={`flex items-start gap-3 p-3.5 rounded-2xl border ${a.bg} ${a.border} hover:shadow-md hover:-translate-y-0.5 transition-all text-left group`}>
+                          <div className={`w-8 h-8 rounded-xl bg-white/70 flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                            <svg className={`w-4 h-4 ${a.color}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d={a.icon} />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-[12px] font-bold ${a.color} leading-tight`}>{a.title}</p>
+                            <p className="text-[10.5px] text-slate-500 mt-0.5 leading-tight">{a.desc}</p>
+                            <p className={`text-[10px] font-semibold ${a.color} mt-1.5 group-hover:underline`}>{a.cta} →</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+
               {/* Stat cards */}
               <div className="grid grid-cols-4 gap-4">
                 {[
