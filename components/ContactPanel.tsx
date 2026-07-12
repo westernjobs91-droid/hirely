@@ -122,6 +122,17 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
     if (ok) setEditing(false)
   }
 
+  const logActivity = async (message: string) => {
+    if (!contact) return
+    const { supabase: sb } = await import('@/lib/supabase')
+    const entry = JSON.stringify({ type: 'action', label: message, date: new Date().toISOString() })
+    const updated = [...(contact.activity || []), entry]
+    const { data: { session } } = await sb.auth.getSession()
+    if (!session) return
+    await sb.from('contacts').update({ activity: updated }).eq('id', contact.id)
+    await onUpdateContact(contact.id, { activity: updated })
+  }
+
   const handleGenerateDrafts = async () => {
     setGeneratingDrafts(true)
     setDraftsError(null)
@@ -136,6 +147,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
       const data = await res.json()
       if (data.drafts) {
         await onUpdateContact(contact.id, { aiDrafts: data.drafts })
+        await logActivity('AI drafts generated')
       } else {
         setDraftsError(data.error || 'Could not generate drafts. Try again.')
       }
@@ -169,6 +181,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
         if (data.title && !contact.jobTitle) updates.jobTitle = data.title
         if (data.resolvedCompany && data.resolvedCompany !== contact.company) updates.company = data.resolvedCompany
         await onUpdateContact(contact.id, updates)
+        await logActivity('Email found')
         if (data.guessed) {
           setFindEmailNote(`Best guess based on ${contact.company}'s email format - confirm before sending.`)
         }
@@ -196,6 +209,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
       sentDate: followUpDate,
       statusLabel: 'Follow Up Scheduled'
     })
+    await logActivity(`Follow-up scheduled for ${new Date(followUpDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`)
     setSavingFollowUp(false)
     setFollowUpSaved(true)
     setTimeout(() => setFollowUpSaved(false), 2000)
@@ -207,6 +221,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
       column: 'done' as Contact['column'],
       statusLabel: 'Done'
     })
+    await logActivity('Marked as done')
   }
 
   const tabs: { id: Tab; label: string }[] = [
@@ -533,7 +548,9 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
                       draft_generated: 'AI drafts generated',
                       email_sent: 'Email sent',
                     }
-                    if (parsed.source && sourceMap[parsed.source]) {
+                    if (parsed.type === 'action' && parsed.label) {
+                      label = parsed.label
+                    } else if (parsed.source && sourceMap[parsed.source]) {
                       label = sourceMap[parsed.source]
                     } else if (parsed.type && typeMap[parsed.type]) {
                       label = typeMap[parsed.type]
