@@ -64,30 +64,17 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
             <p className="text-[12px] font-bold text-slate-900 truncate leading-tight">
               {contact.firstName} {contact.lastName}
             </p>
-            <div className="flex items-center gap-1 flex-shrink-0 -mt-0.5">
-              {onMarkDone && contact.column !== 'done' && (
-                <button
-                  onClick={e => { e.stopPropagation(); onMarkDone(contact.id) }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 rounded-full bg-emerald-50 hover:bg-emerald-500 border border-emerald-200 hover:border-emerald-500 flex items-center justify-center group/done"
-                  title="Mark as done"
-                >
-                  <svg className="w-3 h-3 text-emerald-400 group-hover/done:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                </button>
-              )}
-              {onDelete && (
-                <button
-                  onClick={e => { e.stopPropagation(); onDelete(contact.id) }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-400"
-                  title="Delete"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
+            {onDelete && (
+              <button
+                onClick={e => { e.stopPropagation(); onDelete(contact.id) }}
+                className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-400 flex-shrink-0 -mt-0.5"
+                title="Delete"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
 
           <p className="text-[10.5px] text-slate-400 truncate leading-tight mt-0.5">
@@ -119,11 +106,25 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
         <span className={`text-[9.5px] px-1.5 py-0.5 rounded-full font-semibold ${statusStyles[contact.status] || 'bg-slate-100 text-slate-500'}`}>
           {contact.statusLabel || 'New'}
         </span>
-        {ago && (
-          <span className={`text-[9.5px] ${urgency}`} title="Days since added">
-            {ago}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {onMarkDone && contact.column !== 'done' && (
+            <button
+              onClick={e => { e.stopPropagation(); onMarkDone(contact.id) }}
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-[9px] font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-0.5"
+              title="Mark as done"
+            >
+              <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Done
+            </button>
+          )}
+          {ago && (
+            <span className={`text-[9.5px] ${urgency}`} title="Days since added">
+              {ago}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )
