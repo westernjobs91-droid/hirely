@@ -70,23 +70,20 @@ export default function Dashboard() {
   }, [router])
 
   const autoMoveStaleContacts = async (userId: string, contactsList: Contact[]) => {
-    const todayStr = new Date().toISOString().split('T')[0]
-
-    const stale = contactsList.filter(c => {
-      if (c.column !== 'upcoming') return false
-
-      // If recruiter set a specific follow-up date, use that
-      if (c.sentDate) {
-        return c.sentDate <= todayStr
-      }
-
-      // Otherwise fall back to 7-day rule
-      if (!c.createdAt) return false
-      return Math.floor((Date.now() - new Date(c.createdAt).getTime()) / 86400000) >= 7
-    })
+    const stale = contactsList.filter(c =>
+      c.column === 'upcoming' &&
+      c.createdAt &&
+      Math.floor((Date.now() - new Date(c.createdAt).getTime()) / 86400000) >= 7 &&
+      !c.email // only move if no email found yet — if they have email they should have been contacted
+        ? false // don't auto-move enriched contacts, recruiter should act deliberately
+        : c.column === 'upcoming' &&
+          c.createdAt &&
+          Math.floor((Date.now() - new Date(c.createdAt).getTime()) / 86400000) >= 7
+    )
 
     if (stale.length === 0) return contactsList
 
+    // Update in Supabase
     const staleIds = stale.map(c => c.id)
     await supabase
       .from('contacts')
@@ -94,6 +91,7 @@ export default function Dashboard() {
       .in('id', staleIds)
       .eq('user_id', userId)
 
+    // Update local state
     return contactsList.map(c =>
       staleIds.includes(c.id)
         ? { ...c, column: 'today' as Contact['column'], statusLabel: 'Follow Up' }
@@ -171,6 +169,12 @@ export default function Dashboard() {
     if (selected?.id === id) setSelected(null)
     setToast('Contact deleted')
   }, [selected])
+
+  const handleMarkDone = useCallback(async (id: string) => {
+    await supabase.from('contacts').update({ column_name: 'done', status_label: 'Done' }).eq('id', id)
+    setContacts(prev => prev.map(c => c.id === id ? { ...c, column: 'done' as Contact['column'], statusLabel: 'Done' } : c))
+    setSelected(prev => prev?.id === id ? { ...prev, column: 'done' as Contact['column'], statusLabel: 'Done' } : prev)
+  }, [])
 
   const handleSend = useCallback((draft: AIDraft, c: Contact) => {
     setToast(`Follow-up sent to ${c.firstName} ${c.lastName}`)
@@ -524,7 +528,7 @@ export default function Dashboard() {
                         ) : (
                           col.contacts.map(c => (
                             <ContactCard key={c.id} contact={c} isSelected={selected?.id === c.id}
-                              onClick={() => setSelected(c)} onDelete={handleDelete} />
+                              onClick={() => setSelected(c)} onDelete={handleDelete} onMarkDone={handleMarkDone} />
                           ))
                         )}
                       </div>
@@ -539,14 +543,14 @@ export default function Dashboard() {
           {activeNav === 'contacts' && (
             <div className="px-6 py-4">
               <ContactListView contacts={allContactsFiltered} selectedId={selected?.id} onSelect={setSelected}
-                onDelete={handleDelete} emptyMessage={searchQuery ? 'No contacts match your search.' : 'No contacts yet - add one to get started.'} />
+                onDelete={handleDelete} onMarkDone={handleMarkDone} emptyMessage={searchQuery ? 'No contacts match your search.' : 'No contacts yet - add one to get started.'} />
             </div>
           )}
 
           {activeNav === 'followups' && (
             <div className="px-6 py-4">
               <ContactListView contacts={followupsFiltered} selectedId={selected?.id} onSelect={setSelected}
-                onDelete={handleDelete} emptyMessage="Nothing due - you're all caught up! 🎉" />
+                onDelete={handleDelete} onMarkDone={handleMarkDone} emptyMessage="Nothing due - you're all caught up! 🎉" />
             </div>
           )}
 
