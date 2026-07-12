@@ -287,6 +287,16 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
             </button>
           </div>
 
+          {/* Mark as done — always visible */}
+          {contact.column !== 'done' && (
+            <button
+              onClick={handleMoveToDone}
+              className="w-full mt-2 py-1.5 rounded-xl border border-slate-200 text-[11px] font-semibold text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-all"
+            >
+              Mark as done ✓
+            </button>
+          )}
+
           {findEmailError && <p className="text-[10px] text-red-600 bg-red-50 border border-red-100 rounded-lg px-2.5 py-1.5 mt-2">{findEmailError}</p>}
           {findEmailNote && <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5 mt-2">{findEmailNote}</p>}
         </div>
@@ -485,13 +495,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
                     </button>
                   </div>
 
-                  {/* Move to Done */}
-                  <button
-                    onClick={handleMoveToDone}
-                    className="mt-2 w-full py-2 rounded-xl border border-slate-200 text-[11px] font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-700 hover:border-slate-300 transition-all"
-                  >
-                    Mark as done
-                  </button>
+
                 </div>
               </div>
             ))}
