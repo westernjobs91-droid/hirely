@@ -70,20 +70,23 @@ export default function Dashboard() {
   }, [router])
 
   const autoMoveStaleContacts = async (userId: string, contactsList: Contact[]) => {
-    const stale = contactsList.filter(c =>
-      c.column === 'upcoming' &&
-      c.createdAt &&
-      Math.floor((Date.now() - new Date(c.createdAt).getTime()) / 86400000) >= 7 &&
-      !c.email // only move if no email found yet — if they have email they should have been contacted
-        ? false // don't auto-move enriched contacts, recruiter should act deliberately
-        : c.column === 'upcoming' &&
-          c.createdAt &&
-          Math.floor((Date.now() - new Date(c.createdAt).getTime()) / 86400000) >= 7
-    )
+    const todayStr = new Date().toISOString().split('T')[0]
+
+    const stale = contactsList.filter(c => {
+      if (c.column !== 'upcoming') return false
+
+      // If recruiter set a specific follow-up date, use that
+      if (c.sentDate) {
+        return c.sentDate <= todayStr
+      }
+
+      // Otherwise fall back to 7-day rule
+      if (!c.createdAt) return false
+      return Math.floor((Date.now() - new Date(c.createdAt).getTime()) / 86400000) >= 7
+    })
 
     if (stale.length === 0) return contactsList
 
-    // Update in Supabase
     const staleIds = stale.map(c => c.id)
     await supabase
       .from('contacts')
@@ -91,7 +94,6 @@ export default function Dashboard() {
       .in('id', staleIds)
       .eq('user_id', userId)
 
-    // Update local state
     return contactsList.map(c =>
       staleIds.includes(c.id)
         ? { ...c, column: 'today' as Contact['column'], statusLabel: 'Follow Up' }

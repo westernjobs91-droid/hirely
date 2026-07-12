@@ -191,15 +191,22 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
   const handleSaveFollowUp = async () => {
     if (!contact || !followUpDate) return
     setSavingFollowUp(true)
-    // Move contact to follow_up_today column with the selected date stored as sentDate
+    // Save the date but keep in Coming up — auto-move runs on that date
     await onUpdateContact(contact.id, {
       sentDate: followUpDate,
-      column: 'today' as Contact['column'],
-      statusLabel: 'Follow Up'
+      statusLabel: 'Follow Up Scheduled'
     })
     setSavingFollowUp(false)
     setFollowUpSaved(true)
     setTimeout(() => setFollowUpSaved(false), 2000)
+  }
+
+  const handleMoveToDone = async () => {
+    if (!contact) return
+    await onUpdateContact(contact.id, {
+      column: 'done' as Contact['column'],
+      statusLabel: 'Done'
+    })
   }
 
   const tabs: { id: Tab; label: string }[] = [
@@ -388,7 +395,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
                         {savingFollowUp ? '...' : followUpSaved ? 'Saved ✓' : 'Set'}
                       </button>
                     </div>
-                    <p className="text-[9.5px] text-amber-600 mt-1.5">Moves contact to Follow up today on this date</p>
+                    <p className="text-[9.5px] text-amber-600 mt-1.5">Contact auto-moves to Follow up today on this date</p>
                   </div>
                 </div>
               </>
@@ -477,6 +484,14 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
                       {sentDrafts.has(draft.id) ? '✓ Sent!' : 'Send now'}
                     </button>
                   </div>
+
+                  {/* Move to Done */}
+                  <button
+                    onClick={handleMoveToDone}
+                    className="mt-2 w-full py-2 rounded-xl border border-slate-200 text-[11px] font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-700 hover:border-slate-300 transition-all"
+                  >
+                    Mark as done
+                  </button>
                 </div>
               </div>
             ))}
