@@ -1,124 +1,124 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-
-interface IntegrationStatus {
-  apollo: boolean
-  hunter: boolean
-  anthropic: boolean
-}
-
-function StatusBadge({ connected }: { connected: boolean | null }) {
-  if (connected === null) {
-    return <span className="text-[10px] text-slate-400 bg-slate-50 border border-slate-200 px-2 py-1 rounded-full font-medium">Checking...</span>
-  }
-  return connected ? (
-    <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full font-semibold flex items-center gap-1">
-      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Connected
-    </span>
-  ) : (
-    <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full font-semibold flex items-center gap-1">
-      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Not configured
-    </span>
-  )
-}
-
-function IntegrationCard({
-  icon, name, description, connected, footnote
-}: {
-  icon: React.ReactNode
-  name: string
-  description: string
-  connected: boolean | null
-  footnote?: string
-}) {
-  return (
-    <div className="bg-white border border-slate-100 rounded-xl p-4" style={{ boxShadow: '0 1px 4px rgba(0,0,0,.03)' }}>
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center flex-shrink-0">
-            {icon}
-          </div>
-          <p className="text-[13px] font-semibold text-slate-900">{name}</p>
-        </div>
-        <StatusBadge connected={connected} />
-      </div>
-      <p className="text-[11.5px] text-slate-500 leading-relaxed">{description}</p>
-      {footnote && <p className="text-[10.5px] text-slate-400 mt-2 italic">{footnote}</p>}
-    </div>
-  )
-}
-
 export default function IntegrationsView() {
-  const [status, setStatus] = useState<IntegrationStatus | null>(null)
-
-  useEffect(() => {
-    fetch('/api/integrations/status')
-      .then(res => res.json())
-      .then(setStatus)
-      .catch(() => setStatus({ apollo: false, hunter: false, anthropic: false }))
-  }, [])
-
   return (
     <div className="px-5 py-4 space-y-5">
-      <div>
-        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Enrichment & AI</p>
-        <div className="grid grid-cols-3 gap-3">
-          <IntegrationCard
-            name="Apollo"
-            description="Finds email addresses and resolves company names during enrichment."
-            connected={status?.apollo ?? null}
-            footnote="Requires a paid Apollo plan for full functionality."
-            icon={<svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}
-          />
-          <IntegrationCard
-            name="Hunter.io"
-            description="Fallback email finder, pattern matching, and live email verification."
-            connected={status?.hunter ?? null}
-            icon={<svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>}
-          />
-          <IntegrationCard
-            name="Anthropic (Claude)"
-            description="Writes your AI follow-up drafts based on each contact's profile."
-            connected={status?.anthropic ?? null}
-            icon={<svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>}
-          />
-        </div>
-        <p className="text-[10.5px] text-slate-400 mt-2">
-          These are configured server-side in Vercel&apos;s environment variables — there&apos;s nothing to connect from here. This just confirms each key is present.
-        </p>
-      </div>
 
       <div>
-        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Capture tools</p>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white border border-slate-100 rounded-xl p-4" style={{ boxShadow: '0 1px 4px rgba(0,0,0,.03)' }}>
-            <div className="flex items-center gap-2.5 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center flex-shrink-0">
-                <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+        <h2 className="text-base font-bold text-slate-800 mb-0.5">Integrations</h2>
+        <p className="text-[11.5px] text-slate-400 mb-4">Connect your tools to capture contacts and automate follow-ups.</p>
+
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Capture tools</p>
+        <div className="grid grid-cols-2 gap-4">
+
+          {/* Chrome Extension */}
+          <div className="bg-white border border-slate-100 rounded-2xl p-5" style={{ boxShadow: '0 1px 4px rgba(0,0,0,.04)' }}>
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-[13px] font-bold text-slate-900">Chrome Extension</p>
+                  <p className="text-[10px] text-slate-400">LinkedIn contact capture</p>
+                </div>
               </div>
-              <p className="text-[13px] font-semibold text-slate-900">Chrome Extension</p>
             </div>
-            <p className="text-[11.5px] text-slate-500 leading-relaxed mb-2">
-              Adds a &quot;Save to Hirely&quot; tab on LinkedIn profiles. Scrapes name, title, company, and photo with one click.
+            <p className="text-[11.5px] text-slate-500 leading-relaxed mb-4">
+              Browse LinkedIn profiles and save contacts to Hirely with one click. Captures name, title, company, and LinkedIn URL instantly.
             </p>
-            <p className="text-[10.5px] text-slate-400 italic">Currently sideloaded — not yet published to the Chrome Web Store.</p>
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">How to install</p>
+              <ol className="space-y-1.5">
+                {[
+                  'Download the extension file from the link below',
+                  'Go to chrome://extensions in your browser',
+                  'Enable Developer Mode (top right toggle)',
+                  'Click "Load unpacked" and select the extension folder',
+                  'Pin Hirely to your toolbar and log in',
+                ].map((step, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 text-[9px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
+                    <span className="text-[11px] text-slate-500">{step}</span>
+                  </li>
+                ))}
+              </ol>
+              <a
+                href="mailto:jay@hirelypro.com?subject=Hirely Extension Download"
+                className="mt-3 flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11.5px] font-semibold transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Get the extension
+              </a>
+            </div>
           </div>
 
-          <div className="bg-white border border-slate-100 rounded-xl p-4" style={{ boxShadow: '0 1px 4px rgba(0,0,0,.03)' }}>
-            <div className="flex items-center gap-2.5 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center flex-shrink-0">
-                <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+          {/* Outlook Add-in */}
+          <div className="bg-white border border-slate-100 rounded-2xl p-5" style={{ boxShadow: '0 1px 4px rgba(0,0,0,.04)' }}>
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-[13px] font-bold text-slate-900">Outlook Add-in</p>
+                  <p className="text-[10px] text-slate-400">Email contact capture</p>
+                </div>
               </div>
-              <p className="text-[13px] font-semibold text-slate-900">Outlook Add-in</p>
             </div>
-            <p className="text-[11.5px] text-slate-500 leading-relaxed mb-2">
-              Adds a &quot;Save to Hirely&quot; button when reading an email. Captures the sender (or recipient, for sent mail).
+            <p className="text-[11.5px] text-slate-500 leading-relaxed mb-4">
+              Save contacts directly from your Outlook inbox. Opens on any email and captures the sender with one click.
             </p>
-            <p className="text-[10.5px] text-slate-400 italic">Currently sideloaded per-person — not yet deployed org-wide.</p>
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">How to install</p>
+              <ol className="space-y-1.5">
+                {[
+                  'Open Outlook on your desktop or web browser',
+                  'Go to Home → Get Add-ins (or More Apps)',
+                  'Click "My add-ins" → "Add a custom add-in"',
+                  'Choose "Add from URL" and paste the manifest link',
+                  'Hirely will appear in your Outlook toolbar',
+                ].map((step, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-600 text-[9px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
+                    <span className="text-[11px] text-slate-500">{step}</span>
+                  </li>
+                ))}
+              </ol>
+              <a
+                href={`https://app.hirelypro.com/outlook/manifest.xml`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11.5px] font-semibold transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+                Get the manifest URL
+              </a>
+            </div>
           </div>
+
         </div>
       </div>
+
+      {/* Help */}
+      <div className="bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 flex items-center justify-between">
+        <div>
+          <p className="text-[12px] font-semibold text-slate-700">Need help setting up?</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Email us and we will get you set up within 24 hours.</p>
+        </div>
+        <a href="mailto:jay@hirelypro.com" className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[11.5px] font-semibold text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-colors whitespace-nowrap">
+          Contact support
+        </a>
+      </div>
+
     </div>
   )
 }
