@@ -385,12 +385,7 @@
         }
       }
 
-      // The company badge is a link to a /company/ page when LinkedIn makes
-      // it clickable — an exact signal when present.
-      if (!companyFromLink && el.tagName === "A" && /\/company\//.test(el.getAttribute("href") || "")) {
-        const label = cleanCompanyLabel(el.innerText);
-        if (label && !isJunkLine(label, name)) companyFromLink = label;
-      }
+      // Company link detection handled separately below — not in this loop
 
       if (el.tagName === "IMG") {
         const rect = el.getBoundingClientRect();
@@ -424,6 +419,47 @@
         }
       }
     }
+    // ── COMPANY DETECTION: separate pass, ignores stop markers ─────────────
+    // LinkedIn renders the current company as a /company/ link in the intro
+    // card. We query ALL such links on the page by pixel position — anything
+    // in the top 600px is guaranteed to be in the intro card, not in
+    // Experience/Education sections further down.
+    if (!companyFromLink) {
+      const allCompanyLinks = Array.from(document.querySelectorAll('a[href*="/company/"]'));
+      for (const a of allCompanyLinks) {
+        const rect = a.getBoundingClientRect();
+        // Only look at links visually in the top portion of the page
+        if (rect.top < 0 || rect.top > 600) continue;
+        const label = cleanCompanyLabel(a.innerText || a.textContent || '');
+        if (label && label.length > 1 && label.length < 80 && !isJunkLine(label, name)) {
+          companyFromLink = label;
+          break;
+        }
+      }
+    }
+
+    // Also try: grab text from the intro section's company badge IMG wrapper
+    // in case the link didn't have visible text (icon-only badge)
+    if (!companyFromLink && !companyFromBadge) {
+      const imgs = Array.from(document.querySelectorAll('img'));
+      for (const img of imgs) {
+        const rect = img.getBoundingClientRect();
+        if (rect.top < 0 || rect.top > 600) continue;
+        const w = rect.width, h = rect.height;
+        if (!w || !h) continue;
+        const aspect = w / h;
+        if (w >= 14 && w <= 56 && aspect > 0.75 && aspect < 1.35) {
+          // Found a badge-sized image in intro card — get its wrapper text
+          const wrap = img.closest('a') || img.parentElement?.parentElement || img.parentElement;
+          const label = wrap ? cleanCompanyLabel(wrap.innerText || wrap.textContent || '') : '';
+          if (label && label.length > 1 && label.length < 80 && !isJunkLine(label, name)) {
+            companyFromBadge = label;
+            break;
+          }
+        }
+      }
+    }
+
     return { textCandidates, companyFromLink, companyFromBadge, photo };
   }
 
@@ -599,6 +635,7 @@
     const firstName = parts[0] || "";
     const lastName = parts.slice(1).join(" ") || "";
 
+    console.log('[Hirely] scraped:', { name, headline, company, url });
     return { name, firstName, lastName, headline, company, photo, url };
   }
 
