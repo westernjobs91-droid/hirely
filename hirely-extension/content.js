@@ -604,14 +604,50 @@
     // Scan for badge image and photo only (company detection moved to separate pass below)
     const { textCandidates, companyFromLink, companyFromBadge, photo: scannedPhoto } = findIntroCandidates(name, 10);
 
-    // Headline fallback: only use DOM text if og:title didn't give us one
-    // AND validate it's not a UI label
+    // Headline fallback: when og:title is missing (mobile/responsive mode),
+    // grab the subtitle text directly from the DOM element right below the h1.
+    // LinkedIn always renders job title as the first sibling div after h1.
     if (!headline) {
-      const UI_HEADLINE_JUNK = /^(share via private message|connect|message|more|follow|pending|open to work|hiring|she\/her|he\/him|they\/them)$/i;
-      const headlineCandidate = textCandidates.find(
-        (c) => c !== name && !c.startsWith(name) && !c.includes(" • ") && !UI_HEADLINE_JUNK.test(c)
-      );
-      if (headlineCandidate) headline = headlineCandidate;
+      // Strategy 1: element directly after h1 in the intro card
+      const h1 = document.querySelector('h1');
+      if (h1) {
+        // Walk siblings/parent children to find the next text node
+        let el = h1.nextElementSibling;
+        for (let i = 0; i < 5 && el; i++) {
+          const t = (el.innerText || el.textContent || '').trim().split('\n')[0].trim();
+          if (t && t.length > 2 && t.length < 120 && !isJunkLine(t, name)) {
+            headline = t;
+            console.log('[Hirely] headline from h1 sibling:', headline);
+            break;
+          }
+          el = el.nextElementSibling;
+        }
+        // Strategy 2: parent's children after h1
+        if (!headline) {
+          const parent = h1.parentElement;
+          if (parent) {
+            let found = false;
+            for (const child of parent.children) {
+              if (found) {
+                const t = (child.innerText || child.textContent || '').trim().split('\n')[0].trim();
+                if (t && t.length > 2 && t.length < 120 && !isJunkLine(t, name)) {
+                  headline = t;
+                  console.log('[Hirely] headline from h1 parent sibling:', headline);
+                  break;
+                }
+              }
+              if (child === h1) found = true;
+            }
+          }
+        }
+      }
+    }
+
+    // Final headline validation — reject known UI junk strings
+    const UI_HEADLINE_JUNK = /^(share via private message|share via|private message|connect|message|more|follow|pending|open to work|hiring|she\/her|he\/him|they\/them|university of|college of|institute of)/i;
+    if (UI_HEADLINE_JUNK.test(headline)) {
+      console.log('[Hirely] rejected junk headline:', headline);
+      headline = '';
     }
 
     // Company priority: the visible logo badge is the most reliable signal
