@@ -952,7 +952,40 @@
     const tabSave = panel.querySelector('#hirely-tab-save');
     const tabHistory = panel.querySelector('#hirely-tab-history');
 
-    const data = scrapeProfile();
+    // Get URL immediately — this is always reliable
+    const url = window.location.href.split('?')[0].replace(/\/$/, '');
+
+    // Show loading while we fetch profile data
+    tabBody.innerHTML = '<div class="hirely-loading">Loading profile…</div>';
+
+    // Try RapidAPI first — returns perfect data without any DOM scraping
+    // Falls back to DOM scrape if API fails (offline, rate limit, etc.)
+    let data = null;
+    const apiRes = await sendMsg({ type: 'HIRELY_ENRICH_PROFILE', linkedinUrl: url });
+    if (apiRes && apiRes.ok && apiRes.firstName) {
+      data = {
+        name: apiRes.name,
+        firstName: apiRes.firstName,
+        lastName: apiRes.lastName,
+        headline: apiRes.headline,
+        company: apiRes.company,
+        photo: apiRes.photo,
+        url,
+      };
+      console.log('[Hirely] profile from RapidAPI:', data);
+    } else {
+      // Fallback: DOM scrape with retry
+      console.log('[Hirely] RapidAPI failed, falling back to DOM scrape');
+      data = scrapeProfile();
+      if (!data.name || data.name === 'Unknown') {
+        for (let attempt = 0; attempt < 8; attempt++) {
+          await new Promise(r => setTimeout(r, 400));
+          data = scrapeProfile();
+          if (data.name && data.name !== 'Unknown') break;
+        }
+      }
+    }
+
     logProfileView(data);
 
     // Check pipeline status
