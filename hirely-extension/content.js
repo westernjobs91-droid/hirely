@@ -1165,15 +1165,21 @@
       return '<div class="hirely-section-label">Decision Makers <span style="font-weight:400;color:#94A3B8;">(' + ppl.length + ' found)</span></div>' +
         ppl.map((p, i) => {
           const name = [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Unknown';
-          return '<div class="hirely-person-card">' +
+          const linkedinLink = p.linkedin
+            ? '<a href="' + escapeAttr(p.linkedin) + '" target="_blank" class="hirely-link" style="font-size:10px;margin-top:3px;display:inline-block;">View profile ↗</a>'
+            : '';
+          return '<div class="hirely-person-card" id="hirely-person-' + i + '">' +
             '<div class="hirely-person-top">' +
-              '<div>' +
+              '<div style="min-width:0;">' +
                 '<div class="hirely-person-name">' + escapeHtml(name) + '</div>' +
                 '<div class="hirely-person-title">' + escapeHtml(p.position || '') + '</div>' +
+                linkedinLink +
               '</div>' +
               '<button class="hirely-person-save" data-index="' + i + '">Save</button>' +
             '</div>' +
-            '<div class="hirely-email-hint">✉ Find email in dashboard after saving</div>' +
+            '<div class="hirely-person-email" id="hirely-person-email-' + i + '">' +
+              '<button class="hirely-find-email-btn" data-person-index="' + i + '" style="margin-bottom:0;">✦ Find Email</button>' +
+            '</div>' +
           '</div>';
         }).join('');
     }
@@ -1222,7 +1228,7 @@
         (ppl.length > 0
           ? dmCardsHtml(ppl)
           : '<button class="hirely-btn" id="hirely-find-dm">Find Decision Makers</button>' +
-            '<div style="font-size:10px;color:#94A3B8;text-align:center;margin-top:6px;">Save contacts → find emails on dashboard</div>'
+            '<div style="font-size:10px;color:#94A3B8;text-align:center;margin-top:6px;">Save contact → Find Email right here</div>'
         )
       );
     }
@@ -1247,6 +1253,7 @@
     }
 
     function wireSaveButtons(ppl) {
+      // Wire Save buttons
       panel.querySelectorAll('.hirely-person-save').forEach(btn => {
         btn.addEventListener('click', async () => {
           const i = parseInt(btn.dataset.index);
@@ -1264,11 +1271,72 @@
           if (saveRes.ok || saveRes.error === 'ALREADY_EXISTS') {
             btn.textContent = saveRes.error === 'ALREADY_EXISTS' ? 'In Pipeline' : 'Saved ✓';
             btn.classList.add('saved');
+            // Store saved contact id so Find Email can use it
+            if (saveRes.ok && saveRes.contact) {
+              p._savedId = saveRes.contact.id;
+            }
+            // Show Find Email button now that they're saved
+            const emailDiv = panel.querySelector('#hirely-person-email-' + i);
+            if (emailDiv) wirePersonFindEmail(emailDiv, p, i);
           } else {
             btn.textContent = 'Error'; btn.disabled = false;
           }
         });
       });
+
+      // Wire Find Email buttons on all cards
+      panel.querySelectorAll('.hirely-find-email-btn[data-person-index]').forEach(btn => {
+        const i = parseInt(btn.dataset.personIndex);
+        const emailDiv = panel.querySelector('#hirely-person-email-' + i);
+        if (emailDiv) wirePersonFindEmail(emailDiv, ppl[i], i);
+      });
+    }
+
+    function wirePersonFindEmail(emailDiv, p, i) {
+      const btn = emailDiv.querySelector('.hirely-find-email-btn');
+      if (!btn) return;
+      btn.onclick = async () => {
+        btn.disabled = true;
+        btn.textContent = 'Searching…';
+        const res = await sendMsg({
+          type: 'HIRELY_FIND_EMAIL',
+          contactId: p._savedId || null,
+          firstName: p.first_name || '',
+          lastName: p.last_name || '',
+          company: info?.name || company.name,
+          domain: info?.domain || ''
+        });
+        if (res.ok && res.email) {
+          const conf = res.confidence;
+          const confClass = conf >= 80 ? 'hirely-confidence-high' : conf >= 50 ? 'hirely-confidence-med' : 'hirely-confidence-low';
+          const confPill = conf ? '<span class="hirely-confidence-pill ' + confClass + '">' + conf + '%</span>' : '';
+          emailDiv.innerHTML =
+            '<div class="hirely-email-row" style="margin-top:6px;">✉ ' +
+              '<span class="hirely-email-val">' + escapeHtml(res.email) + '</span>' +
+              confPill +
+              '<button class="hirely-copy-btn" data-copy="' + escapeAttr(res.email) + '">Copy</button>' +
+            '</div>';
+          const copyBtn = emailDiv.querySelector('.hirely-copy-btn');
+          if (copyBtn) {
+            copyBtn.addEventListener('click', () => {
+              navigator.clipboard.writeText(copyBtn.dataset.copy).then(() => {
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+              });
+            });
+          }
+          p.email = res.email;
+        } else {
+          btn.disabled = false;
+          btn.textContent = '✦ Find Email';
+          const err = document.createElement('div');
+          err.className = 'hirely-status show error';
+          err.style.marginTop = '4px';
+          err.textContent = res.message || 'No email found.';
+          emailDiv.appendChild(err);
+          setTimeout(() => err.remove(), 3000);
+        }
+      };
     }
   }
 
