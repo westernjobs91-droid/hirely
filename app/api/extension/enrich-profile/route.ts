@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 export async function POST(req: NextRequest) {
-  // Auth check
   const authHeader = req.headers.get('authorization')
   const token = authHeader?.replace('Bearer ', '')
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -18,16 +17,15 @@ export async function POST(req: NextRequest) {
   if (!linkedinUrl) return NextResponse.json({ error: 'linkedinUrl required' }, { status: 400 })
 
   const rapidApiKey = process.env.RAPIDAPI_KEY
-  if (!rapidApiKey) return NextResponse.json({ error: 'RapidAPI not configured' }, { status: 500 })
+  if (!rapidApiKey) return NextResponse.json({ ok: false, error: 'RapidAPI not configured' }, { status: 500 })
 
-  // Clean the URL — strip query params, trailing slash
   const cleanUrl = linkedinUrl.split('?')[0].replace(/\/$/, '')
 
   try {
-    // Check Supabase cache first — saves RapidAPI credits on repeat visits
+    // Check if contact already exists in DB for this user — free, no API credit burned
     const { data: cached } = await supabase
       .from('contacts')
-      .select('first_name, last_name, job_title, company, avatar_color')
+      .select('first_name, last_name, job_title, company')
       .eq('linkedin_url', cleanUrl)
       .eq('user_id', user.id)
       .single()
@@ -45,37 +43,46 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    // RockApis Real-Time LinkedIn Scraper API — "Get Profile Data By URL"
+    // Host: linkedin-data-api.p.rapidapi.com
+    // Endpoint: GET /get-profile-data-by-url?url=<linkedinUrl>
     const res = await fetch(
-      `https://fresh-linkedin-profile-data.p.rapidapi.com/get-profile-data-by-linkedin-url?linkedin_url=${encodeURIComponent(cleanUrl)}`,
+      `https://linkedin-data-api.p.rapidapi.com/get-profile-data-by-url?url=${encodeURIComponent(cleanUrl)}`,
       {
         method: 'GET',
         headers: {
-          'x-rapidapi-host': 'fresh-linkedin-profile-data.p.rapidapi.com',
+          'x-rapidapi-host': 'linkedin-data-api.p.rapidapi.com',
           'x-rapidapi-key': rapidApiKey,
         }
       }
     )
 
     if (!res.ok) {
-      console.error('[enrich-profile] RapidAPI error', res.status)
+      console.error('[enrich-profile] RockApis error', res.status, await res.text().catch(() => ''))
       return NextResponse.json({ ok: false, error: 'Profile lookup failed' })
     }
 
-    const data = await res.json()
+    const json = await res.json()
 
-    // Fresh LinkedIn Profile Data response shape:
-    // { first_name, last_name, full_name, headline, current_company_name,
-    //   current_company: { name }, profile_picture, location, about }
-    const profile = data.data ?? data
+    // RockApis response shape (v2):
+    // { success, data: { firstName, lastName, headline, geo: { full }, profilePicture,
+    //   position: [{ companyName, title }] } }
+    const profile = json.data ?? json
 
-    const firstName   = profile.first_name || profile.full_name?.split(' ')[0] || ''
-    const lastName    = profile.last_name  || profile.full_name?.split(' ').slice(1).join(' ') || ''
-    const headline    = profile.headline || ''
-    const company     = profile.current_company_name || profile.current_company?.name || ''
-    const photo       = profile.profile_picture || profile.photo_url || ''
-    const location    = profile.location || ''
+    const firstName = profile.firstName || profile.first_name || ''
+    const lastName  = profile.lastName  || profile.last_name  || ''
+    const headline  = profile.headline  || profile.summary    || ''
+    const company   =
+      profile.position?.[0]?.companyName ||
+      profile.experiences?.[0]?.companyName ||
+      profile.current_company_name ||
+      profile.currentPositionCompanyName ||
+      ''
+    const photo     = profile.profilePicture || profile.profile_picture || profile.photoUrl || ''
+    const location  = profile.geo?.full || profile.location || ''
 
     if (!firstName && !lastName) {
+      console.error('[enrich-profile] no name in response:', JSON.stringify(json).slice(0, 300))
       return NextResponse.json({ ok: false, error: 'Profile not found' })
     }
 
