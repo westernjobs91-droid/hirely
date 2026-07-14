@@ -592,17 +592,19 @@
     let headline = parsed?.headline || "";
     let company = "";
 
-    // If og:title didn't give us a name (very rare — means og:title is missing),
-    // try h1 but validate it doesn't look like a UI label
+    // If og:title didn't give us a name, try h1
+    // Also use h1 if og:title only gave us the name without headline (own profile case)
     if (!name) {
       const nameEl = findNameEl();
-      const h1text = nameEl ? nameEl.innerText.trim() : "";
-      // Reject h1 values that are clearly UI labels, not a person's name
-      const UI_LABELS = /^(profile|search|home|jobs|messaging|notifications|me|sign in|sign up|share|connect|message|follow)$/i;
-      if (h1text && !UI_LABELS.test(h1text) && h1text.length < 80) {
+      const h1text = nameEl ? nameEl.innerText.trim() : '';
+      // Only reject single-word UI keywords, not actual names
+      const SINGLE_WORD_JUNK = /^(profile|search|home|jobs|messaging|notifications|me|feed|linkedin)$/i;
+      if (h1text && !SINGLE_WORD_JUNK.test(h1text) && h1text.length > 1 && h1text.length < 80) {
         name = cleanName(h1text);
       }
     }
+    // On your own profile, og:title = "Name | LinkedIn" (no headline segment)
+    // parsed.headline will be empty — that's fine, headline fallback handles it
 
     console.log('[Hirely] og:title:', ogTitle, '→ parsed:', parsed);
 
@@ -961,7 +963,7 @@
     // Try RapidAPI first — returns perfect data without any DOM scraping
     // Falls back to DOM scrape if API fails (offline, rate limit, etc.)
     let data = null;
-    const apiRes = await sendMsg({ type: 'HIRELY_ENRICH_PROFILE', linkedinUrl: url });
+    const apiRes = await sendMsg({ type: 'HIRELY_ENRICH_PROFILE', linkedinUrl: url }, 8000);
     if (apiRes && apiRes.ok && apiRes.firstName) {
       data = {
         name: apiRes.name,
@@ -976,17 +978,12 @@
     } else {
       // Fallback: DOM scrape with retry until name resolves
       console.log('[Hirely] RapidAPI unavailable, using DOM scrape');
-      // Wait for og:title or h1 to be populated (LinkedIn SPA renders async)
-      for (let attempt = 0; attempt < 12; attempt++) {
-        const ogTitle = document.querySelector('meta[property="og:title"]')?.getAttribute('content') || '';
+      // Wait up to 2s for h1 to contain a real name (LinkedIn SPA renders async)
+      const UI_LABELS = /^(profile|search|home|jobs|messaging|notifications|me|sign in|sign up|feed|open to)$/i;
+      for (let attempt = 0; attempt < 5; attempt++) {
         const h1text = document.querySelector('h1')?.innerText?.trim() || '';
-        const UI_LABELS = /^(profile|search|home|jobs|messaging|notifications|me|sign in|sign up|feed)$/i;
-        // Stop waiting if we have a real og:title or a real h1
-        if ((ogTitle && !ogTitle.toLowerCase().startsWith('profile') && ogTitle.includes(' - ')) ||
-            (h1text && !UI_LABELS.test(h1text) && h1text.length > 3)) {
-          break;
-        }
-        await new Promise(r => setTimeout(r, 300));
+        if (h1text && !UI_LABELS.test(h1text) && h1text.length > 2) break;
+        await new Promise(r => setTimeout(r, 400));
       }
       data = scrapeProfile();
       console.log('[Hirely] DOM scrape result:', data);
