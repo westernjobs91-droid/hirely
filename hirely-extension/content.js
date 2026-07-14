@@ -305,10 +305,15 @@
   // This is far more stable than the obfuscated CSS classes in the DOM.
   function parseTitleSource(raw) {
     if (!raw) return null;
-    const cleaned = raw.replace(/\s*\|\s*LinkedIn\s*$/i, "").trim();
-    const segments = cleaned.split(" - ").map((s) => s.trim()).filter(Boolean);
+    // Strip " | LinkedIn" suffix (various dash/pipe variants)
+    const cleaned = raw.replace(/\s*[|｜]\s*LinkedIn\s*$/i, "").trim();
+    if (!cleaned) return null;
+    // Split on " - " or " – " (em dash) or " — " (en dash)
+    const segments = cleaned.split(/\s+[-–—]\s+/).map((s) => s.trim()).filter(Boolean);
     if (!segments.length) return null;
     const name = segments[0];
+    // Reject if name looks like a page title not a person
+    if (/^(profile|search|home|feed|linkedin)$/i.test(name)) return null;
     let headline = segments[1] || "";
     let company = segments[2] || "";
     if (!company && headline.includes(" at ")) {
