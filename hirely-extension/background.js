@@ -207,6 +207,27 @@ async function hunterDomainSearch(domain) {
   }
 }
 
+async function findEmailForContact(contactId, firstName, lastName, company, domain) {
+  const session = await getSession();
+  if (!session) throw new Error('NOT_LOGGED_IN');
+  try {
+    const res = await fetch(`${HIRELY_CONFIG.API_BASE}/api/extension/find-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({ contactId, firstName, lastName, company, domain })
+    });
+    const data = await res.json();
+    if (!res.ok) return { ok: false, message: data.error || 'Email lookup failed' };
+    return data; // { ok, email, confidence, type, source }
+  } catch(e) {
+    console.log('[Hirely BG] find-email error:', e.message);
+    return { ok: false, message: 'Email lookup failed' };
+  }
+}
+
 // ── MESSAGE ROUTER ───────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   (async () => {
@@ -230,6 +251,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       } else if (msg.type === "HIRELY_HUNTER_SEARCH") {
         const people = await hunterDomainSearch(msg.domain);
         sendResponse({ ok: true, people });
+      } else if (msg.type === "HIRELY_FIND_EMAIL") {
+        const result = await findEmailForContact(msg.contactId, msg.firstName, msg.lastName, msg.company, msg.domain);
+        sendResponse(result);
       } else if (msg.type === "HIRELY_ENRICH_COMPANY") {
         const { companyName, linkedinSlug } = msg;
         const result = await enrichCompany(companyName, linkedinSlug);
@@ -261,7 +285,7 @@ async function checkContact(url) {
   if (!session) return null;
 
   const res = await fetch(
-    `${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?select=id,first_name,last_name,email,job_title,company,column_name,status_label&user_id=eq.${session.user.id}&linkedin_url=eq.${encodeURIComponent(url)}&limit=1`,
+    `${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?select=id,first_name,last_name,email,email_confidence,job_title,company,column_name,status_label&user_id=eq.${session.user.id}&linkedin_url=eq.${encodeURIComponent(url)}&limit=1`,
     {
       headers: {
         apikey: HIRELY_CONFIG.SUPABASE_ANON_KEY,

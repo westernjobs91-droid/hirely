@@ -111,6 +111,21 @@
       background: #F8FAFC; border-radius: 7px; border: 1px dashed #E2E8F0;
     }
     .hirely-email-hint { font-size: 10.5px; color: #94A3B8; margin-bottom: 10px; }
+    .hirely-confidence-pill {
+      font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 10px;
+      margin-left: 4px; flex-shrink: 0;
+    }
+    .hirely-confidence-high { background: #DCFCE7; color: #15803D; }
+    .hirely-confidence-med  { background: #FEF9C3; color: #854D0E; }
+    .hirely-confidence-low  { background: #FEE2E2; color: #991B1B; }
+    .hirely-find-email-btn {
+      width: 100%; padding: 8px; border: 1.5px solid #2563EB; border-radius: 8px;
+      background: #EFF6FF; color: #2563EB; font-weight: 700; font-size: 12px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+      margin-bottom: 10px; transition: all 0.15s;
+    }
+    .hirely-find-email-btn:hover { background: #2563EB; color: #fff; }
+    .hirely-find-email-btn:disabled { background: #F1F5F9; color: #94A3B8; border-color: #E2E8F0; cursor: not-allowed; }
 
     .hirely-fields-edit { margin-bottom: 10px; }
     .hirely-field { margin-bottom: 8px; }
@@ -272,6 +287,8 @@
     if (/^\d+([,.]\d+)?[km]?\s*(followers?|posts?|comments?)$/i.test(t)) return true;
     if (/^you (both|two)\s/i.test(t)) return true; // "You both studied at X" highlight callout
     if (/video player|is loading\.?$|loading\.\.\.$|please wait\.?$/i.test(t)) return true; // embedded media widget placeholder text
+    if (/^(play|pause|mute|unmute|play video|stop|rewind|fullscreen|skip|replay|volume|subtitles|captions|settings|speed|quality|cc)$/i.test(t)) return true; // media player controls
+    if (/^(like|comment|share|react|repost|send|report|hide|block|remove|unfollow|following|view profile|see more|show more|read more)$/i.test(t)) return true; // ui button labels
     if (t.length > 220) return true; // paragraph, not a headline
     return false;
   }
@@ -657,9 +674,12 @@
     if (existing) {
       const columnLabel = COLUMN_LABELS[existing.column_name] || existing.column_name || 'Pipeline';
       const statusLabel = existing.status_label || 'Active';
+      const conf = existing.email_confidence;
+      const confClass = conf >= 80 ? 'hirely-confidence-high' : conf >= 50 ? 'hirely-confidence-med' : 'hirely-confidence-low';
+      const confLabel = conf ? '<span class="hirely-confidence-pill ' + confClass + '">' + conf + '%</span>' : '';
       const emailDisplay = existing.email
-        ? '<div class="hirely-email-row">✉ <span class="hirely-email-val">' + escapeHtml(existing.email) + '</span><button class="hirely-copy-btn" data-copy="' + escapeAttr(existing.email) + '">Copy</button></div>'
-        : '<div class="hirely-email-missing">✉ No email yet - find it in the dashboard</div>';
+        ? '<div class="hirely-email-row">✉ <span class="hirely-email-val">' + escapeHtml(existing.email) + '</span>' + confLabel + '<button class="hirely-copy-btn" data-copy="' + escapeAttr(existing.email) + '">Copy</button></div>'
+        : '<button class="hirely-find-email-btn" id="hirely-find-email-btn">✦ Find Email</button>';
 
       container.innerHTML =
         '<div class="hirely-pipeline-badge in-pipeline"><span class="hirely-badge-dot"></span>Already in your pipeline</div>' +
@@ -687,6 +707,40 @@
           });
         });
       }
+
+      // Find Email button (shown when contact has no email yet)
+      const findEmailBtn = container.querySelector('#hirely-find-email-btn');
+      if (findEmailBtn) {
+        findEmailBtn.addEventListener('click', async () => {
+          findEmailBtn.disabled = true;
+          findEmailBtn.textContent = 'Searching…';
+          const res = await sendMsg({
+            type: 'HIRELY_FIND_EMAIL',
+            contactId: existing.id,
+            firstName: existing.first_name,
+            lastName: existing.last_name,
+            company: existing.company || data.company || '',
+            domain: existing.email_domain || ''
+          });
+          if (res.ok && res.email) {
+            // Re-render the save tab to show the found email
+            existing.email = res.email;
+            existing.email_confidence = res.confidence || null;
+            await renderSaveTab(container, session, data, existing);
+          } else {
+            findEmailBtn.disabled = false;
+            findEmailBtn.textContent = '✦ Find Email';
+            findEmailBtn.insertAdjacentHTML('afterend',
+              '<div class="hirely-status show error" style="margin-top:6px">' +
+              (res.message || 'No email found for this contact.') + '</div>'
+            );
+            setTimeout(() => {
+              const err = container.querySelector('.hirely-status.error');
+              if (err) err.remove();
+            }, 3000);
+          }
+        });
+      }
     } else {
       container.innerHTML =
         '<div class="hirely-pipeline-badge new-contact"><span class="hirely-badge-dot"></span>Not in your pipeline</div>' +
@@ -705,7 +759,6 @@
           '<div class="hirely-field"><label>Job title</label><input id="hirely-title" value="' + escapeAttr(data.headline) + '" /></div>' +
           '<div class="hirely-field"><label>Company</label><input id="hirely-company" value="' + escapeAttr(data.company) + '" /></div>' +
         '</div>' +
-        '<div class="hirely-email-hint">✉ Email found in dashboard after saving</div>' +
         '<button class="hirely-btn" id="hirely-save-btn">Save to Pipeline</button>' +
         '<div class="hirely-status" id="hirely-save-status"></div>';
 
