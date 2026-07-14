@@ -614,24 +614,38 @@
     // Scan for badge image and photo only (company detection moved to separate pass below)
     const { textCandidates, companyFromLink, companyFromBadge, photo: scannedPhoto } = findIntroCandidates(name, 10);
 
-    // Headline fallback: try LinkedIn's known CSS classes first (fastest, most reliable)
-    // then fall back to ancestor walk if classes change
+    // Headline fallback: read text from elements near the h1
     if (!headline) {
-      // LinkedIn uses these stable classes for the headline element
-      const HEADLINE_SELECTORS = [
-        '.text-body-medium.break-words',      // most common
-        '.pv-text-details__left-panel .text-body-medium',
-        'h2.text-body-medium',
-        '[data-generated-suggestion-target]',
-      ];
-      for (const sel of HEADLINE_SELECTORS) {
-        const el = document.querySelector(sel);
-        if (el) {
-          const t = (el.innerText || el.textContent || '').trim().split('\n')[0].trim();
-          if (t && t.length > 2 && t.length < 150 && !isJunkLine(t, name)) {
+      const h1 = document.querySelector('h1');
+      if (h1) {
+        const UI_JUNK = /^(she\/her|he\/him|they\/them|1st|2nd|3rd|500\+|\d+\s*(connections?|followers?)|connect|message|follow|more|open to|share|contact info|highlights|about|experience|activity)/i;
+        
+        // Strategy A: check direct next siblings of h1 (same parent)
+        let sib = h1.nextElementSibling;
+        for (let i = 0; i < 4 && sib; i++) {
+          const t = (sib.innerText || sib.textContent || '').trim().split('\n')[0].trim();
+          if (t && t.length > 3 && t.length < 150 && !UI_JUNK.test(t) && !isJunkLine(t, name)) {
             headline = t;
-            console.log('[Hirely] headline from CSS selector:', sel, '→', headline);
+            console.log('[Hirely] headline from h1 next sibling:', headline);
             break;
+          }
+          sib = sib.nextElementSibling;
+        }
+
+        // Strategy B: parent's next sibling children
+        if (!headline) {
+          const parent = h1.parentElement;
+          if (parent) {
+            let sib2 = parent.nextElementSibling;
+            for (let i = 0; i < 3 && sib2; i++) {
+              const t = (sib2.innerText || sib2.textContent || '').trim().split('\n')[0].trim();
+              if (t && t.length > 3 && t.length < 150 && !UI_JUNK.test(t) && !isJunkLine(t, name)) {
+                headline = t;
+                console.log('[Hirely] headline from parent sibling:', headline);
+                break;
+              }
+              sib2 = sib2.nextElementSibling;
+            }
           }
         }
       }
