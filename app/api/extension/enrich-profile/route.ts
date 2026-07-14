@@ -24,6 +24,27 @@ export async function POST(req: NextRequest) {
   const cleanUrl = linkedinUrl.split('?')[0].replace(/\/$/, '')
 
   try {
+    // Check Supabase cache first — saves RapidAPI credits on repeat visits
+    const { data: cached } = await supabase
+      .from('contacts')
+      .select('first_name, last_name, job_title, company, avatar_color')
+      .eq('linkedin_url', cleanUrl)
+      .eq('user_id', user.id)
+      .single()
+
+    if (cached?.first_name) {
+      return NextResponse.json({
+        ok: true,
+        firstName: cached.first_name,
+        lastName: cached.last_name || '',
+        name: [cached.first_name, cached.last_name].filter(Boolean).join(' '),
+        headline: cached.job_title || '',
+        company: cached.company || '',
+        photo: '',
+        source: 'cache'
+      })
+    }
+
     const res = await fetch(
       `https://fresh-linkedin-profile-data.p.rapidapi.com/get-profile-data-by-linkedin-url?linkedin_url=${encodeURIComponent(cleanUrl)}`,
       {

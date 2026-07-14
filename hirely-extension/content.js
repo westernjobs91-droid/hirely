@@ -974,16 +974,22 @@
       };
       console.log('[Hirely] profile from RapidAPI:', data);
     } else {
-      // Fallback: DOM scrape with retry
-      console.log('[Hirely] RapidAPI failed, falling back to DOM scrape');
-      data = scrapeProfile();
-      if (!data.name || data.name === 'Unknown') {
-        for (let attempt = 0; attempt < 8; attempt++) {
-          await new Promise(r => setTimeout(r, 400));
-          data = scrapeProfile();
-          if (data.name && data.name !== 'Unknown') break;
+      // Fallback: DOM scrape with retry until name resolves
+      console.log('[Hirely] RapidAPI unavailable, using DOM scrape');
+      // Wait for og:title or h1 to be populated (LinkedIn SPA renders async)
+      for (let attempt = 0; attempt < 12; attempt++) {
+        const ogTitle = document.querySelector('meta[property="og:title"]')?.getAttribute('content') || '';
+        const h1text = document.querySelector('h1')?.innerText?.trim() || '';
+        const UI_LABELS = /^(profile|search|home|jobs|messaging|notifications|me|sign in|sign up|feed)$/i;
+        // Stop waiting if we have a real og:title or a real h1
+        if ((ogTitle && !ogTitle.toLowerCase().startsWith('profile') && ogTitle.includes(' - ')) ||
+            (h1text && !UI_LABELS.test(h1text) && h1text.length > 3)) {
+          break;
         }
+        await new Promise(r => setTimeout(r, 300));
       }
+      data = scrapeProfile();
+      console.log('[Hirely] DOM scrape result:', data);
     }
 
     logProfileView(data);
