@@ -1171,13 +1171,16 @@
 
   // ── SPA URL WATCHER ───────────────────────────────────────────────────
   let lastUrl = window.location.href;
+  let renderTimer = null;
   setInterval(() => {
     const cur = window.location.href;
     if (cur === lastUrl) return;
     lastUrl = cur;
     if (!PROFILE_URL_RE.test(cur) && !/linkedin\.com\/company\/[^/?#]+/.test(cur)) { closeHirely(); return; }
     if (panel.classList.contains("open")) {
-      setTimeout(render, 1500);
+      // Cancel any previous pending render — only fire once after URL settles
+      if (renderTimer) { clearTimeout(renderTimer); renderTimer = null; }
+      renderTimer = setTimeout(() => { renderTimer = null; render(); }, 2500);
     }
   }, 600);
 

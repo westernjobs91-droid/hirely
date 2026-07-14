@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 export async function POST(req: NextRequest) {
-  // Auth check
   const authHeader = req.headers.get('authorization')
   const token = authHeader?.replace('Bearer ', '')
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -23,7 +22,7 @@ export async function POST(req: NextRequest) {
   if (!hunterKey) return NextResponse.json({ ok: false, error: 'Hunter not configured' }, { status: 500 })
 
   try {
-    // Check email_cache first (free)
+    // Check email_cache first (free — no Hunter credit burned)
     if (contactId) {
       const { data: cached } = await supabase
         .from('email_cache')
@@ -32,6 +31,13 @@ export async function POST(req: NextRequest) {
         .single()
 
       if (cached?.email) {
+        // Also make sure the contact record has the email (in case it was missed before)
+        await supabase
+          .from('contacts')
+          .update({ email: cached.email, enriched: true })
+          .eq('id', contactId)
+          .eq('user_id', user.id)
+
         return NextResponse.json({
           ok: true,
           email: cached.email,
@@ -42,7 +48,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Hunter Email Finder — searches by name + company/domain
+    // Hunter Email Finder
     const params = new URLSearchParams({
       first_name: firstName,
       last_name: lastName,
@@ -56,12 +62,6 @@ export async function POST(req: NextRequest) {
       { method: 'GET' }
     )
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}))
-      console.error('[find-email] Hunter error', res.status, errData)
-      return NextResponse.json({ ok: false, message: 'No email found for this contact.' })
-    }
-
     const data = await res.json()
     const email = data.data?.email
     const confidence = data.data?.score ?? null
@@ -72,54 +72,53 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, message: 'No email found for this contact.' })
     }
 
-    // Save to email_cache
+    // 1. Update contact email — this is the critical write, do it first and separately
     if (contactId) {
-      await supabase.from('email_cache').upsert({
-        contact_id: contactId,
-        email,
-        confidence,
-        email_type: emailType,
-        domain: emailDomain,
-        expires_at: '2099-01-01',
-        created_at: new Date().toISOString()
-      }, { onConflict: 'contact_id' })
-    }
-
-    // Update the contact record with found email + confidence score
-    if (contactId) {
-      // Fetch current activity array so we can append to it
-      const { data: existing } = await supabase
+      const { error: updateError } = await supabase
         .from('contacts')
-        .select('activity')
+        .update({ email, enriched: true })
         .eq('id', contactId)
         .eq('user_id', user.id)
-        .single()
 
-      const currentActivity = existing?.activity || []
-      const newActivity = [
-        ...currentActivity,
-        { type: 'email_found', source: 'Hunter (extension)', date: new Date().toISOString() }
-      ]
+      if (updateError) {
+        console.error('[find-email] contact update error:', updateError)
+      }
 
-      await supabase
-        .from('contacts')
-        .update({
+      // 2. Try to append activity log (non-critical, ignore error)
+      try {
+        const { data: existing } = await supabase
+          .from('contacts')
+          .select('activity')
+          .eq('id', contactId)
+          .eq('user_id', user.id)
+          .single()
+
+        const newActivity = [
+          ...(existing?.activity || []),
+          { type: 'email_found', source: 'Hunter (extension)', date: new Date().toISOString() }
+        ]
+        await supabase
+          .from('contacts')
+          .update({ activity: newActivity })
+          .eq('id', contactId)
+          .eq('user_id', user.id)
+      } catch (_) { /* non-critical */ }
+
+      // 3. Save to email_cache (non-critical, ignore error)
+      try {
+        await supabase.from('email_cache').upsert({
+          contact_id: contactId,
           email,
-          email_confidence: confidence,
-          enriched: true,
-          activity: newActivity
-        })
-        .eq('id', contactId)
-        .eq('user_id', user.id)
+          confidence,
+          email_type: emailType,
+          domain: emailDomain,
+          expires_at: '2099-01-01',
+          created_at: new Date().toISOString()
+        }, { onConflict: 'contact_id' })
+      } catch (_) { /* non-critical */ }
     }
 
-    return NextResponse.json({
-      ok: true,
-      email,
-      confidence,
-      type: emailType,
-      source: 'hunter'
-    })
+    return NextResponse.json({ ok: true, email, confidence, type: emailType, source: 'hunter' })
 
   } catch (e) {
     console.error('[find-email]', e)
