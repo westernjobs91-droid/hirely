@@ -305,19 +305,22 @@
   // This is far more stable than the obfuscated CSS classes in the DOM.
   function parseTitleSource(raw) {
     if (!raw) return null;
-    // Strip " | LinkedIn" suffix (various dash/pipe variants)
-    const cleaned = raw.replace(/\s*[|｜]\s*LinkedIn\s*$/i, "").trim();
+    // Strip " | LinkedIn" or "| LinkedIn" suffix
+    const cleaned = raw.replace(/\s*[|｜]\s*LinkedIn\s*$/i, '').trim();
     if (!cleaned) return null;
-    // Split on " - " or " – " (em dash) or " — " (en dash)
-    const segments = cleaned.split(/\s+[-–—]\s+/).map((s) => s.trim()).filter(Boolean);
-    if (!segments.length) return null;
-    const name = segments[0];
-    // Reject if name looks like a page title not a person
-    if (/^(profile|search|home|feed|linkedin)$/i.test(name)) return null;
-    let headline = segments[1] || "";
-    let company = segments[2] || "";
-    if (!company && headline.includes(" at ")) {
-      company = headline.split(" at ").slice(1).join(" at ").trim();
+    // Reject pure page titles
+    if (/^(profile|search|home|feed|linkedin|sign in|sign up)$/i.test(cleaned)) return null;
+    // Split on " - " or em/en dash variants
+    const segments = cleaned.split(/\s+[-–—]\s+/).map(s => s.trim()).filter(Boolean);
+    // Single segment = just the name (own profile or connection with no headline in title)
+    const name = segments[0] || '';
+    if (!name || /^(profile|search|home|feed|linkedin)$/i.test(name)) return null;
+    // Must look like a real name: at least 2 chars, not all caps, not a URL
+    if (name.length < 2 || /^https?:|^www\./.test(name)) return null;
+    let headline = segments[1] || '';
+    let company = segments[2] || '';
+    if (!company && headline.includes(' at ')) {
+      company = headline.split(' at ').slice(1).join(' at ').trim();
     }
     return { name, headline, company };
   }
@@ -611,7 +614,30 @@
     // Scan for badge image and photo only (company detection moved to separate pass below)
     const { textCandidates, companyFromLink, companyFromBadge, photo: scannedPhoto } = findIntroCandidates(name, 10);
 
-    // Headline fallback: when og:title is null (mobile/responsive/no-meta mode).
+    // Headline fallback: try LinkedIn's known CSS classes first (fastest, most reliable)
+    // then fall back to ancestor walk if classes change
+    if (!headline) {
+      // LinkedIn uses these stable classes for the headline element
+      const HEADLINE_SELECTORS = [
+        '.text-body-medium.break-words',      // most common
+        '.pv-text-details__left-panel .text-body-medium',
+        'h2.text-body-medium',
+        '[data-generated-suggestion-target]',
+      ];
+      for (const sel of HEADLINE_SELECTORS) {
+        const el = document.querySelector(sel);
+        if (el) {
+          const t = (el.innerText || el.textContent || '').trim().split('\n')[0].trim();
+          if (t && t.length > 2 && t.length < 150 && !isJunkLine(t, name)) {
+            headline = t;
+            console.log('[Hirely] headline from CSS selector:', sel, '→', headline);
+            break;
+          }
+        }
+      }
+    }
+
+    // Headline fallback 2: when og:title is null (mobile/responsive/no-meta mode).
     // LinkedIn's mobile DOM nests h1 and the headline in separate divs under
     // a common ancestor. We walk UP from h1 to find all text in that block,
     // then pick the first line that isn't the name and isn't junk.
