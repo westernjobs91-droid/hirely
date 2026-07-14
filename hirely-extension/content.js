@@ -446,6 +446,42 @@
   // section's first (i.e. current) entry specifically. Scoped tightly to
   // just that section so it can't pick up unrelated links from Education,
   // Certifications, or elsewhere further down the page.
+  // Direct CSS query for the company badge in the intro card.
+  // LinkedIn always renders the current company as a /company/ link
+  // right below the name — this is the most reliable signal on profiles
+  // where the company is NOT embedded in the headline text.
+  function findIntroCardCompany(name) {
+    // Try multiple selectors that cover LinkedIn's intro card layout variants
+    const selectors = [
+      // Classic: intro card company link
+      '.pv-text-details__left-panel a[href*="/company/"]',
+      '.ph5 a[href*="/company/"]',
+      // Newer layout: top card section
+      '[data-generated-suggestion-target] a[href*="/company/"]',
+      // Any /company/ link in the first 500px of the page
+    ];
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        const label = cleanCompanyLabel(el.innerText);
+        if (label && label.length < 80 && !isJunkLine(label, name)) return label;
+      }
+    }
+    // Fallback: scan ALL /company/ links in the top portion of the page
+    // (before any section headings like About, Experience)
+    const allCompanyLinks = Array.from(document.querySelectorAll('a[href*="/company/"]'));
+    for (const el of allCompanyLinks) {
+      // Only look at links in the top part of the page (intro card area)
+      const rect = el.getBoundingClientRect();
+      if (rect.top > 500) break; // stop scanning once we're past the intro card
+      const label = cleanCompanyLabel(el.innerText);
+      if (label && label.length > 1 && label.length < 80 && !isJunkLine(label, name)) {
+        return label;
+      }
+    }
+    return '';
+  }
+
   function findExperienceCompany(name) {
     const heading = Array.from(document.querySelectorAll("h2, h3")).find(
       (el) => el.innerText.trim() === "Experience"
@@ -524,12 +560,13 @@
     // finally the Experience section as a last resort.
     company =
       companyFromBadge ||
+      companyFromLink ||
+      findIntroCardCompany(name) ||
       (() => {
         const desc = getMeta("og:description") || getMeta("description");
         const expMatch = desc.match(/Experience:\s*([^·|]+)/i);
         return expMatch ? expMatch[1].trim() : "";
       })() ||
-      companyFromLink ||
       (() => {
         const bulletLine = textCandidates.find((c) => c.includes(" • "));
         return bulletLine ? bulletLine.split(" • ")[0].trim() : "";
