@@ -419,43 +419,55 @@
         }
       }
     }
-    // ── COMPANY DETECTION: separate pass, ignores stop markers ─────────────
-    // LinkedIn renders the current company as a /company/ link in the intro
-    // card. We query ALL such links on the page by pixel position — anything
-    // in the top 600px is guaranteed to be in the intro card, not in
-    // Experience/Education sections further down.
+    // ── COMPANY DETECTION: DOM structure pass, no pixel positions ──────────
+    // LinkedIn renders the intro card inside the first <section> in <main>.
+    // We query /company/ links ONLY within that section — so we never pick
+    // up Experience/Education links further down the page.
+    // This is completely zoom/viewport independent.
     if (!companyFromLink) {
-      const allCompanyLinks = Array.from(document.querySelectorAll('a[href*="/company/"]'));
-      for (const a of allCompanyLinks) {
-        const rect = a.getBoundingClientRect();
-        // Only look at links visually in the top portion of the page
-        if (rect.top < 0 || rect.top > 600) continue;
+      // Strategy 1: first /company/ link inside the intro section
+      const introSection =
+        document.querySelector('main section:first-of-type') ||
+        document.querySelector('section.artdeco-card') ||
+        document.querySelector('[data-member-id]')?.closest('section') ||
+        document.querySelector('main');
+
+      if (introSection) {
+        const links = introSection.querySelectorAll('a[href*="/company/"]');
+        for (const a of links) {
+          const label = cleanCompanyLabel(a.innerText || a.textContent || '');
+          if (label && label.length > 1 && label.length < 80 && !isJunkLine(label, name)) {
+            companyFromLink = label;
+            console.log('[Hirely] company from intro section link:', label);
+            break;
+          }
+        }
+      }
+    }
+
+    // Strategy 2: ANY /company/ link on page — take the FIRST one
+    // (on a profile page, first /company/ link is always current employer)
+    if (!companyFromLink) {
+      const allLinks = document.querySelectorAll('a[href*="/company/"]');
+      for (const a of allLinks) {
         const label = cleanCompanyLabel(a.innerText || a.textContent || '');
         if (label && label.length > 1 && label.length < 80 && !isJunkLine(label, name)) {
           companyFromLink = label;
+          console.log('[Hirely] company from first page link:', label);
           break;
         }
       }
     }
 
-    // Also try: grab text from the intro section's company badge IMG wrapper
-    // in case the link didn't have visible text (icon-only badge)
-    if (!companyFromLink && !companyFromBadge) {
-      const imgs = Array.from(document.querySelectorAll('img'));
-      for (const img of imgs) {
-        const rect = img.getBoundingClientRect();
-        if (rect.top < 0 || rect.top > 600) continue;
-        const w = rect.width, h = rect.height;
-        if (!w || !h) continue;
-        const aspect = w / h;
-        if (w >= 14 && w <= 56 && aspect > 0.75 && aspect < 1.35) {
-          // Found a badge-sized image in intro card — get its wrapper text
-          const wrap = img.closest('a') || img.parentElement?.parentElement || img.parentElement;
-          const label = wrap ? cleanCompanyLabel(wrap.innerText || wrap.textContent || '') : '';
-          if (label && label.length > 1 && label.length < 80 && !isJunkLine(label, name)) {
-            companyFromBadge = label;
-            break;
-          }
+    // Strategy 3: og:description "Experience: Company Name" meta tag
+    if (!companyFromLink) {
+      const desc = getMeta('og:description') || getMeta('description');
+      const m = desc.match(/Experience:\s*([^·|\n]+)/i);
+      if (m) {
+        const label = m[1].trim();
+        if (label && !isJunkLine(label, name)) {
+          companyFromLink = label;
+          console.log('[Hirely] company from og:description:', label);
         }
       }
     }
@@ -598,11 +610,6 @@
       companyFromBadge ||
       companyFromLink ||
       findIntroCardCompany(name) ||
-      (() => {
-        const desc = getMeta("og:description") || getMeta("description");
-        const expMatch = desc.match(/Experience:\s*([^·|]+)/i);
-        return expMatch ? expMatch[1].trim() : "";
-      })() ||
       (() => {
         const bulletLine = textCandidates.find((c) => c.includes(" • "));
         return bulletLine ? bulletLine.split(" • ")[0].trim() : "";
