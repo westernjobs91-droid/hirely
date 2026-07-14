@@ -604,48 +604,47 @@
     // Scan for badge image and photo only (company detection moved to separate pass below)
     const { textCandidates, companyFromLink, companyFromBadge, photo: scannedPhoto } = findIntroCandidates(name, 10);
 
-    // Headline fallback: when og:title is missing (mobile/responsive mode),
-    // grab the subtitle text directly from the DOM element right below the h1.
-    // LinkedIn always renders job title as the first sibling div after h1.
+    // Headline fallback: when og:title is null (mobile/responsive/no-meta mode).
+    // LinkedIn's mobile DOM nests h1 and the headline in separate divs under
+    // a common ancestor. We walk UP from h1 to find all text in that block,
+    // then pick the first line that isn't the name and isn't junk.
     if (!headline) {
-      // Strategy 1: element directly after h1 in the intro card
       const h1 = document.querySelector('h1');
       if (h1) {
-        // Walk siblings/parent children to find the next text node
-        let el = h1.nextElementSibling;
-        for (let i = 0; i < 5 && el; i++) {
-          const t = (el.innerText || el.textContent || '').trim().split('\n')[0].trim();
-          if (t && t.length > 2 && t.length < 120 && !isJunkLine(t, name)) {
-            headline = t;
-            console.log('[Hirely] headline from h1 sibling:', headline);
-            break;
+        // Collect all short text strings from h1's ancestor (up to 4 levels up)
+        // that could be the job title
+        const UI_JUNK = /^(share via.*|private message|connect|message|more|follow|pending|open to work|hiring|she\/her|he\/him|they\/them|\d+\s*connections?|\d+\s*followers?|contact info|mississauga|ontario|canada|united states|greater toronto)/i;
+        
+        let ancestor = h1.parentElement;
+        for (let depth = 0; depth < 5 && ancestor; depth++) {
+          // Grab all leaf text nodes in this ancestor
+          const walker = document.createTreeWalker(ancestor, NodeFilter.SHOW_TEXT);
+          const texts = [];
+          let node = walker.nextNode();
+          while (node) {
+            const t = node.textContent.trim();
+            if (t.length > 2) texts.push(t);
+            node = walker.nextNode();
           }
-          el = el.nextElementSibling;
-        }
-        // Strategy 2: parent's children after h1
-        if (!headline) {
-          const parent = h1.parentElement;
-          if (parent) {
-            let found = false;
-            for (const child of parent.children) {
-              if (found) {
-                const t = (child.innerText || child.textContent || '').trim().split('\n')[0].trim();
-                if (t && t.length > 2 && t.length < 120 && !isJunkLine(t, name)) {
-                  headline = t;
-                  console.log('[Hirely] headline from h1 parent sibling:', headline);
-                  break;
-                }
-              }
-              if (child === h1) found = true;
+          
+          // Find the first text that is not the name and not junk
+          for (const t of texts) {
+            if (t === name || t.startsWith(name) || UI_JUNK.test(t) || isJunkLine(t, name)) continue;
+            if (t.length > 3 && t.length < 120) {
+              headline = t;
+              console.log('[Hirely] headline from ancestor depth', depth, ':', headline);
+              break;
             }
           }
+          if (headline) break;
+          ancestor = ancestor.parentElement;
         }
       }
     }
 
-    // Final headline validation — reject known UI junk strings
-    const UI_HEADLINE_JUNK = /^(share via private message|share via|private message|connect|message|more|follow|pending|open to work|hiring|she\/her|he\/him|they\/them|university of|college of|institute of)/i;
-    if (UI_HEADLINE_JUNK.test(headline)) {
+    // Final validation — reject anything that still looks like UI chrome
+    const UI_HEADLINE_JUNK = /^(share via|private message|connect|message|more|follow|pending|open to work|hiring|she\/her|he\/him|they\/them)/i;
+    if (headline && UI_HEADLINE_JUNK.test(headline)) {
       console.log('[Hirely] rejected junk headline:', headline);
       headline = '';
     }
