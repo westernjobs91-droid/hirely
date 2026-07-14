@@ -249,6 +249,27 @@ async function findEmailForContact(contactId, firstName, lastName, company, doma
   }
 }
 
+
+async function enrichProfile(linkedinUrl) {
+  const session = await getSession();
+  if (!session) return { ok: false };
+  try {
+    const res = await fetch(`${HIRELY_CONFIG.API_BASE}/api/extension/enrich-profile`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({ linkedinUrl })
+    });
+    const data = await res.json();
+    return data.ok ? data : { ok: false };
+  } catch(e) {
+    console.log('[Hirely BG] enrich-profile error:', e.message);
+    return { ok: false };
+  }
+}
+
 // ── MESSAGE ROUTER ───────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   (async () => {
@@ -274,6 +295,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         sendResponse({ ok: true, people });
       } else if (msg.type === "HIRELY_FIND_EMAIL") {
         const result = await findEmailForContact(msg.contactId, msg.firstName, msg.lastName, msg.company, msg.domain);
+        sendResponse(result);
+      } else if (msg.type === "HIRELY_ENRICH_PROFILE") {
+        const result = await enrichProfile(msg.linkedinUrl);
         sendResponse(result);
       } else if (msg.type === "HIRELY_ENRICH_PROFILE") {
         const result = await enrichProfile(msg.linkedinUrl);
