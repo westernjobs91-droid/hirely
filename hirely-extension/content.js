@@ -577,26 +577,39 @@
   }
 
   function scrapeProfile() {
-    // 1) Try the reliable server-rendered sources first.
-    let parsed = parseTitleSource(getMeta("og:title")) || parseTitleSource(document.title);
+    // og:title is server-rendered and always correct regardless of viewport/zoom/device mode.
+    // Format: "Name - Headline | LinkedIn" or "Name - Headline - Company | LinkedIn"
+    // NEVER fall back to document.title or DOM h1 — those change in responsive mode.
+    const ogTitle = getMeta("og:title");
+    const parsed = parseTitleSource(ogTitle);
 
     let name = cleanName(parsed?.name || "");
     let headline = parsed?.headline || "";
     let company = "";
 
-    const nameEl = findNameEl();
-    const rawNameText = nameEl ? nameEl.innerText.trim() : parsed?.name || "";
-    if (!name && nameEl) name = cleanName(rawNameText);
+    // If og:title didn't give us a name (very rare — means og:title is missing),
+    // try h1 but validate it doesn't look like a UI label
+    if (!name) {
+      const nameEl = findNameEl();
+      const h1text = nameEl ? nameEl.innerText.trim() : "";
+      // Reject h1 values that are clearly UI labels, not a person's name
+      const UI_LABELS = /^(profile|search|home|jobs|messaging|notifications|me|sign in|sign up|share|connect|message|follow)$/i;
+      if (h1text && !UI_LABELS.test(h1text) && h1text.length < 80) {
+        name = cleanName(h1text);
+      }
+    }
 
-    // 2) Scan the intro area of the document (skipping the top nav, and
-    // stopping at the first profile section heading like "About" or
-    // "Experience" so we never cross into unrelated company links/logos
-    // further down the page) for text candidates, the badge, and the link.
+    console.log('[Hirely] og:title:', ogTitle, '→ parsed:', parsed);
+
+    // Scan for badge image and photo only (company detection moved to separate pass below)
     const { textCandidates, companyFromLink, companyFromBadge, photo: scannedPhoto } = findIntroCandidates(name, 10);
 
+    // Headline fallback: only use DOM text if og:title didn't give us one
+    // AND validate it's not a UI label
     if (!headline) {
+      const UI_HEADLINE_JUNK = /^(share via private message|connect|message|more|follow|pending|open to work|hiring|she\/her|he\/him|they\/them)$/i;
       const headlineCandidate = textCandidates.find(
-        (c) => c !== name && c !== rawNameText && !c.startsWith(rawNameText) && !c.includes(" • ")
+        (c) => c !== name && !c.startsWith(name) && !c.includes(" • ") && !UI_HEADLINE_JUNK.test(c)
       );
       if (headlineCandidate) headline = headlineCandidate;
     }
