@@ -593,13 +593,16 @@
     // Format: "Name - Headline | LinkedIn" or "Name - Headline - Company | LinkedIn"
     // NEVER fall back to document.title or DOM h1 — those change in responsive mode.
     const ogTitle = getMeta("og:title");
-    const parsed = parseTitleSource(ogTitle);
+    // document.title is ALWAYS populated — format "Name | LinkedIn" or "Name - Headline | LinkedIn"
+    // Use it as primary source when og:title is missing
+    const titleTag = document.title || '';
+    const parsed = parseTitleSource(ogTitle) || parseTitleSource(titleTag);
 
     let name = cleanName(parsed?.name || "");
     let headline = parsed?.headline || "";
     let company = "";
 
-    // If og:title didn't give us a name, try h1
+    // If neither og:title nor document.title gave us a name, try h1
     // Also use h1 if og:title only gave us the name without headline (own profile case)
     if (!name) {
       const nameEl = findNameEl();
