@@ -453,15 +453,19 @@
       }
     }
 
-    // Strategy 2: ANY /company/ link on page — take the FIRST one
-    // (on a profile page, first /company/ link is always current employer)
+    // Strategy 2: /company/ links in main content only — skip sidebar
     if (!companyFromLink) {
-      const allLinks = document.querySelectorAll('a[href*="/company/"]');
+      const main = document.querySelector('main') || document.body;
+      // Only look at the first 3 company links in main — current employer is always first
+      const allLinks = Array.from(main.querySelectorAll('a[href*="/company/"]')).slice(0, 3);
       for (const a of allLinks) {
+        // Skip links inside "More profiles for you" / sidebar sections
+        if (a.closest('aside') || a.closest('[data-test-id="pymk-module"]')) continue;
+        const rect = a.closest('section') || a.parentElement;
         const label = cleanCompanyLabel(a.innerText || a.textContent || '');
         if (label && label.length > 1 && label.length < 80 && !isJunkLine(label, name)) {
           companyFromLink = label;
-          console.log('[Hirely] company from first page link:', label);
+          console.log('[Hirely] company from main link:', label);
           break;
         }
       }
