@@ -602,6 +602,70 @@
     let headline = parsed?.headline || "";
     let company = "";
 
+    // If document.title gave us the name but no headline, grab headline from DOM now
+
+    // LinkedIn always renders headline as first text element after h1
+
+    if (name && !headline) {
+
+      const h1 = document.querySelector('h1');
+
+      if (h1) {
+
+        const UI_JUNK = /^(she\/her|he\/him|they\/them|1st|2nd|3rd|500\+|\d+\s*(connections?|followers?)|connect|message|follow|more|open to|contact info)/i;
+
+        let sib = h1.nextElementSibling;
+
+        for (let i = 0; i < 5 && sib; i++) {
+
+          const t = (sib.innerText || sib.textContent || '').trim().split('\n')[0].trim();
+
+          if (t && t.length > 3 && t.length < 200 && !UI_JUNK.test(t) && !isJunkLine(t, name)) {
+
+            headline = t;
+
+            break;
+
+          }
+
+          sib = sib.nextElementSibling;
+
+        }
+
+        // Fallback: parent's next sibling
+
+        if (!headline) {
+
+          const parent = h1.parentElement;
+
+          if (parent) {
+
+            let sib2 = parent.nextElementSibling;
+
+            for (let i = 0; i < 3 && sib2; i++) {
+
+              const t = (sib2.innerText || sib2.textContent || '').trim().split('\n')[0].trim();
+
+              if (t && t.length > 3 && t.length < 200 && !UI_JUNK.test(t) && !isJunkLine(t, name)) {
+
+                headline = t;
+
+                break;
+
+              }
+
+              sib2 = sib2.nextElementSibling;
+
+            }
+
+          }
+
+        }
+
+      }
+
+    }
+
     // If neither og:title nor document.title gave us a name, try h1
     // Also use h1 if og:title only gave us the name without headline (own profile case)
     if (!name) {
