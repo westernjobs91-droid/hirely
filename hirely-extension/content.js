@@ -760,10 +760,20 @@
       }
     }
 
+    // Try og:description as headline source if still empty
+    if (!headline) {
+      const desc = getMeta('og:description') || '';
+      if (desc) {
+        const firstPart = desc.split(/[.|]/)[0].trim();
+        if (firstPart && firstPart.length > 3 && firstPart.length < 200 && !isJunkLine(firstPart, name)) {
+          headline = firstPart.replace(/\s+at\s+.+$/i, '').trim() || firstPart;
+        }
+      }
+    }
+
     // Final validation — reject anything that still looks like UI chrome
     const UI_HEADLINE_JUNK = /^(share via|private message|connect|message|more|follow|pending|open to work|hiring|she\/her|he\/him|they\/them)/i;
     if (headline && UI_HEADLINE_JUNK.test(headline)) {
-      console.log('[Hirely] rejected junk headline:', headline);
       headline = '';
     }
 
