@@ -1,26 +1,20 @@
 // app/api/enrich/route.ts
-// Called by the Chrome extension with a LinkedIn URL slug
-// Returns name, title, company, email from Hunter.io
-// API key stays server-side — never exposed to the extension
+// Calls Hunter.io with LinkedIn slug to get name, title, company, email
+// Uses email-finder endpoint which supports linkedin handle parameter
 
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  const linkedinSlug = searchParams.get('linkedin') // e.g. "hrebecca"
-  const linkedinUrl = searchParams.get('url')       // e.g. "https://linkedin.com/in/hrebecca"
-
-  if (!linkedinSlug && !linkedinUrl) {
-    return NextResponse.json({ error: 'linkedin or url param required' }, { status: 400 })
-  }
+  const linkedinSlug = searchParams.get('linkedin')
+  const linkedinUrl = searchParams.get('url')
 
   // Extract slug from full URL if needed
-  const slug = linkedinSlug || (linkedinUrl?.match(/linkedin\.com\/in\/([^/?#]+)/) || [])[1] || ''
+  const slug = linkedinSlug ||
+    (linkedinUrl?.match(/linkedin\.com\/in\/([^/?#]+)/) || [])[1] || ''
 
   if (!slug) {
-    return NextResponse.json({ error: 'Could not extract LinkedIn slug' }, { status: 400 })
+    return NextResponse.json({ error: 'linkedin param required' }, { status: 400 })
   }
 
   const HUNTER_KEY = process.env.HUNTER_API_KEY
@@ -28,43 +22,103 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Hunter API key not configured' }, { status: 500 })
   }
 
+  // Try 1: Combined enrichment (returns full profile + email if available)
+  // This is Hunter's newest endpoint supporting linkedin handle
   try {
-    // Call Hunter.io People Find API with LinkedIn handle
-    const hunterRes = await fetch(
+    const enrichRes = await fetch(
+      `https://api.hunter.io/v2/combined-enrichment?linkedin=${encodeURIComponent(slug)}&api_key=${HUNTER_KEY}`,
+      { headers: { 'Content-Type': 'application/json' } }
+    )
+
+    console.log('[Hirely Enrich] combined-enrichment status:', enrichRes.status)
+
+    if (enrichRes.ok) {
+      const data = await enrichRes.json()
+      const person = data?.data?.person
+      const company = data?.data?.company
+
+      if (person) {
+        return NextResponse.json({
+          found: true,
+          firstName: person.first_name || '',
+          lastName: person.last_name || '',
+          name: [person.first_name, person.last_name].filter(Boolean).join(' '),
+          title: person.employment?.title || '',
+          company: person.employment?.name || company?.name || '',
+          email: person.email || '',
+          photo: person.avatar || '',
+          location: person.location || '',
+          linkedin: slug,
+        })
+      }
+    }
+  } catch(e) {
+    console.error('[Hirely Enrich] combined-enrichment error:', e)
+  }
+
+  // Try 2: Email Finder with linkedin handle
+  // Returns email + basic profile data
+  try {
+    const finderRes = await fetch(
+      `https://api.hunter.io/v2/email-finder?linkedin=${encodeURIComponent(slug)}&api_key=${HUNTER_KEY}`,
+      { headers: { 'Content-Type': 'application/json' } }
+    )
+
+    console.log('[Hirely Enrich] email-finder status:', finderRes.status)
+
+    if (finderRes.ok) {
+      const data = await finderRes.json()
+      const person = data?.data
+
+      if (person && (person.email || person.first_name)) {
+        return NextResponse.json({
+          found: true,
+          firstName: person.first_name || '',
+          lastName: person.last_name || '',
+          name: [person.first_name, person.last_name].filter(Boolean).join(' '),
+          title: person.position || '',
+          company: person.company || '',
+          email: person.email || '',
+          photo: person.photo_url || '',
+          linkedin: slug,
+        })
+      }
+    }
+  } catch(e) {
+    console.error('[Hirely Enrich] email-finder error:', e)
+  }
+
+  // Try 3: People enrichment endpoint
+  try {
+    const peopleRes = await fetch(
       `https://api.hunter.io/v2/people/find?linkedin=${encodeURIComponent(slug)}&api_key=${HUNTER_KEY}`,
       { headers: { 'Content-Type': 'application/json' } }
     )
 
-    if (!hunterRes.ok) {
-      const err = await hunterRes.json().catch(() => ({}))
-      console.error('[Hirely Enrich] Hunter error:', hunterRes.status, err)
-      return NextResponse.json({ found: false, error: 'Hunter lookup failed' }, { status: 200 })
+    console.log('[Hirely Enrich] people/find status:', peopleRes.status)
+
+    if (peopleRes.ok) {
+      const data = await peopleRes.json()
+      const person = data?.data
+
+      if (person) {
+        return NextResponse.json({
+          found: true,
+          firstName: person.name?.givenName || '',
+          lastName: person.name?.familyName || '',
+          name: person.name?.fullName || '',
+          title: person.employment?.title || '',
+          company: person.employment?.name || '',
+          email: person.email || '',
+          photo: person.avatar || '',
+          linkedin: slug,
+        })
+      }
     }
-
-    const data = await hunterRes.json()
-    const person = data?.data
-
-    if (!person) {
-      return NextResponse.json({ found: false }, { status: 200 })
-    }
-
-    // Shape the response for the extension
-    return NextResponse.json({
-      found: true,
-      firstName: person.name?.givenName || '',
-      lastName: person.name?.familyName || '',
-      name: person.name?.fullName || '',
-      title: person.employment?.title || '',
-      company: person.employment?.name || '',
-      email: person.email || '',
-      emailConfidence: person.employment ? 80 : null,
-      location: person.location || '',
-      photo: person.avatar || '',
-      linkedin: slug,
-    })
-
-  } catch (err) {
-    console.error('[Hirely Enrich] Error:', err)
-    return NextResponse.json({ found: false, error: 'Enrichment failed' }, { status: 200 })
+  } catch(e) {
+    console.error('[Hirely Enrich] people/find error:', e)
   }
+
+  // All three failed — return not found so extension falls back to DOM scrape
+  return NextResponse.json({ found: false })
 }
