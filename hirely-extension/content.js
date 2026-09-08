@@ -469,7 +469,7 @@
       });
 
     } else {
-      const displayTitle=(data.headline||"").split("|")[0].trim();
+      const displayTitle=(data.headline||"").split("|")[0].split(" @ ")[0].split(" at ")[0].trim();
       container.innerHTML=sourceTag+
         '<div class="hirely-pipeline-badge new-contact"><span class="hirely-badge-dot"></span>Not in your pipeline</div>'+
         '<div class="hirely-profile-card">'+avatarHtml+
