@@ -183,7 +183,31 @@
           return lbl;
         }
       }
-      // Found something in this container — stop searching wider
+    }
+
+    // Last resort: scan entire document for /company/ links
+    // Needed for own profile where LinkedIn adds extra wrapper divs
+    const allLinks = Array.from(document.querySelectorAll('a[href*="/company/"]'));
+    for (const a of allLinks) {
+      if (a.closest("aside")) continue;
+      let skip = false;
+      let node = a;
+      for (let i = 0; i < 6 && node; i++) {
+        const cls = (node.className||"").toString().toLowerCase();
+        if (cls.includes("promoted")||cls.includes("sponsor")||cls.includes("pymk")||cls.includes("people-also")) { skip=true; break; }
+        node=node.parentElement;
+      }
+      if (skip) continue;
+      const sec = a.closest("section");
+      if (sec) {
+        const h2 = sec.querySelector("h2");
+        if (h2 && /^experience$/i.test((h2.innerText||"").trim())) break;
+      }
+      const lbl = (a.innerText||a.textContent||"").split("\n")[0].split("|")[0].trim();
+      if (lbl && lbl.length > 1 && lbl.length < 80 && lbl !== name) {
+        console.log("[Hirely] company from full doc scan:", lbl);
+        return lbl;
+      }
     }
     return "";
   }
