@@ -12,6 +12,14 @@ const nextConfig = {
           { key: 'X-XSS-Protection', value: '1; mode=block' },
         ],
       },
+      {
+        source: '/api/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET, POST, OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      },
     ]
   },
 }
