@@ -196,6 +196,9 @@
       // Good signals: contains "at", contains job-related words, reasonable length
       for (const c of candidates) {
         if (c.length > 5 && c.length < 200 && /[a-zA-Z]{3}/.test(c)) {
+          // Skip if it looks like a person name (two capitalized words)
+          const looksLikeName = /^[A-Z][a-z]+ [A-Z][a-z]+/.test(c) && c.split(" ").length <= 4 && !c.includes(" at ") && !c.includes(",");
+        if (looksLikeName) continue;
           headline = c;
           break;
         }
@@ -214,15 +217,19 @@
         company = atMatch[2].trim().split("|")[0].trim();
       }
       // "Title, Company" — comma format
-      if (!company && headline.includes(",")) {
-        const ci = headline.indexOf(",");
-        const tp = headline.slice(0, ci).trim();
-        const cp = headline.slice(ci + 1).trim();
-        const LOC = /^(west |east |north |south |greater |detroit|toronto|macomb|new york|los angeles|ontario|michigan)/i;
-        if (tp.length > 3 && tp.length < 80 && !LOC.test(tp) && cp.length > 2 && cp.length < 150) {
-          displayTitle = tp; company = cp;
-        }
-      }
+ if (!company && headline.includes(",")) {
+  const ci = headline.indexOf(",");
+  const tp = headline.slice(0, ci).trim();
+  const cp = headline.slice(ci + 1).trim();
+  const LOC = /^(west |east |north |south |greater |detroit|toronto|macomb|new york|los angeles|ontario|michigan)/i;
+  // Only split if title part looks like a job title NOT a person name
+  // Job titles contain role words; credentials like "B.A." "MBA" "Ph.D" are not companies
+  const CREDENTIAL = /^(b\.?a\.?|m\.?b\.?a\.?|ph\.?d\.?|m\.?s\.?|b\.?sc?\.?|chrp|pmp|cpa|cfa|mba|phd)$/i;
+  const looksLikeName = /^[A-Z][a-z]+ [A-Z][a-z]+$/.test(tp); // "First Last" pattern
+  if (tp.length > 3 && tp.length < 80 && !LOC.test(tp) && !looksLikeName && !CREDENTIAL.test(cp.trim()) && cp.length > 2 && cp.length < 150) {
+    displayTitle = tp; company = cp;
+  }
+}
       // "Title | Company" — pipe format
       if (!company && headline.includes(" | ")) {
         const pp = headline.split(" | ");
