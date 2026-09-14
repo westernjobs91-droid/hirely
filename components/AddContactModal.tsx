@@ -1,5 +1,6 @@
 'use client'
 
+import { addDays, localDay, normalizeFollowUp } from '@/lib/follow-up'
 import { useState } from 'react'
 import { Contact, PipelineColumn } from '@/types'
 import { avatarColors } from '@/lib/data'
@@ -7,13 +8,13 @@ import { supabase } from '@/lib/supabase'
 
 interface AddContactModalProps {
   onClose: () => void
-  onAdd: (contact: Contact) => void
+  onAdd: (contact: Contact) => Promise<boolean>
 }
 
 export default function AddContactModal({ onClose, onAdd }: AddContactModalProps) {
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', company: '',
-    jobTitle: '', linkedinUrl: '', originalEmail: '', schedule: '2w1m'
+    jobTitle: '', linkedinUrl: '', originalEmail: '', schedule: '14'
   })
   const [loading, setLoading] = useState(false)
 
@@ -32,10 +33,10 @@ export default function AddContactModal({ onClose, onAdd }: AddContactModalProps
       jobTitle: form.jobTitle || '',
       linkedinUrl: form.linkedinUrl || '',
       avatarColor: color,
-      status: 'due-today',
-      column: 'today' as PipelineColumn,
-      statusLabel: 'Due in 2 weeks',
-      sentDate: '',
+      status: 'upcoming',
+      column: 'upcoming' as PipelineColumn,
+      statusLabel: 'Follow-up scheduled',
+      sentDate: form.schedule==='none'?'':addDays(localDay(),Number(form.schedule)),
       originalEmail: form.originalEmail,
       enriched: false,
       activity: ['Contact added'],
@@ -43,8 +44,8 @@ export default function AddContactModal({ onClose, onAdd }: AddContactModalProps
     }
 
     // Save contact first
-    onAdd(contact)
-    onClose()
+    const saved=await onAdd(normalizeFollowUp(contact))
+    if(saved)onClose()
     setLoading(false)
 
     // Enrichment happens explicitly in Email finder after this contact is saved.
@@ -98,9 +99,9 @@ export default function AddContactModal({ onClose, onAdd }: AddContactModalProps
           <div>
             <label className={lbl}>Follow-up schedule</label>
             <select value={form.schedule} onChange={e => setForm({...form, schedule: e.target.value})} className={inp}>
-              <option value="2w1m">2 weeks + 1 month (recommended)</option>
-              <option value="1w2w">1 week + 2 weeks</option>
-              <option value="custom">Custom timing</option>
+              <option value="14">In 2 weeks</option>
+              <option value="7">In 1 week</option>
+              <option value="0">Today</option><option value="none">Schedule later</option>
             </select>
           </div>
 

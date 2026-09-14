@@ -15,6 +15,7 @@ import AddContactModal from '@/components/AddContactModal'
 import ImportModal from '@/components/ImportModal'
 import Toast from '@/components/Toast'
 import AIDraftsView from '@/components/AIDraftsView'
+import { normalizeFollowUp, matchesPipelineFilter, localDay, followUpDay } from '@/lib/follow-up'
 import { Contact, NavItem, AIDraft } from '@/types'
 
 const filters = ['All', 'This week', 'Overdue', 'Replied']
@@ -31,7 +32,7 @@ function getPipelineHealth(contacts: Contact[]) {
   if (contacts.length === 0) return { score: 0, label: 'No contacts yet', color: 'text-slate-400' }
   const overdue = contacts.filter(c => c.status === 'overdue').length
   const replied = contacts.filter(c => c.status === 'replied' || c.status === 'meeting-set').length
-  const score = Math.max(0, Math.round(100 - (overdue / contacts.length) * 100 + (replied / contacts.length) * 20))
+  const score = Math.min(100, Math.max(0, Math.round(100 - (overdue / contacts.length) * 100 + (replied / contacts.length) * 20)))
   if (score >= 80) return { score, label: 'Healthy', color: 'text-emerald-600' }
   if (score >= 50) return { score, label: 'Needs attention', color: 'text-amber-600' }
   return { score, label: 'Action required', color: 'text-red-600' }
@@ -70,35 +71,12 @@ export default function Dashboard() {
     return () => subscription.unsubscribe()
   }, [router])
 
-  const autoMoveStaleContacts = async (userId: string, contactsList: Contact[]) => {
-    const stale = contactsList.filter(c =>
-      c.column === 'upcoming' &&
-      c.createdAt &&
-      Math.floor((Date.now() - new Date(c.createdAt).getTime()) / 86400000) >= 7 &&
-      !c.email // only move if no email found yet: if they have email they should have been contacted
-        ? false // don't auto-move enriched contacts, recruiter should act deliberately
-        : c.column === 'upcoming' &&
-          c.createdAt &&
-          Math.floor((Date.now() - new Date(c.createdAt).getTime()) / 86400000) >= 7
-    )
-
-    if (stale.length === 0) return contactsList
-
-    // Update in Supabase
-    const staleIds = stale.map(c => c.id)
-    await supabase
-      .from('contacts')
-      .update({ column_name: 'today', status_label: 'Follow Up' })
-      .in('id', staleIds)
-      .eq('user_id', userId)
-
-    // Update local state
-    return contactsList.map(c =>
-      staleIds.includes(c.id)
-        ? { ...c, column: 'today' as Contact['column'], statusLabel: 'Follow Up' }
-        : c
-    )
-  }
+  useEffect(() => {
+    const refreshDates=()=>{setContacts(prev=>prev.map(c=>normalizeFollowUp(c)));setSelected(prev=>prev?normalizeFollowUp(prev):null)}
+    const timer=setInterval(refreshDates,60000)
+    window.addEventListener('focus',refreshDates)
+    return ()=>{clearInterval(timer);window.removeEventListener('focus',refreshDates)}
+  }, [])
 
   const loadContacts = async (userId: string) => {
     const { data, error } = await supabase
@@ -133,7 +111,7 @@ export default function Dashboard() {
       aiDrafts: c.ai_drafts as Contact['aiDrafts'] || undefined,
       createdAt: c.created_at as string || undefined,
     }))
-    const updated = await autoMoveStaleContacts(userId, mapped)
+    const updated = mapped.map(c=>normalizeFollowUp(c))
     setContacts(updated)
   }
 
@@ -143,7 +121,8 @@ export default function Dashboard() {
   }
 
   const handleAdd = useCallback(async (contact: Contact) => {
-    if (!user) return
+    if (!user) return false
+    contact=normalizeFollowUp(contact)
     const { data, error } = await supabase.from('contacts').insert({
       user_id: user.id,
       first_name: contact.firstName,
@@ -167,9 +146,10 @@ export default function Dashboard() {
       notes: contact.notes,
       activity: contact.activity,
     }).select().single()
-    if (error) { console.error(error); setToast('Error saving contact'); return }
-    setContacts(prev => [{ ...contact, id: data.id }, ...prev])
+    if (error) { console.error(error); setToast('Error saving contact'); return false }
+    setContacts(prev => [{ ...contact, id: data.id, createdAt: data.created_at }, ...prev])
     setToast('Contact saved!')
+    return true
   }, [user])
 
   const handleDelete = useCallback(async (id: string) => {
@@ -181,10 +161,13 @@ export default function Dashboard() {
   }, [selected])
 
   const handleMarkDone = useCallback(async (id: string) => {
-    await supabase.from('contacts').update({ column_name: 'done', status_label: 'Done' }).eq('id', id)
-    setContacts(prev => prev.map(c => c.id === id ? { ...c, column: 'done' as Contact['column'], statusLabel: 'Done' } : c))
-    setSelected(prev => prev?.id === id ? { ...prev, column: 'done' as Contact['column'], statusLabel: 'Done' } : prev)
-  }, [])
+    if(!user)return
+    const current=contacts.find(c=>c.id===id);if(!current)return
+    const done=normalizeFollowUp({...current,column:'done'})
+    const {error}=await supabase.from('contacts').update({column_name:'done',status:done.status,status_label:'Done'}).eq('id',id).eq('user_id',user.id)
+    if(error){setToast('Could not mark contact as done');return}
+    setContacts(prev=>prev.map(c=>c.id===id?done:c));setSelected(prev=>prev?.id===id?done:prev)
+  }, [contacts,user])
 
   const handleSend = useCallback((draft: AIDraft, c: Contact) => {
     if (!c.email || c.emailStatus === 'invalid') { setToast('Add a usable email before preparing a draft.'); return }
@@ -193,7 +176,13 @@ export default function Dashboard() {
   }, [])
 
   const handleUpdateContact = useCallback(async (id: string, updates: Partial<Contact>) => {
+    if(!user)return false
     updates = {...updates}
+    const current=contacts.find(c=>c.id===id)
+    if(current){
+      const next=normalizeFollowUp({...current,...updates,...(updates.sentDate!==undefined?{column:updates.column||'upcoming'}:{})})
+      updates={...updates,column:next.column,status:next.status,statusLabel:next.statusLabel,sentDate:next.sentDate}
+    }
     if (updates.email !== undefined && !updates.emailStatus) {
       updates.emailStatus = 'unverified'; updates.emailSource = 'manual'; updates.emailCheckedAt = null; updates.emailEvidence = ''
     }
@@ -212,17 +201,18 @@ export default function Dashboard() {
     if (updates.sentDate !== undefined) dbUpdates.sent_date = updates.sentDate
     if (updates.column !== undefined) dbUpdates.column_name = updates.column
     if (updates.statusLabel !== undefined) dbUpdates.status_label = updates.statusLabel
+    if (updates.status !== undefined) dbUpdates.status = updates.status
     if (updates.notes !== undefined) dbUpdates.notes = updates.notes
-    const { error } = await supabase.from('contacts').update(dbUpdates).eq('id', id)
+    const { error } = await supabase.from('contacts').update(dbUpdates).eq('id', id).eq('user_id',user.id)
     if (error) { console.error('Failed to update contact:', error); setToast('Error updating contact'); return false }
     setContacts(prev => prev.map(c => (c.id === id ? { ...c, ...updates } : c)))
     setSelected(prev => (prev && prev.id === id ? { ...prev, ...updates } : prev))
     return true
-  }, [])
+  }, [contacts,user])
 
-  const todayCol = contacts.filter(c => c.column === 'today')
-  const upcomingCol = contacts.filter(c => c.column === 'upcoming')
-  const doneCol = contacts.filter(c => c.column === 'done')
+  const todayCol = contacts.filter(c => c.column === 'today' && matchesPipelineFilter(c,filter))
+  const upcomingCol = contacts.filter(c => c.column === 'upcoming' && matchesPipelineFilter(c,filter)).sort((a,b)=>(followUpDay(a)||'9999').localeCompare(followUpDay(b)||'9999'))
+  const doneCol = contacts.filter(c => c.column === 'done' && matchesPipelineFilter(c,filter))
   const overdueCount = contacts.filter(c => c.status === 'overdue').length
   const enrichedCount = contacts.filter(c => c.enriched).length
   const repliedCount = contacts.filter(c => c.status === 'replied' || c.status === 'meeting-set').length
@@ -242,7 +232,7 @@ export default function Dashboard() {
 
   const allContactsFiltered = contacts.filter(c => matchesSearch(c, searchQuery))
   const followupsFiltered = contacts
-    .filter(c => c.status === 'overdue' || c.status === 'due-today')
+    .filter(c => c.column === 'today')
     .filter(c => matchesSearch(c, searchQuery))
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -329,7 +319,7 @@ export default function Dashboard() {
                     <h2 className="text-xl font-bold tracking-tight">{getGreeting(user?.name || 'there')} 👋</h2>
                     <p className="text-blue-100 text-sm mt-1">
                       {overdueCount > 0
-                        ? `You have ${overdueCount} follow-up${overdueCount > 1 ? 's' : ''} overdue - let&apos;s clear them.`
+                        ? `You have ${overdueCount} follow-up${overdueCount > 1 ? 's' : ''} overdue - let’s clear them.`
                         : contacts.length === 0
                         ? 'Add your first contact to get started.'
                         : 'All caught up! Keep building your pipeline.'}
@@ -350,9 +340,9 @@ export default function Dashboard() {
               {/* Quick Actions */}
               {(() => {
                 const actions = []
-                const noEmail = contacts.filter(c => !c.email)
-                const noDrafts = contacts.filter(c => c.email && (!c.aiDrafts || c.aiDrafts.length === 0))
-                const stale = contacts.filter(c => c.createdAt && Math.floor((Date.now() - new Date(c.createdAt).getTime()) / 86400000) >= 7 && c.column === 'upcoming')
+                const noEmail = contacts.filter(c => c.column !== 'done' && !c.email)
+                const noDrafts = contacts.filter(c => c.column !== 'done' && c.email && (!c.aiDrafts || c.aiDrafts.length === 0))
+                const stale = contacts.filter(c => !followUpDay(c) && c.createdAt && Math.floor((Date.now() - new Date(c.createdAt).getTime()) / 86400000) >= 7 && c.column === 'upcoming')
                 const overdue = contacts.filter(c => c.status === 'overdue')
 
                 if (overdue.length > 0) actions.push({
@@ -367,7 +357,7 @@ export default function Dashboard() {
                   color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-100',
                   title: `Find emails for ${noEmail.length} contact${noEmail.length > 1 ? 's' : ''}`,
                   desc: 'Missing emails mean no follow-ups - fix this first',
-                  cta: 'Go to Enrichment', action: () => setActiveNav('enrichment'),
+                  cta: 'Open Email finder', action: () => setActiveNav('enrichment'),
                 })
                 if (noDrafts.length > 0) actions.push({
                   icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z',
@@ -380,7 +370,7 @@ export default function Dashboard() {
                   icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
                   color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100',
                   title: `${stale.length} contact${stale.length > 1 ? 's' : ''} sitting 7+ days`,
-                  desc: 'Move them to Follow up today before they go cold',
+                  desc: 'Choose a follow-up date for these unscheduled contacts',
                   cta: 'View contacts', action: () => setActiveNav('contacts'),
                 })
 
@@ -392,7 +382,7 @@ export default function Dashboard() {
                       <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                       <h3 className="text-xs font-bold text-slate-700 uppercase tracking-widest">Suggested actions</h3>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {actions.slice(0, 4).map((a, i) => (
                         <button key={i} onClick={a.action}
                           className={`flex items-start gap-3 p-3.5 rounded-2xl border ${a.bg} ${a.border} hover:shadow-md hover:-translate-y-0.5 transition-all text-left group`}>
@@ -414,7 +404,7 @@ export default function Dashboard() {
               })()}
 
               {/* Stat cards */}
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
                 {[
                   {
                     label: 'Total contacts',
@@ -472,14 +462,14 @@ export default function Dashboard() {
 
               {/* Pipeline */}
               <div>
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                   <div className="flex items-center gap-2">
                     <h2 className="text-sm font-bold text-slate-900">Recruiter Pipeline</h2>
                     <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-medium">{contacts.length} contacts</span>
                   </div>
-                  <div className="flex bg-slate-100 rounded-lg p-0.5 gap-0.5">
+                  <div className="flex flex-wrap bg-slate-100 rounded-lg p-0.5 gap-0.5">
                     {filters.map(f => (
-                      <button key={f} onClick={() => setFilter(f)}
+                      <button key={f} aria-pressed={filter===f} onClick={() => setFilter(f)}
                         className={`px-2.5 py-1 text-[11px] rounded-md font-medium transition-all ${filter === f ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700 bg-transparent'}`}>
                         {f}
                       </button>
@@ -487,7 +477,7 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   {[
                     {
                       title: 'Follow up today',
@@ -497,7 +487,7 @@ export default function Dashboard() {
                       headerBg: 'bg-red-50',
                       badge: 'bg-red-100 text-red-700',
                       contacts: todayCol,
-                      empty: 'No urgent follow-ups',
+                      empty: filter==='All'?'No urgent follow-ups':'No matching contacts',
                       emptySub: 'You\'re on top of things!'
                     },
                     {
@@ -586,7 +576,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {(activeNav === 'dashboard' || activeNav === 'contacts' || activeNav === 'followups') && selected && (
+      {(activeNav === 'dashboard' || activeNav === 'contacts' || activeNav === 'followups' || activeNav === 'enrichment') && selected && (
         <ContactPanel contact={selected} onClose={() => setSelected(null)} onSendDraft={handleSend} onUpdateContact={handleUpdateContact} />
       )}
       {showAdd && <AddContactModal onClose={() => setShowAdd(false)} onAdd={handleAdd} />}

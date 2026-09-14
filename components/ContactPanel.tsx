@@ -1,6 +1,7 @@
 'use client'
 import ContactPhoto from './ContactPhoto'
 
+import { localDay } from '@/lib/follow-up'
 import { useState, useEffect } from 'react'
 import EmailStatusBadge from './EmailStatusBadge'
 import { Contact, AIDraft } from '@/types'
@@ -208,10 +209,12 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
     if (!contact || !followUpDate) return
     setSavingFollowUp(true)
     // Save the date but keep in Coming up: auto-move runs on that date
-    await onUpdateContact(contact.id, {
+    const saved=await onUpdateContact(contact.id, {
+      column: 'upcoming',
       sentDate: followUpDate,
       statusLabel: 'Follow Up Scheduled'
     })
+    if(!saved){setSavingFollowUp(false);return}
     await logActivity(`Follow-up scheduled for ${new Date(followUpDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`)
     setSavingFollowUp(false)
     setFollowUpSaved(true)
@@ -402,7 +405,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
                       <input
                         type="date"
                         value={followUpDate}
-                        min={new Date().toISOString().split('T')[0]}
+                        min={localDay()}
                         onChange={e => { setFollowUpDate(e.target.value); setFollowUpSaved(false) }}
                         className="flex-1 px-2.5 py-1.5 border border-amber-200 rounded-lg text-[11px] text-slate-700 bg-white focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-50 transition-all"
                       />

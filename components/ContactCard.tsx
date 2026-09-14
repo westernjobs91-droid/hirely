@@ -1,4 +1,5 @@
 'use client'
+import { followUpDay } from '@/lib/follow-up'
 import ContactPhoto from './ContactPhoto'
 
 import { Contact } from '@/types'
@@ -41,7 +42,8 @@ function urgencyColor(dateStr?: string): string {
 export default function ContactCard({ contact, isSelected, onClick, onDelete, onMarkDone }: ContactCardProps) {
   const initials = `${contact.firstName[0] || ''}${contact.lastName[0] || ''}`.toUpperCase() || '?'
   const ago = daysAgo(contact.createdAt)
-  const urgency = urgencyColor(contact.createdAt)
+  const due=followUpDay(contact)
+  const urgency=contact.status==='overdue'&&contact.column!=='done'?'text-red-500 font-semibold':'text-slate-400'
 
   return (
     <div
@@ -68,7 +70,7 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
             {onDelete && (
               <button
                 onClick={e => { e.stopPropagation(); onDelete(contact.id) }}
-                className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-400 flex-shrink-0 -mt-0.5"
+                className="opacity-60 group-hover:opacity-100 focus:opacity-100 transition-opacity text-slate-300 hover:text-red-400 flex-shrink-0 -mt-0.5"
                 title="Delete"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -111,7 +113,7 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
           {onMarkDone && contact.column !== 'done' && (
             <button
               onClick={e => { e.stopPropagation(); onMarkDone(contact.id) }}
-              className="opacity-0 group-hover:opacity-100 transition-opacity text-[9px] font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-0.5"
+              className="opacity-60 group-hover:opacity-100 focus:opacity-100 transition-opacity text-[9px] font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-0.5"
               title="Mark as done"
             >
               <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
@@ -120,9 +122,9 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
               Done
             </button>
           )}
-          {ago && (
-            <span className={`text-[9.5px] ${urgency}`} title="Days since added">
-              {ago}
+          {(due || ago) && (
+            <span className={`text-[9.5px] ${urgency}`} title={due?'Follow-up date':'Days since added'}>
+              {due?new Date(due+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):'Added '+ago}
             </span>
           )}
         </div>
