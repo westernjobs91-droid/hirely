@@ -1,0 +1,11 @@
+const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
+const code=fs.readFileSync('hirely-extension/content.js','utf8');const context={};vm.createContext(context);vm.runInContext(code.slice(0,code.indexOf('var HirelyScrape')),context);const extract=context.HirelyEngine.extractProfilePhoto;
+function img(attrs={},currentSrc=''){return {alt:attrs.alt||'',currentSrc,nodeType:1,style:{},parentElement:null,matches:s=>false,getAttribute:n=>attrs[n]||null};}
+function scope(explicit=[],others=[]){return {querySelectorAll:s=>s==='img'?[...explicit,...others]:(s.includes('[aria-label="Profile photo" i]')?explicit:[])}}
+test('empty-alt photo inside a labeled div is captured',()=>{assert.equal(extract(scope([img({src:'https://media.licdn.com/member.jpg'})]),'Jane Smith'),'https://media.licdn.com/member.jpg')});
+test('placeholder currentSrc does not hide a lazy HTTPS source',()=>{assert.equal(extract(scope([img({src:'data:image/gif;base64,AA','data-delayed-url':'https://media.licdn.com/lazy.jpg'},'data:image/gif;base64,AA')]),'Jane'),'https://media.licdn.com/lazy.jpg')});
+test('srcset-only profile photo is supported',()=>{assert.equal(extract(scope([img({srcset:'https://media.licdn.com/small.jpg 100w, https://media.licdn.com/large.jpg 400w'})]),'Jane'),'https://media.licdn.com/large.jpg')});
+test('uses loaded responsive image when available',()=>{assert.equal(extract(scope([img({src:'https://media.licdn.com/small.jpg'},'https://media.licdn.com/loaded.jpg')]),'Jane'),'https://media.licdn.com/loaded.jpg')});
+test('ignores unrelated cover photos and company logos',()=>{assert.equal(extract(scope([],[img({src:'https://media.licdn.com/cover.jpg',alt:'Cover photo'}),img({src:'https://media.licdn.com/logo.jpg',alt:'Example Company'})]),'Jane'),'')});
+test('keeps exact-name fallback for older profile layouts',()=>{assert.equal(extract(scope([],[img({src:'https://media.licdn.com/jane.jpg',alt:'Jane Smith'})]),'Jane Smith'),'https://media.licdn.com/jane.jpg')});
+test('does not reuse a different profile photo after navigation',()=>{assert.equal(extract(scope([],[img({src:'https://media.licdn.com/jane.jpg',alt:'Jane Smith'})]),'John Smith'),'')});

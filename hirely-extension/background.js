@@ -219,7 +219,8 @@ async function hunterDomainSearch(domain) {
 }
 
 
-async function findEmailForContact(contactId, firstName, lastName, company, domain) {
+async function findEmailForContact(contactId, firstName, lastName, company, domain, action = 'predict', allowPaid = false) {
+  if (!['predict', 'find'].includes(action) || (action === 'find' && allowPaid !== true)) return {ok:false,message:'Choose the paid search explicitly to continue.'};
   const session = await refreshIfNeeded(await getSession());
   if (!session) throw new Error('NOT_LOGGED_IN');
   try {
@@ -229,7 +230,7 @@ async function findEmailForContact(contactId, firstName, lastName, company, doma
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`
       },
-      body: JSON.stringify({ contactId, firstName, lastName, company, domain, action: "predict", allowPaid: false })
+      body: JSON.stringify({ contactId, firstName, lastName, company, domain, action, allowPaid: action === "find" && allowPaid === true })
     });
     const data = await res.json();
     if (!res.ok) return { ok: false, message: data.error || 'Email lookup failed' };
@@ -294,7 +295,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         if(!Array.isArray(rows)||!rows.length)throw new Error('Contact not found in your account.');
         sendResponse({ok:true});
       } else if (msg.type === "HIRELY_FIND_EMAIL") {
-        const result = await findEmailForContact(msg.contactId, msg.firstName, msg.lastName, msg.company, msg.domain);
+        const result = await findEmailForContact(msg.contactId, msg.firstName, msg.lastName, msg.company, msg.domain, msg.action, msg.allowPaid);
         sendResponse(result);
       } else if (msg.type === "HIRELY_ENRICH_COMPANY") {
         const { companyName, linkedinSlug } = msg;

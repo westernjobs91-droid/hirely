@@ -235,6 +235,22 @@ var HirelyEngine = (() => {
     }
     return result;
   }
+  function extractProfilePhoto(scope, name) {
+    if (!scope) return '';
+    // The new top card labels a DIV around an empty-alt IMG, not the link.
+    const selector = '[componentkey="topcard-logo-image-referencekey"] img, [aria-label="Profile photo" i] img, button[aria-label*="profile photo" i] img, img.pv-top-card-profile-picture__image, img.profile-photo-edit__preview, img[class*="profile-picture"]';
+    const explicit = Array.from(scope.querySelectorAll(selector));
+    const named = name ? Array.from(scope.querySelectorAll('img')).filter(i => same(i.alt, name)) : [];
+    for (const img of [...new Set([...explicit, ...named])]) {
+      if (hidden(img)) continue;
+      const sources = [img.currentSrc, img.getAttribute('src'), img.getAttribute('data-delayed-url'), img.getAttribute('data-src')];
+      const responsive = (img.getAttribute('srcset') || '').split(',').map(s => s.trim().split(/\s+/)).sort((a,b) => parseFloat(b[1]||'0')-parseFloat(a[1]||'0'));
+      sources.push(...responsive.map(s => s[0]));
+      const url = sources.find(s => /^https:\/\//i.test(s || ''));
+      if (url) return url;
+    }
+    return '';
+  }
   function emptyResult() { return {name:'', firstName:'', lastName:'', title:'', company:'', headline:'', photo:'', location:'', url:'', sources:{}, trace:[], confidence:0, experiences:[]}; }
   function scrapeProfile(doc, pageUrl) {
     const result = emptyResult();
@@ -270,16 +286,12 @@ var HirelyEngine = (() => {
     result.experiences = positions;
     const role = resolveRole(positions, badge, result.headline);
     Object.assign(result, role, {sources:{...result.sources,...role.sources}});
-    const photoScope = main?.querySelector('section[componentkey$="Topcard"]') || card;
-    const img = photoScope.querySelector('img.pv-top-card-profile-picture__image, img.profile-photo-edit__preview, img[class*="profile-picture"], a[aria-label="Profile photo"] img, button[aria-label*="profile photo" i] img')
-      || Array.from(photoScope.querySelectorAll('img')).find(i => same(i.alt, result.name));
-    const photoUrl = img?.currentSrc || img?.getAttribute('src') || img?.getAttribute('data-delayed-url') || '';
-    result.photo = /^https:\/\//i.test(photoUrl) ? photoUrl : '';
+    result.photo = extractProfilePhoto(main?.querySelector('section[componentkey$="Topcard"]') || card, result.name);
     result.trace.push(result.title && result.company ? `Selected ${result.sources.company}` : 'Current role uncertain; review empty fields');
     return result;
   }
   function fieldsPass(got, expected) { const r = {}; for (const k of ['name','title','company']) r[k] = same(got[k], expected[k]); r.all = r.name && r.title && r.company; return r; }
-  return {findProfileHeading, findExperience, scrapeProfile, parseExperience, splitTitleAndCompany, stripDegree, splitName, selectCurrentRole, resolveRole, stripEmployment, uniqueRoles, isPronounOrDegree, textOf, emptyResult, fieldsPass, companyQuality: s => validLabel(s) ? 3 : 0, version:'4.8'};
+  return {extractProfilePhoto, findProfileHeading, findExperience, scrapeProfile, parseExperience, splitTitleAndCompany, stripDegree, splitName, selectCurrentRole, resolveRole, stripEmployment, uniqueRoles, isPronounOrDegree, textOf, emptyResult, fieldsPass, companyQuality: s => validLabel(s) ? 3 : 0, version:'4.8'};
 })();
 var HirelyScrape = HirelyEngine;
 if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.HirelyScrape = HirelyScrape; }
@@ -382,6 +394,56 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
     .hirely-history-empty { text-align: center; padding: 24px 0; color: #94A3B8; font-size: 12px; }
     .hirely-overlay { position: fixed; inset: 0; background: transparent; z-index: 2147483001; display: none; }
     .hirely-overlay.open { display: none; pointer-events: none; }
+    [hidden] { display:none!important; }
+    /* Capture workspace */
+    .hirely-panel { width:360px; max-width:calc(100vw - 32px); right:-380px; background:#f7f9fc; box-shadow:-12px 0 40px #10213b20; }
+    .hirely-header { background:#fff; color:#14243d; padding:18px 20px; border-bottom:1px solid #e8edf5; }
+    .hirely-header-title { font-size:17px; letter-spacing:-.5px; }
+    .hirely-header-logo { background:#2563eb; color:white; width:28px; height:28px; border-radius:9px; font-size:15px; }
+    .hirely-open-app { color:#52637b; font-size:11px; }
+    .hirely-close { color:#52637b; background:#f0f3f9; width:28px; height:28px; border-radius:8px; }
+    .hirely-close:hover { background:#e2e8f0; }
+    .hirely-tabs { background:#fff; margin:0; padding:0 20px; gap:24px; }
+    .hirely-tab-btn { flex:initial; font-size:12px; padding:13px 0; color:#65758c; }
+    .hirely-body { padding:20px; }
+    #htb { display:flex; flex-direction:column; gap:16px; }
+    .hirely-pipeline-badge { font-size:10px; margin:0; padding:5px 9px; }
+    .hirely-profile-card { display:flex; gap:12px; padding:0 0 18px; margin:0; border-bottom:1px solid #e2e8f0; }
+    .hirely-avatar,.hirely-avatar-fallback { width:56px; height:56px; border-radius:16px; font-size:18px; }
+    .hirely-profile-name { font-size:18px; line-height:1.3; letter-spacing:-.4px; white-space:normal; }
+    .hirely-profile-sub { font-size:12px; line-height:1.5; margin-top:5px; white-space:normal; color:#52637b; }
+    .hirely-profile-company { color:#2563eb; font-size:12px; line-height:1.5; margin-top:4px; white-space:normal; }
+    .hirely-email-section { background:#fff; border:1px solid #e4eaf3; border-radius:14px; padding:16px; }
+    .hirely-section-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; font-weight:700; color:#243650; margin-bottom:12px; }
+    .hirely-status-label-chip { font-size:10px; padding:4px 7px; border-radius:6px; background:#f1f5f9; color:#64748b; font-weight:600; }
+    .hirely-email-help { font-size:11px; color:#64748b; line-height:1.6; margin:0 0 12px; }
+    .hirely-email-row { display:flex; flex-wrap:wrap; background:transparent; border:0; color:#20324e; padding:0; margin:0 0 12px; gap:8px; }
+    .hirely-email-val { white-space:normal; overflow-wrap:anywhere; font-weight:600; font-size:12px; min-width:0; }
+    .hirely-copy-btn { color:#2563eb; border:1px solid #dbe4f2; border-radius:6px; padding:5px 8px; }
+    .hirely-confidence-pill { display:none; }
+    .hirely-find-email-btn { font-size:12px; padding:11px; border:1px solid #dbe7ff; color:#2563eb; background:#eff5ff; border-radius:9px; margin:0; }
+    .hirely-edit-details { padding:0; }
+    .hirely-edit-details summary { cursor:pointer; color:#52637b; font-size:11px; font-weight:600; padding:4px 0; }
+    .hirely-edit-details[open] summary { margin-bottom:12px; }
+    .hirely-manual { margin-top:12px; padding-top:12px; border-top:1px solid #edf1f6; }
+    .hirely-field label { text-transform:none; font-size:11px; letter-spacing:0; margin-bottom:6px; }
+    .hirely-field input { border:1px solid #d9e2ef; padding:10px; border-radius:8px; font-size:12px; }
+    .hirely-field small { display:block; font-size:10px; color:#718096; line-height:1.5; margin-top:6px; }
+    .hirely-fields-edit { margin:0; padding-top:4px; }
+    .hirely-row-2 .hirely-field { min-width:0; }
+    .hirely-role-options:empty,.hirely-role-note[hidden] { display:none; }
+    .hirely-save-zone { margin-top:auto; padding-top:14px; position:sticky; bottom:-20px; background:linear-gradient(#f7f9fc00,#f7f9fc 12px); padding-bottom:4px; }
+    .hirely-btn { padding:13px; border-radius:10px; font-size:13px; }
+    .hirely-save-hint { text-align:center; font-size:10px; color:#718096; margin:9px 0 0; line-height:1.5; }
+    .hirely-btn-outline { border:1px solid #d9e2ef; padding:11px; background:#fff; }
+    .hirely-footer { background:white; border-top:1px solid #e8edf5; padding:12px 20px; display:flex; align-items:center; justify-content:space-between; }
+    .hirely-text-btn { color:#64748b; font-size:11px; text-decoration:none; }
+    .hirely-footer-label { font-size:10px; color:#718096; }
+    .hirely-status { font-size:11px; line-height:1.5; margin:0; }
+    .hirely-history-item { padding:13px 0; }
+    button:focus-visible,summary:focus-visible,a:focus-visible { outline:2px solid #2563eb; outline-offset:3px; }
+    @media (prefers-reduced-motion:reduce) { * { transition:none!important; } }
+
   `
 
   const host = document.createElement("div");
@@ -524,7 +586,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
       pending = setTimeout(() => { pending = null; if (liveProfile(state)) applyScrapeToForm(scrapeProfile(), state); }, 250);
     });
     const main = document.querySelector('main, [role="main"]');
-    if (main) state.observer.observe(main, {childList:true, subtree:true, characterData:true});
+    if (main) state.observer.observe(main, {childList:true, subtree:true, characterData:true, attributes:true, attributeFilter:['src','srcset','data-src','data-delayed-url']});
     for (let i = 0; i < 30 && liveProfile(state); i++) {
       applyScrapeToForm(scrapeProfile(), state);
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -603,10 +665,11 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
       '<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely</span></div>'+
       '<div style="display:flex;gap:8px;align-items:center;"><a class="hirely-open-app" href="'+HIRELY_CONFIG.API_BASE+'" target="_blank">Open app &#x2197;</a>'+
       '<button class="hirely-close" id="hrpcb">&#x2715;</button></div></div>'+
-      '<div class="hirely-tabs"><button class="hirely-tab-btn active" id="hts">Save</button><button class="hirely-tab-btn" id="hth">History</button></div>'+
+      '<div class="hirely-tabs"><button class="hirely-tab-btn active" id="hts">Contact</button><button class="hirely-tab-btn" id="hth">Recently viewed</button></div>'+
       '<div class="hirely-body" id="htb"><div class="hirely-loading">Loading profile...</div></div>'+
-      '<div class="hirely-footer"><button class="hirely-text-btn" id="hlob">Sign out</button></div>';
+      '<div class="hirely-footer"><span class="hirely-footer-label">Your recruiting workspace</span><button class="hirely-text-btn" id="hlob">Sign out</button></div>';
 
+    panel.querySelector("#hrpcb").setAttribute("aria-label","Close Hirely");
     panel.querySelector("#hrpcb").addEventListener("click",closeHirely);
     panel.querySelector("#hlob").addEventListener("click",async()=>{await sendMsg({type:"HIRELY_LOGOUT"});render();});
 
@@ -632,7 +695,22 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
       if (field && liveProfile(state)) {
         state.dirty.add(field);
         state.data[field] = event.target.value;
+        const feedback=tabBody.querySelector('#hss');if(feedback){feedback.textContent='';feedback.className='hirely-status';}
+
         if(field==='email'){state.data.emailStatus='unverified';state.data.emailEvidence='Manually entered; inbox not checked.';}
+        if(['firstName','lastName','company'].includes(field)&&state.data.emailStatus==='predicted'){
+          state.data.email='';state.data.emailStatus='unverified';state.data.emailEvidence='';
+          const emailInput=tabBody.querySelector('#hei');if(emailInput)emailInput.value='';
+          const emailRow=tabBody.querySelector('.hirely-email-row');if(emailRow)emailRow.remove();
+          const chip=tabBody.querySelector('.hirely-status-label-chip');if(chip)chip.textContent='Find again after editing';
+          const find=tabBody.querySelector('#hfeb2');if(find){find.hidden=false;find.disabled=false;}
+        }
+        if(field==='email'){
+          const chip=tabBody.querySelector('.hirely-status-label-chip');if(chip)chip.textContent=state.data.email?'Not verified':'Not found';
+          const row=tabBody.querySelector('.hirely-email-row');if(row){const value=row.querySelector('.hirely-email-val');if(value)value.textContent=state.data.email;const copy=row.querySelector('.hirely-copy-btn');if(copy)copy.dataset.copy=state.data.email;row.hidden=!state.data.email;}
+          const find=tabBody.querySelector('#hfeb2');if(find){find.hidden=!!state.data.email;find.disabled=false;}
+        }
+
         if (field === 'firstName' || field === 'lastName') state.data.name = [state.data.firstName,state.data.lastName].filter(Boolean).join(' ');
         const sub = tabBody.querySelector('.hirely-profile-sub');
         const co = tabBody.querySelector('.hirely-profile-company');
@@ -698,6 +776,53 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
     slot.querySelector('select').value = index < 0 ? '' : String(index);
   }
 
+  function enhanceCapture(container, data, existing, state) {
+    container.querySelectorAll('input').forEach(input=>{const label=input.parentElement.querySelector('label');if(label&&input.id)label.htmlFor=input.id;});
+    const disclosure=(title,cls='')=>{const d=document.createElement('details');d.className='hirely-edit-details '+cls;const s=document.createElement('summary');s.textContent=title;d.appendChild(s);return d;};
+    const fields=container.querySelector('.hirely-fields-edit');
+    const manual=container.querySelector('#hei')?.closest('.hirely-field');
+    if(fields){
+      const edit=disclosure('Edit profile details');edit.open=!!state.editing;
+      fields.before(edit);edit.appendChild(fields);
+      const read=container.querySelector('#hirely-read-role');if(read)edit.appendChild(read);
+      edit.addEventListener('toggle',()=>{state.editing=edit.open;});
+    }
+    const section=document.createElement('section');section.className='hirely-email-section';section.setAttribute('aria-label','Work email');
+    const email=existing?.email||data.email;
+    const status=existing?.email_status||data.emailStatus||'unverified';
+    const checked=Date.parse(existing?.email_checked_at||'');
+    const fresh=Number.isFinite(checked)&&checked<=Date.now()&&Date.now()-checked<90*86400000;
+    const labels={predicted:'Predicted',valid:fresh?'Mailbox verified':'Recheck email',invalid:'Invalid',accept_all:'Catch-all',unknown:'Not verified',unverified:'Not verified'};
+    section.innerHTML='<div class="hirely-section-heading"><span>Work email</span><span class="hirely-status-label-chip">'+escapeHtml(email?(labels[status]||'Not verified'):'Not found')+'</span></div>';
+    const row=container.querySelector('.hirely-email-row');if(row)section.appendChild(row);
+    const help=document.createElement('p');help.className='hirely-email-help';
+    help.textContent=email?(status==='predicted'?'Based on a saved company format. The inbox has not been verified.':'Review or verify this address in Hirely before outreach.'):'Check previous results at no cost. If none exist, you can search with a paid email request here.';
+    section.appendChild(help);
+    const lookupFeedback=document.createElement('div');lookupFeedback.id='hlookup';lookupFeedback.className='hirely-status';lookupFeedback.setAttribute('role','status');lookupFeedback.setAttribute('aria-live','polite');
+
+    const find=container.querySelector('#hfeb, #hfeb2');if(find){find.textContent='Check saved email — free';find.style.marginTop='0';find.hidden=!!email;section.appendChild(find);}
+    if(manual){const entry=disclosure(email?'Edit email address':'Enter an email you already know','hirely-manual');entry.open=!!state.emailEditing;entry.appendChild(manual);entry.addEventListener('toggle',()=>{state.emailEditing=entry.open;});section.appendChild(entry);}
+    section.appendChild(lookupFeedback);
+    container.querySelector('.hirely-profile-card')?.after(section);
+    let statusEl=container.querySelector('#hss');if(!statusEl){statusEl=document.createElement('div');statusEl.id='hss';statusEl.className='hirely-status';section.appendChild(statusEl);}
+    statusEl.setAttribute('role','status');statusEl.setAttribute('aria-live','polite');
+    const save=container.querySelector('#hsb');
+    if(save){const zone=document.createElement('div');zone.className='hirely-save-zone';zone.appendChild(save);zone.appendChild(statusEl);const hint=document.createElement('p');hint.className='hirely-save-hint';hint.textContent='Photo and profile included · Email can be added later';zone.appendChild(hint);container.appendChild(zone);}
+    const photo=container.querySelector('#hsphoto');if(photo){const more=disclosure('Photo options');photo.before(more);more.appendChild(photo);const status=container.querySelector('#hphoto-status');if(status)more.appendChild(status);}
+    container.querySelectorAll('.hirely-close').forEach(b=>b.setAttribute('aria-label','Close Hirely'));
+  }
+
+  function emailLookupResult(container, button, res) {
+    button.disabled=false;
+    if(res.needsPaidLookup) button.dataset.paid='true';
+    const paid=button.dataset.paid==='true';
+    button.textContent=paid?'Find email — 1 paid request':'Check saved email — free';
+    const message=res.needsPaidLookup
+      ? 'No saved email or format for this person. Search our email provider here. Uses 1 email request if a provider search starts, even when no address is found.'
+      : (res.message||res.error||'Could not search. Please try again.');
+    showStatus(container.querySelector('#hlookup'),message,'info');
+  }
+
   async function renderSaveTab(container,session,data,existing) {
     const state = activeProfile;
     const valid = () => liveProfile(state) && state.data === data && state.tab === 'save';
@@ -718,15 +843,16 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
         :'<button class="hirely-find-email-btn" id="hfeb">&#x2726; Predict Email — Free</button>');
 
       container.innerHTML=sourceTag+
-        '<div class="hirely-pipeline-badge in-pipeline"><span class="hirely-badge-dot"></span>Already in your pipeline</div>'+
+        '<div class="hirely-pipeline-badge in-pipeline"><span class="hirely-badge-dot"></span>Saved to your CRM</div>'+
         '<div class="hirely-profile-card">'+avatarHtml+
         '<div class="hirely-profile-info"><div class="hirely-profile-name">'+escapeHtml(data.name||(existing.first_name+" "+existing.last_name))+"</div>"+
         '<div class="hirely-profile-sub">'+escapeHtml(existing.job_title||data.title||"")+"</div>"+
         '<div class="hirely-profile-company">'+escapeHtml(data.company||existing.company||"")+"</div></div></div>"+
         '<div class="hirely-pipeline-status"><div class="hirely-status-item"><span class="hirely-status-label">Pipeline</span><span class="hirely-status-val">'+escapeHtml(columnLabel)+"</span></div>"+
         '<div class="hirely-status-divider"></div><div class="hirely-status-item"><span class="hirely-status-label">Status</span><span class="hirely-status-val">'+escapeHtml(existing.status_label||"Active")+"</span></div></div>"+
-        emailDisplay+(data.photo?'<button class="hirely-btn hirely-btn-outline" id="hsphoto">Save profile photo</button><div class="hirely-status" id="hphoto-status"></div>':'')+'<a class="hirely-btn hirely-btn-outline" href="'+HIRELY_CONFIG.API_BASE+'" target="_blank">View in Pipeline &#x2197;</a>';
+        emailDisplay+(data.photo?'<button class="hirely-btn hirely-btn-outline" id="hsphoto">Save profile photo</button><div class="hirely-status" id="hphoto-status"></div>':'')+'<a class="hirely-btn hirely-btn-outline" href="'+HIRELY_CONFIG.API_BASE+'" target="_blank">Open Hirely CRM &#x2197;</a>';
 
+      enhanceCapture(container, data, existing, state);
       container.querySelectorAll(".hirely-copy-btn").forEach(btn=>{
         btn.addEventListener("click",()=>{navigator.clipboard.writeText(btn.dataset.copy).then(()=>{btn.textContent="Copied!";setTimeout(()=>{btn.textContent="Copy";},1500);});});
       });
@@ -738,17 +864,19 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
       });
       const feb=container.querySelector("#hfeb");
       if(feb) feb.addEventListener("click",async()=>{
+        if (feb.disabled) return;
+        const paid=feb.dataset.paid==='true';
         feb.disabled=true;feb.textContent="Searching...";
-        const res=await sendMsg({type:"HIRELY_FIND_EMAIL",contactId:existing.id,firstName:existing.first_name,lastName:existing.last_name,company:existing.company||data.company||"",domain:existing.email_domain||""});
+        const res=await sendMsg({type:"HIRELY_FIND_EMAIL",contactId:existing.id,firstName:existing.first_name,lastName:existing.last_name,company:existing.company||data.company||"",domain:existing.email_domain||"",action:paid?"find":"predict",allowPaid:paid},30000);
         if (!valid() || !feb.isConnected) return;
         if(res.ok&&res.email){existing.email=res.email;existing.email_status=res.emailStatus;existing.email_evidence=res.emailEvidence;await renderSaveTab(container,session,data,existing);}
-        else{feb.disabled=false;feb.textContent=res.message||res.error||"No saved company pattern. Try Email finder in Hirely.";}
+        else{emailLookupResult(container,feb,res);}
       });
 
     } else {
       const displayTitle=(data.title||"").trim();
       container.innerHTML=sourceTag+
-        '<div class="hirely-pipeline-badge new-contact"><span class="hirely-badge-dot"></span>Not in your pipeline</div>'+
+        '<div class="hirely-pipeline-badge new-contact"><span class="hirely-badge-dot"></span>New contact</div>'+
         '<div class="hirely-profile-card">'+avatarHtml+
         '<div class="hirely-profile-info"><div class="hirely-profile-name">'+escapeHtml(data.name||"Unknown")+"</div>"+
         '<div class="hirely-profile-sub">'+escapeHtml(displayTitle)+"</div>"+
@@ -760,13 +888,14 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
         '<div class="hirely-field"><label>Last name</label><input id="hli" value="'+escapeAttr(data.lastName)+'" /></div></div>'+
         '<div class="hirely-field"><label>Job title</label><input id="hti" value="'+escapeAttr(displayTitle)+'" /></div>'+
         '<div class="hirely-field"><label>Company</label><input id="hci" value="'+escapeAttr(data.company)+'" /></div>'+
-        '<div class="hirely-field"><label>Work email — enter if known</label><input type="email" id="hei" value="'+escapeAttr(data.email||'')+'" placeholder="name@company.com" /><small>Leave blank to save without email, or use Predict Email below.</small></div>'+
+        '<div class="hirely-field"><label>Work email — enter if known</label><input type="email" id="hei" value="'+escapeAttr(data.email||'')+'" placeholder="name@company.com" /><small>Leave blank to save without an email, or use the email search above.</small></div>'+
         "</div>"+
         '<button class="hirely-text-btn" id="hirely-read-role" style="margin-bottom:10px">Read current role from Experience</button>'+
-        '<button class="hirely-btn" id="hsb">Save to Pipeline</button>'+
+        '<button class="hirely-btn" id="hsb">Save contact</button>'+
         '<div class="hirely-status" id="hss"></div>'+
-        (!data.email?'<button class="hirely-find-email-btn" id="hfeb2" style="margin-top:8px;">&#x2726; Predict Email — Free</button>':"");
+        '<button class="hirely-find-email-btn" id="hfeb2">Check saved email — free</button>';
 
+      enhanceCapture(container, data, existing, state);
       container.querySelectorAll(".hirely-copy-btn").forEach(btn=>{
         btn.addEventListener("click",()=>{navigator.clipboard.writeText(btn.dataset.copy).then(()=>{btn.textContent="Copied!";setTimeout(()=>{btn.textContent="Copy";},1500);});});
       });
@@ -799,25 +928,28 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
         state.saving = false;
         if (!valid() || !btn.isConnected) return;
         btn.disabled=false;
-        if(res.ok){const cr=await sendMsg({type:"HIRELY_CHECK_CONTACT",url:data.url}); if (!valid()) return; state.existing = cr.contact || null; await renderSaveTab(container,session,data,state.existing);}
-        else if(res.error==="ALREADY_EXISTS") showStatus(statusEl,"Already in your pipeline.","info");
+        if(res.ok){state.existing=res.contact; if(!state.existing){showStatus(statusEl,"Saved. Open Hirely to view your contact.","success");btn.textContent="Saved";btn.disabled=true;return;} await renderSaveTab(container,session,data,state.existing);}
+        else if(res.error==="ALREADY_EXISTS") showStatus(statusEl,"Saved to your CRM.","info");
         else if(res.error==="NOT_LOGGED_IN") renderLogin();
-        else{btn.textContent="Save to Pipeline";showStatus(statusEl,res.error||"Something went wrong.","error");}
+        else{btn.textContent="Save contact";showStatus(statusEl,res.error||"Something went wrong.","error");}
       });
 
       const feb2=container.querySelector("#hfeb2");
       if(feb2) feb2.addEventListener("click",async()=>{
         syncDraft(state);
+        const feedback=container.querySelector('#hlookup');feedback.textContent='';feedback.className='hirely-status';
+        if (feb2.disabled) return;
+        const paid=feb2.dataset.paid==='true';
         feb2.disabled=true;feb2.textContent="Searching...";
-        const res=await sendMsg({type:"HIRELY_FIND_EMAIL",contactId:null,firstName:container.querySelector("#hfi").value.trim(),lastName:container.querySelector("#hli").value.trim(),company:container.querySelector("#hci").value.trim(),domain:""});
+        const res=await sendMsg({type:"HIRELY_FIND_EMAIL",contactId:null,firstName:container.querySelector("#hfi").value.trim(),lastName:container.querySelector("#hli").value.trim(),company:container.querySelector("#hci").value.trim(),domain:"",action:paid?"find":"predict",allowPaid:paid},30000);
         if (!valid() || !feb2.isConnected) return;
         if(res.ok&&res.email){
           if (state.dirty.has('email') && state.data.email) { feb2.disabled=false; feb2.textContent='Email edited manually'; return; }
           state.data.email = res.email;
           state.data.emailStatus = res.emailStatus; state.data.emailEvidence = res.emailEvidence;
           const ei=container.querySelector("#hei");if(ei) ei.value=res.email;
-          feb2.textContent="Email found";feb2.style.color="#047857";
-        } else{feb2.disabled=false;feb2.textContent="Predict Email — Free";showStatus(container.querySelector("#hss"),res.message||res.error||"No saved company pattern. Try Email finder in Hirely.","info");}
+          state.dirty.delete('email'); await renderSaveTab(container,session,data,null);
+        } else{emailLookupResult(container,feb2,res);}
       });
     }
   }

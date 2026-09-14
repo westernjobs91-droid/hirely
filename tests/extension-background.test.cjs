@@ -20,3 +20,6 @@ test('open panel survives profile to search to profile navigation',()=>{
  vm.createContext(ctx);vm.runInContext(code.slice(start,end),ctx);
  ctx.window.location.href='https://www.linkedin.com/search/results/people/';callbacks[0]();ctx.window.location.href='https://www.linkedin.com/in/two';callbacks[0]();assert.equal(closed,false);assert.equal(renders.length,2);assert.equal(ctx.hirelyScrapeGen,2);
 });
+
+test('paid extension search requires an explicit paid choice',async()=>{const h=setup();const r=await h.run({type:'HIRELY_FIND_EMAIL',action:'find',firstName:'Jane',company:'Example'});assert.equal(r.ok,false);assert.equal(h.requests.length,0)});
+test('explicit paid extension choice reaches the shared resolver',async()=>{const h=setup();await h.run({type:'HIRELY_FIND_EMAIL',action:'find',allowPaid:true,firstName:'Jane',company:'Example'});const b=JSON.parse(h.requests[0].options.body);assert.equal(b.action,'find');assert.equal(b.allowPaid,true)});
