@@ -240,7 +240,7 @@ export default function SignupPage() {
             <Link href="/login" className="text-blue-600 font-semibold hover:text-blue-700">Sign in</Link>
           </p>
           <p className="text-center text-[10px] text-slate-400 mt-3">
-            By creating an account you agree to our <a href="#" className="underline">Terms</a> and <a href="#" className="underline">Privacy Policy</a>
+            By creating an account you agree to our <Link href="/terms" className="underline">Terms</Link> and <Link href="/privacy" className="underline">Privacy Policy</Link>
           </p>
         </div>
       </div>
