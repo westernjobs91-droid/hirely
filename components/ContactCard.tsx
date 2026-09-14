@@ -64,7 +64,7 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
         {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-1">
-            <p className="text-[12px] font-bold text-slate-900 truncate leading-tight">
+            <p className="text-[13px] font-bold text-slate-900 truncate leading-tight">
               {contact.firstName} {contact.lastName}
             </p>
             {onDelete && (
@@ -80,7 +80,7 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
             )}
           </div>
 
-          <p className="text-[10.5px] text-slate-400 truncate leading-tight mt-0.5">
+          <p className="text-[11px] text-slate-500 truncate leading-tight mt-0.5">
             {contact.jobTitle || contact.company || ''}
             {contact.jobTitle && contact.company ? ` · ${contact.company}` : ''}
           </p>
@@ -88,10 +88,10 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
           {/* Email indicator */}
           {contact.email ? (
             <div className="flex items-center gap-1 mt-1.5">
-              <svg className="w-2.5 h-2.5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18v12H3z M3 6l9 7 9-7" />
               </svg>
-              <p className="text-[10px] text-slate-400 truncate">{contact.email}</p>
+              <p className="text-[11px] text-slate-500 truncate">{contact.email}</p>
             </div>
           ) : (
             <div className="flex items-center gap-1 mt-1.5">
@@ -106,7 +106,7 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
 
       {/* Footer */}
       <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-50">
-        <span className={`text-[9.5px] px-1.5 py-0.5 rounded-full font-semibold ${statusStyles[contact.status] || 'bg-slate-100 text-slate-500'}`}>
+        <span className={`text-[10.5px] px-1.5 py-0.5 rounded-full font-semibold ${statusStyles[contact.status] || 'bg-slate-100 text-slate-500'}`}>
           {contact.statusLabel || 'New'}
         </span>
         <div className="flex items-center gap-2">
@@ -123,7 +123,7 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
             </button>
           )}
           {(due || ago) && (
-            <span className={`text-[9.5px] ${urgency}`} title={due?'Follow-up date':'Days since added'}>
+            <span className={`text-[10.5px] ${urgency}`} title={due?'Follow-up date':'Days since added'}>
               {due?new Date(due+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):'Added '+ago}
             </span>
           )}

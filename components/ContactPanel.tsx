@@ -81,7 +81,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
 
   if (!contact) {
     return (
-      <div className="w-80 min-w-[320px] border-l border-slate-100 bg-white flex flex-col">
+      <div className="w-96 min-w-[384px] max-w-full border-l border-slate-100 bg-white flex flex-col">
         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-3">
           <div className="w-16 h-16 bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl flex items-center justify-center border border-slate-200">
             <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1}>
@@ -238,7 +238,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
   ]
 
   return (
-    <div className="w-80 min-w-[320px] border-l border-slate-100 bg-white flex flex-col h-full overflow-hidden">
+    <div className="w-96 min-w-[384px] max-w-full border-l border-slate-100 bg-white flex flex-col h-full overflow-hidden">
 
       {/* Profile header */}
       <div className="flex-shrink-0">
@@ -247,7 +247,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
 
         {/* Close button + profile content */}
         <div className="px-4 pt-4 pb-3 relative">
-          <button onClick={onClose} className="absolute top-3 right-3 w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 transition-all">
+          <button aria-label="Close contact details" onClick={onClose} className="absolute top-3 right-3 w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 transition-all">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -259,11 +259,11 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
               <ContactPhoto url={contact.photoUrl} initials={initials} name={`${contact.firstName} ${contact.lastName}`} />
             </div>
             <div className="min-w-0 flex-1 pr-8">
-              <div className="flex items-center gap-1.5">
-                <h2 className="text-sm font-bold text-slate-900 truncate">{contact.firstName} {contact.lastName}</h2>
+              <div className="flex flex-col items-start gap-1.5">
+                <h2 className="text-base leading-snug font-bold text-slate-900 break-words">{contact.firstName} {contact.lastName}</h2>
                 <EmailStatusBadge contact={contact} />
               </div>
-              <p className="text-[11px] text-slate-500 truncate mt-0.5">{contact.jobTitle}{contact.jobTitle && contact.company ? ' · ' : ''}{contact.company}</p>
+              <p className="text-xs leading-5 text-slate-500 break-words mt-1">{contact.jobTitle}{contact.jobTitle && contact.company ? ' · ' : ''}{contact.company}</p>
             </div>
           </div>
 

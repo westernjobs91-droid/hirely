@@ -213,6 +213,7 @@ export default function Dashboard() {
   const todayCol = contacts.filter(c => c.column === 'today' && matchesPipelineFilter(c,filter))
   const upcomingCol = contacts.filter(c => c.column === 'upcoming' && matchesPipelineFilter(c,filter)).sort((a,b)=>(followUpDay(a)||'9999').localeCompare(followUpDay(b)||'9999'))
   const doneCol = contacts.filter(c => c.column === 'done' && matchesPipelineFilter(c,filter))
+  const followUpCount = contacts.filter(c=>c.column==='today').length
   const overdueCount = contacts.filter(c => c.status === 'overdue').length
   const enrichedCount = contacts.filter(c => c.enriched).length
   const repliedCount = contacts.filter(c => c.status === 'replied' || c.status === 'meeting-set').length
@@ -264,7 +265,7 @@ export default function Dashboard() {
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
       <Sidebar activeNav={activeNav} onNavChange={setActiveNav} contactCount={contacts.length}
-        overdueCount={overdueCount} userName={user?.name || ''} userEmail={user?.email || ''} onLogout={handleLogout}
+        overdueCount={followUpCount} userName={user?.name || ''} userEmail={user?.email || ''} onLogout={handleLogout}
         searchQuery={searchQuery} onSearchChange={setSearchQuery} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -311,23 +312,22 @@ export default function Dashboard() {
             <div className="p-6 space-y-5">
 
               {/* Greeting + health strip */}
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-5 text-white relative overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl px-5 py-4 text-white relative overflow-hidden">
                 <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 50%, white 0%, transparent 60%)' }} />
                 <div className="relative flex items-center justify-between">
                   <div>
-                    <p className="text-blue-200 text-xs font-medium mb-1">{today}</p>
                     <h2 className="text-xl font-bold tracking-tight">{getGreeting(user?.name || 'there')} 👋</h2>
                     <p className="text-blue-100 text-sm mt-1">
                       {overdueCount > 0
                         ? `You have ${overdueCount} follow-up${overdueCount > 1 ? 's' : ''} overdue - let’s clear them.`
                         : contacts.length === 0
                         ? 'Add your first contact to get started.'
-                        : 'All caught up! Keep building your pipeline.'}
+                        : followUpCount > 0 ? `${followUpCount} contacts need your attention today.` : 'All caught up! Keep building your pipeline.'}
                     </p>
                   </div>
                   <div className="text-right flex-shrink-0 ml-6">
-                    <div className="text-3xl font-black">{health.score}</div>
-                    <div className="text-blue-200 text-xs font-medium mt-0.5">Pipeline score</div>
+                    <div className="text-2xl font-black">{health.score}</div>
+                    <div title="A simple indicator based on overdue contacts and recorded replies, not email verification or revenue." className="text-blue-100 text-xs font-medium mt-0.5">Pipeline score</div>
                     <div className={`text-xs font-semibold mt-1 px-2 py-0.5 rounded-full inline-block ${
                       health.score >= 80 ? 'bg-emerald-500/20 text-emerald-200' :
                       health.score >= 50 ? 'bg-amber-500/20 text-amber-200' :
@@ -336,72 +336,6 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-
-              {/* Quick Actions */}
-              {(() => {
-                const actions = []
-                const noEmail = contacts.filter(c => c.column !== 'done' && !c.email)
-                const noDrafts = contacts.filter(c => c.column !== 'done' && c.email && (!c.aiDrafts || c.aiDrafts.length === 0))
-                const stale = contacts.filter(c => !followUpDay(c) && c.createdAt && Math.floor((Date.now() - new Date(c.createdAt).getTime()) / 86400000) >= 7 && c.column === 'upcoming')
-                const overdue = contacts.filter(c => c.status === 'overdue')
-
-                if (overdue.length > 0) actions.push({
-                  icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
-                  color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100',
-                  title: `${overdue.length} overdue follow-up${overdue.length > 1 ? 's' : ''}`,
-                  desc: 'These contacts need your attention today',
-                  cta: 'View now', action: () => setActiveNav('followups'),
-                })
-                if (noEmail.length > 0) actions.push({
-                  icon: 'M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z',
-                  color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-100',
-                  title: `Find emails for ${noEmail.length} contact${noEmail.length > 1 ? 's' : ''}`,
-                  desc: 'Missing emails mean no follow-ups - fix this first',
-                  cta: 'Open Email finder', action: () => setActiveNav('enrichment'),
-                })
-                if (noDrafts.length > 0) actions.push({
-                  icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z',
-                  color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100',
-                  title: `Generate drafts for ${noDrafts.length} contact${noDrafts.length > 1 ? 's' : ''}`,
-                  desc: 'They have emails - write follow-ups with one click',
-                  cta: 'Go to AI Drafts', action: () => setActiveNav('ai-drafts'),
-                })
-                if (stale.length > 0) actions.push({
-                  icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
-                  color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100',
-                  title: `${stale.length} contact${stale.length > 1 ? 's' : ''} sitting 7+ days`,
-                  desc: 'Choose a follow-up date for these unscheduled contacts',
-                  cta: 'View contacts', action: () => setActiveNav('contacts'),
-                })
-
-                if (actions.length === 0) return null
-
-                return (
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                      <h3 className="text-xs font-bold text-slate-700 uppercase tracking-widest">Suggested actions</h3>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {actions.slice(0, 4).map((a, i) => (
-                        <button key={i} onClick={a.action}
-                          className={`flex items-start gap-3 p-3.5 rounded-2xl border ${a.bg} ${a.border} hover:shadow-md hover:-translate-y-0.5 transition-all text-left group`}>
-                          <div className={`w-8 h-8 rounded-xl bg-white/70 flex items-center justify-center flex-shrink-0 shadow-sm`}>
-                            <svg className={`w-4 h-4 ${a.color}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d={a.icon} />
-                            </svg>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-[12px] font-bold ${a.color} leading-tight`}>{a.title}</p>
-                            <p className="text-[10.5px] text-slate-500 mt-0.5 leading-tight">{a.desc}</p>
-                            <p className={`text-[10px] font-semibold ${a.color} mt-1.5 group-hover:underline`}>{a.cta} →</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })()}
 
               {/* Stat cards */}
               <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
@@ -416,8 +350,8 @@ export default function Dashboard() {
                   },
                   {
                     label: 'Follow-ups due',
-                    value: overdueCount,
-                    sub: overdueCount > 0 ? 'Click to action' : 'All clear',
+                    value: followUpCount,
+                    sub: followUpCount > 0 ? `${overdueCount} overdue · ${followUpCount-overdueCount} due today` : 'All clear',
                     icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
                     accent: overdueCount > 0 ? '#EF4444' : '#10B981',
                     bg: overdueCount > 0 ? 'bg-red-50' : 'bg-emerald-50',
@@ -443,9 +377,9 @@ export default function Dashboard() {
                 ].map((stat, i) => (
                   <button key={i} onClick={stat.onClick}
                     className="bg-white border border-slate-100 rounded-2xl p-4 hover:shadow-md hover:border-slate-200 hover:-translate-y-0.5 transition-all text-left group w-full">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className={`w-9 h-9 rounded-xl ${stat.bg} flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                        <svg className={`w-4.5 h-4.5 ${stat.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className={`w-7 h-7 rounded-lg ${stat.bg} flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                        <svg className={`w-4 h-4 ${stat.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
                           <path strokeLinecap="round" strokeLinejoin="round" d={stat.icon} />
                         </svg>
                       </div>
@@ -455,7 +389,7 @@ export default function Dashboard() {
                     </div>
                     <div className="text-2xl font-black text-slate-900 tracking-tight">{stat.value}</div>
                     <div className="text-[11px] font-semibold text-slate-500 mt-0.5">{stat.label}</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">{stat.sub}</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">{stat.sub}</div>
                   </button>
                 ))}
               </div>
@@ -547,6 +481,72 @@ export default function Dashboard() {
                   ))}
                 </div>
               </div>
+
+              {/* Quick Actions */}
+              {(() => {
+                const actions = []
+                const noEmail = contacts.filter(c => c.column !== 'done' && !c.email)
+                const noDrafts = contacts.filter(c => c.column !== 'done' && c.email && (!c.aiDrafts || c.aiDrafts.length === 0))
+                const stale = contacts.filter(c => !followUpDay(c) && c.createdAt && Math.floor((Date.now() - new Date(c.createdAt).getTime()) / 86400000) >= 7 && c.column === 'upcoming')
+                const overdue = contacts.filter(c => c.status === 'overdue')
+
+                if (overdue.length > 0) actions.push({
+                  icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+                  color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100',
+                  title: `${overdue.length} overdue follow-up${overdue.length > 1 ? 's' : ''}`,
+                  desc: 'These contacts need your attention today',
+                  cta: 'View now', action: () => setActiveNav('followups'),
+                })
+                if (noEmail.length > 0) actions.push({
+                  icon: 'M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z',
+                  color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-100',
+                  title: `Find emails for ${noEmail.length} contact${noEmail.length > 1 ? 's' : ''}`,
+                  desc: 'Find work emails before your next outreach',
+                  cta: 'Open Email finder', action: () => setActiveNav('enrichment'),
+                })
+                if (noDrafts.length > 0) actions.push({
+                  icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z',
+                  color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100',
+                  title: `Generate drafts for ${noDrafts.length} contact${noDrafts.length > 1 ? 's' : ''}`,
+                  desc: 'Prepare a draft for your next conversation',
+                  cta: 'Go to AI Drafts', action: () => setActiveNav('ai-drafts'),
+                })
+                if (stale.length > 0) actions.push({
+                  icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+                  color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100',
+                  title: `${stale.length} contact${stale.length > 1 ? 's' : ''} sitting 7+ days`,
+                  desc: 'Choose a follow-up date for these unscheduled contacts',
+                  cta: 'View contacts', action: () => setActiveNav('contacts'),
+                })
+
+                if (actions.length === 0) return null
+
+                return (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                      <h3 className="text-xs font-bold text-slate-700 uppercase tracking-widest">Suggested actions</h3>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {actions.slice(0, 4).map((a, i) => (
+                        <button key={i} onClick={a.action}
+                          className={`flex items-start gap-3 p-3.5 rounded-2xl border ${a.bg} ${a.border} hover:shadow-md hover:-translate-y-0.5 transition-all text-left group`}>
+                          <div className={`w-8 h-8 rounded-xl bg-white/70 flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                            <svg className={`w-4 h-4 ${a.color}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d={a.icon} />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-[12px] font-bold ${a.color} leading-tight`}>{a.title}</p>
+                            <p className="text-[10.5px] text-slate-500 mt-0.5 leading-tight">{a.desc}</p>
+                            <p className={`text-[10px] font-semibold ${a.color} mt-1.5 group-hover:underline`}>{a.cta} →</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
 
             </div>
           )}
