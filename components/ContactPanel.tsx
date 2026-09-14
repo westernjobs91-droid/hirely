@@ -55,7 +55,6 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
   const [notes, setNotes] = useState('')
   const [findingEmail, setFindingEmail] = useState(false)
   const [findEmailError, setFindEmailError] = useState<string | null>(null)
-  const [needsPaidLookup, setNeedsPaidLookup] = useState(false)
   const [findEmailNote, setFindEmailNote] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({ email: '', phone: '', company: '', jobTitle: '', linkedinUrl: '' })
@@ -68,7 +67,6 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
   const [followUpSaved, setFollowUpSaved] = useState(false)
 
   useEffect(() => {
-    setNeedsPaidLookup(false)
     setFindEmailError(null)
     setFindEmailNote(null)
     setFindingEmail(false)
@@ -162,7 +160,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
     }
   }
 
-  const handleFindEmail = async (action: 'predict' | 'find' = 'predict') => {
+  const handleFindEmail = async (action: 'find' = 'find') => {
     if (findingEmail) return
     if (!contact.firstName || !contact.company) { setFindEmailError('Need a company name to search'); return }
     setFindingEmail(true); setFindEmailError(null); setFindEmailNote(null)
@@ -180,7 +178,6 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
         return
       }
       if (data.enriched && data.email) {
-        setNeedsPaidLookup(false)
         const updates: Partial<Contact> = { email: data.email, enriched: true, emailStatus: data.emailStatus, emailSource: data.emailSource, emailCheckedAt: data.emailCheckedAt, emailEvidence: data.emailEvidence }
         if (data.phone) updates.phone = data.phone
         if (data.linkedinUrl && !contact.linkedinUrl) updates.linkedinUrl = data.linkedinUrl
@@ -189,14 +186,10 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
         await onUpdateContact(contact.id, updates)
         await logActivity('Email found')
         if (data.guessed) {
-          setFindEmailNote(`Best guess based on ${contact.company}'s email format - confirm before sending.`)
+          setFindEmailNote('This address is not verified. Confirm it before sending.')
         }
       } else {
-        if (data.needsPaidLookup) {
-          setNeedsPaidLookup(true)
-        } else {
-          setFindEmailError(data.error || data.message || 'No email found. You can add an address manually.')
-        }
+        setFindEmailError(data.error || data.message || 'No email found.')
       }
     } catch (e) {
       setFindEmailError('Something went wrong - try again')
@@ -282,7 +275,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
                 Send email
               </a>
             ) : (
-              <button onClick={() => handleFindEmail(needsPaidLookup ? 'find' : 'predict')} disabled={findingEmail}
+              <button onClick={() => handleFindEmail()} disabled={findingEmail}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white rounded-xl text-[11px] font-semibold transition-colors shadow-sm">
                 {findingEmail ? (
                   <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -294,7 +287,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
                   </svg>
                 )}
-                {findingEmail ? 'Searching...' : needsPaidLookup ? 'Find email — 1 paid request' : 'Check saved email — free'}
+                {findingEmail ? 'Searching...' : 'Find email — 1 credit'}
               </button>
             )}
             <button onClick={() => setActiveTab('drafts')}
@@ -316,9 +309,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
             </button>
           )}
 
-          {!contact.email && <p role="status" className="text-[11px] text-slate-600 bg-slate-50 rounded-lg px-2.5 py-2 mt-2">{needsPaidLookup
-            ? 'No saved email or format for this contact. Search our email provider using the button above. Uses 1 email request if a provider search starts, even when no address is found.'
-            : 'Check previous results at no cost. If none exist, you can search with a paid email request here.'}</p>}
+          {!contact.email && <p role="status" className="text-[11px] text-slate-600 bg-slate-50 rounded-lg px-2.5 py-2 mt-2">Find a work email for 1 Hirely credit. Each search attempt uses a credit, including when no email is found.</p>}
           {findEmailError && <p className="text-[10px] text-red-600 bg-red-50 border border-red-100 rounded-lg px-2.5 py-1.5 mt-2">{findEmailError}</p>}
           {findEmailNote && <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5 mt-2">{findEmailNote}</p>}
         </div>

@@ -219,8 +219,8 @@ async function hunterDomainSearch(domain) {
 }
 
 
-async function findEmailForContact(contactId, firstName, lastName, company, domain, action = 'predict', allowPaid = false) {
-  if (!['predict', 'find'].includes(action) || (action === 'find' && allowPaid !== true)) return {ok:false,message:'Choose the paid search explicitly to continue.'};
+async function findEmailForContact(contactId, firstName, lastName, company, domain, action = 'find', allowPaid = false) {
+  if (action !== 'find' || allowPaid !== true) return {ok:false,message:'Confirm a 1-credit email search to continue.'};
   const session = await refreshIfNeeded(await getSession());
   if (!session) throw new Error('NOT_LOGGED_IN');
   try {

@@ -796,11 +796,11 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
     section.innerHTML='<div class="hirely-section-heading"><span>Work email</span><span class="hirely-status-label-chip">'+escapeHtml(email?(labels[status]||'Not verified'):'Not found')+'</span></div>';
     const row=container.querySelector('.hirely-email-row');if(row)section.appendChild(row);
     const help=document.createElement('p');help.className='hirely-email-help';
-    help.textContent=email?(status==='predicted'?'Based on a saved company format. The inbox has not been verified.':'Review or verify this address in Hirely before outreach.'):'Check previous results at no cost. If none exist, you can search with a paid email request here.';
+    help.textContent=email?(status==='predicted'?'This address has not been verified.':'Review or verify this address in Hirely before outreach.'):'1 Hirely credit per search, including when no email is found.';
     section.appendChild(help);
     const lookupFeedback=document.createElement('div');lookupFeedback.id='hlookup';lookupFeedback.className='hirely-status';lookupFeedback.setAttribute('role','status');lookupFeedback.setAttribute('aria-live','polite');
 
-    const find=container.querySelector('#hfeb, #hfeb2');if(find){find.textContent='Check saved email — free';find.style.marginTop='0';find.hidden=!!email;section.appendChild(find);}
+    const find=container.querySelector('#hfeb, #hfeb2');if(find){find.textContent='Find email — 1 credit';find.style.marginTop='0';find.hidden=!!email;section.appendChild(find);}
     if(manual){const entry=disclosure(email?'Edit email address':'Enter an email you already know','hirely-manual');entry.open=!!state.emailEditing;entry.appendChild(manual);entry.addEventListener('toggle',()=>{state.emailEditing=entry.open;});section.appendChild(entry);}
     section.appendChild(lookupFeedback);
     container.querySelector('.hirely-profile-card')?.after(section);
@@ -814,12 +814,8 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
 
   function emailLookupResult(container, button, res) {
     button.disabled=false;
-    if(res.needsPaidLookup) button.dataset.paid='true';
-    const paid=button.dataset.paid==='true';
-    button.textContent=paid?'Find email — 1 paid request':'Check saved email — free';
-    const message=res.needsPaidLookup
-      ? 'No saved email or format for this person. Search our email provider here. Uses 1 email request if a provider search starts, even when no address is found.'
-      : (res.message||res.error||'Could not search. Please try again.');
+    button.textContent='Find email — 1 credit';
+    const message=res.message||res.error||'Could not search. Please try again.';
     showStatus(container.querySelector('#hlookup'),message,'info');
   }
 
@@ -865,9 +861,8 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
       const feb=container.querySelector("#hfeb");
       if(feb) feb.addEventListener("click",async()=>{
         if (feb.disabled) return;
-        const paid=feb.dataset.paid==='true';
         feb.disabled=true;feb.textContent="Searching...";
-        const res=await sendMsg({type:"HIRELY_FIND_EMAIL",contactId:existing.id,firstName:existing.first_name,lastName:existing.last_name,company:existing.company||data.company||"",domain:existing.email_domain||"",action:paid?"find":"predict",allowPaid:paid},30000);
+        const res=await sendMsg({type:"HIRELY_FIND_EMAIL",contactId:existing.id,firstName:existing.first_name,lastName:existing.last_name,company:existing.company||data.company||"",domain:existing.email_domain||"",action:"find",allowPaid:true},30000);
         if (!valid() || !feb.isConnected) return;
         if(res.ok&&res.email){existing.email=res.email;existing.email_status=res.emailStatus;existing.email_evidence=res.emailEvidence;await renderSaveTab(container,session,data,existing);}
         else{emailLookupResult(container,feb,res);}
@@ -893,7 +888,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
         '<button class="hirely-text-btn" id="hirely-read-role" style="margin-bottom:10px">Read current role from Experience</button>'+
         '<button class="hirely-btn" id="hsb">Save contact</button>'+
         '<div class="hirely-status" id="hss"></div>'+
-        '<button class="hirely-find-email-btn" id="hfeb2">Check saved email — free</button>';
+        '<button class="hirely-find-email-btn" id="hfeb2">Find email — 1 credit</button>';
 
       enhanceCapture(container, data, existing, state);
       container.querySelectorAll(".hirely-copy-btn").forEach(btn=>{
@@ -939,9 +934,8 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
         syncDraft(state);
         const feedback=container.querySelector('#hlookup');feedback.textContent='';feedback.className='hirely-status';
         if (feb2.disabled) return;
-        const paid=feb2.dataset.paid==='true';
         feb2.disabled=true;feb2.textContent="Searching...";
-        const res=await sendMsg({type:"HIRELY_FIND_EMAIL",contactId:null,firstName:container.querySelector("#hfi").value.trim(),lastName:container.querySelector("#hli").value.trim(),company:container.querySelector("#hci").value.trim(),domain:"",action:paid?"find":"predict",allowPaid:paid},30000);
+        const res=await sendMsg({type:"HIRELY_FIND_EMAIL",contactId:null,firstName:container.querySelector("#hfi").value.trim(),lastName:container.querySelector("#hli").value.trim(),company:container.querySelector("#hci").value.trim(),domain:"",action:"find",allowPaid:true},30000);
         if (!valid() || !feb2.isConnected) return;
         if(res.ok&&res.email){
           if (state.dirty.has('email') && state.data.email) { feb2.disabled=false; feb2.textContent='Email edited manually'; return; }
