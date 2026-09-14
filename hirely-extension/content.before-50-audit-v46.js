@@ -1,4 +1,4 @@
-/* Hirely Capture v4.8 — complete content.js replacement.
+/* Hirely Capture v4.6 — complete content.js replacement.
  * Requires your existing HIRELY_CONFIG and background message handlers.
  * This file includes the scraper; do not also load the old scraper/content.js.
  * Conservative extraction: title/company stay paired; past jobs are never
@@ -10,7 +10,7 @@ var HirelyEngine = (() => {
   const same = (a, b) => clean(a).normalize("NFKC").toLocaleLowerCase() === clean(b).normalize("NFKC").toLocaleLowerCase();
   const excluded = 'aside, nav, [role="dialog"], #hirely-extension-host, .scaffold-layout__aside';
   const noise = /^(experience|education|show all.*|show more.*|see more.*|see all.*|skills[:：]?.*|\d+ skills|.*\+\d+ skills|connect|message|follow|contact info|1st|2nd|3rd\+?)$/i;
-  const employment = /^(?:(?:permanent|temporary|contract) )?(full[- ]time|part[- ]time|contract|permanent|freelance|self[- ]employed|internship|apprenticeship|seasonal|on[- ]call|co[- ]op|on[- ]site|hybrid|remote)$/i;
+  const employment = /^(?:permanent |temporary )?(full[- ]time|part[- ]time|contract|permanent|freelance|self[- ]employed|internship|apprenticeship|seasonal|on[- ]site|hybrid|remote)$/i;
   const current = /\b(present|current|aujourd’hui|aujourd'hui|actualidad|heute)\b|現在|至今/i;
   const date = s => /\b(?:19|20)\d{2}\b/.test(s) && /[–—-]|\bto\b|\bà\b|\bau\b|\bbis\b|至/.test(s);
   const roleHint = /\b(engineer|developer|manager|director|founder|owner|partner|lead|head|officer|president|ceo|cto|cfo|coo|vp|consultant|analyst|designer|specialist|recruiter|coordinator|assistant|associate|professor|teacher|researcher|scientist|nurse|physician|lawyer|accountant|intern|administrator|executive)\b/i;
@@ -44,62 +44,11 @@ var HirelyEngine = (() => {
     return lines.filter((s, i) => i === 0 || !same(s, lines[i - 1]));
   }
   function stripDegree(s) {
-    const credentials = new Set(['MBA','PHD','CPA','PMP','CHRP','CHRL','CPHR','CPCC','ACC','PCC','MCC','CQE','MHRM','MENG','CSM','CSBA','CPM']);
-    const credential = value => credentials.has(value.replace(/[.®™\uFE0F]/g, '').toUpperCase());
-    let value = clean(s).replace(/\s*[·•]\s*(?:1st|2nd|3rd)\+?.*$/i, '');
-    const parenthetical = value.match(/\s*\(([^()]*)\)\s*$/);
-    if (parenthetical && parenthetical[1].split(/\s*,\s*/).every(credential)) value = value.slice(0, parenthetical.index).trim();
-    for (;;) {
-      const match = value.match(/^(.*?)(,\s*|\s+[-–—]\s+|\s+)([A-Za-z][A-Za-z.®™\uFE0F]*)$/);
-      if (!match || !credential(match[3])) break;
-      // A bare suffix must be uppercase and follow an existing full name.
-      if (!/[,–—-]/.test(match[2]) && (match[1].trim().split(/\s+/).length < 2 || match[3] !== match[3].toUpperCase())) break;
-      value = match[1].trim();
-    }
-    return value;
-  }
-  function splitName(value) {
-    const parts = stripDegree(value).replace(/^(\S+)\s+\([^)]*\)\s+(?=\S)/, '$1 ').split(/\s+/);
-    return {firstName: parts.shift() || '', lastName: parts.join(' ')};
-  }
-  function selectCurrentRole(active, badge, headline) {
-    if (active.length === 1) return active[0];
-    const matching = badge ? active.filter(p => same(p.company, badge)) : [];
-    const pool = matching.length ? matching : active;
-    if (!pool.length) return null;
-    if (pool.length === 1) return pool[0];
-    // Resolve overlapping promotions only within one employer.
-    if (!pool[0].company || !pool.every(p => same(p.company, pool[0].company))) return null;
-    const headTitle = splitTitleAndCompany(headline).title;
-    const exact = pool.filter(p => same(p.title, headTitle));
-    if (exact.length === 1) return exact[0];
-    const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-    const ranked = pool.map(role => {
-      const m = clean(role.dates).match(/^(?:([A-Za-z]+)\s+)?((?:19|20)\d{2})\s*[–—-]/);
-      const month = m?.[1] ? months.indexOf(m[1].slice(0,3).toLowerCase()) : 0;
-      return {role, start: m && month >= 0 ? Number(m[2]) * 12 + month : null};
-    });
-    if (ranked.some(p => p.start === null)) return null;
-    ranked.sort((a,b) => b.start - a.start);
-    return ranked[0].start > ranked[1].start ? ranked[0].role : null;
+    return clean(s).replace(/\s*[·•]\s*(?:1st|2nd|3rd)\+?.*$/i, '').replace(/\s*,\s*(?:MBA|PhD|CPA|PMP|CHRP|CHRL)\s*$/i, '').trim();
   }
   function isPronounOrDegree(s) { return /^(?:(?:she\/her|he\/him|they\/them)\s*[·•]?\s*)?(?:1st|2nd|3rd)\+?$|^(she\/her|he\/him|they\/them)$/i.test(clean(s)); }
   function validLabel(s) { return !!clean(s) && clean(s).length <= 180 && !noise.test(clean(s)) && !isPronounOrDegree(s) && !employment.test(clean(s)) && !date(s); }
-  function stripEmployment(s) {
-    const parts = clean(s).split(/(\s*[·•]\s*)/);
-    const metadata = p => employment.test(p) || date(p) || /^\d+\s*(yrs?|mos?|years?|months?)\b/i.test(p);
-    while (parts.length && metadata(parts[parts.length - 1])) { parts.pop(); if (parts.length) parts.pop(); }
-    return parts.join('').trim();
-  }
-  const unnamedEmployer = s => /^(self[- ]employed|freelance)(?:\s*[·•]\s*(?:self[- ]employed|freelance|full[- ]time|part[- ]time))*$/i.test(clean(s));
-  function uniqueRoles(roles) {
-    const seen = new Set();
-    return roles.filter(r => {
-      const key = JSON.stringify([r.title,r.company,r.dates,r.employerLabel || ''].map(s => clean(s).normalize('NFKC').toLocaleLowerCase()));
-      if (seen.has(key)) return false;
-      seen.add(key); return true;
-    });
-  }
+  function stripEmployment(s) { return clean(s).split(/\s*[·•]\s*/).filter(p => !employment.test(p) && !date(p) && !/^\d+\s*(yrs?|mos?|years?|months?)\b/i.test(p)).join(' · '); }
   function orgLink(el) { return Array.from(el?.querySelectorAll('a[href]') || []).find(a => /\/(company|school)\/[^/?#]+/.test(a.getAttribute('href') || '')); }
   function orgLabel(a) {
     if (!a) return '';
@@ -138,8 +87,7 @@ var HirelyEngine = (() => {
       } else {
         const rows = paragraphs(item), dates = rows.find(date);
         const title = rows[0], company = stripEmployment(rows[1]);
-        const employerLabel = !company && unnamedEmployer(rows[1]) ? clean(rows[1]).split(/[·•]/)[0].trim() : '';
-        if (dates && rows.indexOf(dates) >= 2 && validLabel(title) && (validLabel(company) || employerLabel) && !same(title,company)) result.push({title,company,employerLabel,dates,present:current.test(dates),source:'experience'});
+        if (dates && rows.indexOf(dates) >= 2 && validLabel(title) && validLabel(company) && !same(title,company)) result.push({title,company,dates,present:current.test(dates),source:'experience'});
       }
     }
     return result;
@@ -156,7 +104,7 @@ var HirelyEngine = (() => {
   function parseExperience(doc) {
     const section = findExperience(doc);
     if (!section) return [];
-    if (section.querySelector('[componentkey^="entity-collection-item-"]')) return uniqueRoles(modernExperience(section));
+    if (section.querySelector('[componentkey^="entity-collection-item-"]')) return modernExperience(section);
     const itemSelector = 'li, [data-view-name="profile-component-entity"]';
     const candidates = Array.from(section.querySelectorAll(itemSelector));
     const top = candidates.filter(n => !candidates.some(p => p !== n && p.contains(n)));
@@ -196,7 +144,8 @@ var HirelyEngine = (() => {
       }
     }
     top.forEach(item => parse(item));
-    return uniqueRoles(records);
+    const seen = new Set();
+    return records.filter(r => { const k = JSON.stringify([r.title, r.company, r.dates]); if (seen.has(k)) return false; seen.add(k); return true; });
   }
   function splitTitleAndCompany(headline, knownCompany = '') {
     const h = clean(headline);
@@ -209,32 +158,6 @@ var HirelyEngine = (() => {
     }
     return {title: roleHint.test(first) && !/^(helping|building|seeking|looking|former|aspiring)\b/i.test(first) ? first : '', company: knownCompany};
   }
-  function resolveRole(positions, badge, headline) {
-    const result = {title:'', company:'', confidence:0, sources:{}, trace:[], reviewReason:''};
-    const active = uniqueRoles(positions.filter(p => p.present));
-    const selected = selectCurrentRole(active, badge, headline);
-    if (selected) {
-      result.title = selected.title; result.company = selected.company; result.confidence = 3;
-      result.sources.title = result.sources.company = 'current-experience';
-      if (!selected.company) result.reviewReason = 'Current title found. The profile does not name an employer; enter one only if known.';
-    } else if (active.length > 1) {
-      result.reviewReason = 'Several roles are listed as current. Choose the role you want to save.';
-    } else if (positions.length) {
-      // Loaded, dated Experience overrides a potentially stale headline.
-      result.reviewReason = 'No current job is listed in the loaded Experience section. Review before saving.';
-    } else {
-      const split = splitTitleAndCompany(headline);
-      if (split.title && split.company) {
-        result.title = split.title; result.company = split.company; result.confidence = 2;
-        result.sources.title = result.sources.company = 'explicit-headline';
-      } else if (validLabel(badge)) {
-        if (split.title && !split.company && !headline.includes('|')) { result.title = split.title; result.sources.title = 'headline-title'; }
-        result.company = badge; result.confidence = 1; result.sources.company = 'current-company-badge';
-      }
-      result.reviewReason = result.title || result.company ? 'Based on the profile introduction. Confirm against Experience before saving.' : 'Current role not available yet. Review the profile or enter details below.';
-    }
-    return result;
-  }
   function emptyResult() { return {name:'', firstName:'', lastName:'', title:'', company:'', headline:'', photo:'', location:'', url:'', sources:{}, trace:[], confidence:0, experiences:[]}; }
   function scrapeProfile(doc, pageUrl) {
     const result = emptyResult();
@@ -243,13 +166,9 @@ var HirelyEngine = (() => {
     const h1 = findProfileHeading(doc);
     if (!h1) { result.trace.push('Waiting for profile heading'); return result; }
     result.name = stripDegree(textOf(h1));
-    Object.assign(result, splitName(result.name));
-    result.sources.name = 'profile-heading';
-    if (h1.matches('.top-card-layout__title')) {
-      result.publicProfile = true;
-      result.reviewReason = 'Sign in to LinkedIn to read this profile’s current Experience.';
-      return result;
-    }
+    const parts = result.name.split(/\s+/);
+    result.firstName = parts.shift() || ''; result.lastName = parts.join(' ');
+    result.sources.name = 'profile-h1';
     // Bound the intro to the smallest enclosing section; never scan all main
     // text for company guesses or use stale document titles after SPA navigation.
     const card = h1.closest('section') || h1.parentElement;
@@ -268,15 +187,34 @@ var HirelyEngine = (() => {
     }
     const positions = parseExperience(doc);
     result.experiences = positions;
-    const role = resolveRole(positions, badge, result.headline);
-    Object.assign(result, role, {sources:{...result.sources,...role.sources}});
+    const active = positions.filter(p => p.present);
+    const matching = badge ? active.filter(p => same(p.company, badge)) : [];
+    const selected = active.length === 1 ? active[0] : matching.length === 1 ? matching[0] : null;
+    if (selected) {
+      result.title = selected.title; result.company = selected.company; result.confidence = 3;
+      result.sources.title = result.sources.company = 'current-experience';
+    } else if (active.length > 1) {
+      result.trace.push('Multiple current roles: select the intended role manually');
+    } else {
+      const split = splitTitleAndCompany(result.headline);
+      // Explicit headline pairs are fallback evidence, unless the loaded
+      // experience section explicitly dates the same pair as a past job.
+      const ended = positions.some(p => !p.present && same(p.title, split.title) && same(p.company, split.company));
+      if (split.title && split.company && !ended) {
+        result.title = split.title; result.company = split.company; result.confidence = 2;
+        result.sources.title = result.sources.company = 'explicit-headline';
+      } else if (validLabel(badge)) {
+        if (split.title && !split.company && !result.headline.includes('|')) { result.title = split.title; result.sources.title = 'headline-title'; }
+        result.company = badge; result.confidence = 1; result.sources.company = 'current-company-badge';
+      }
+    }
     const img = card.querySelector('img.pv-top-card-profile-picture__image, img.profile-photo-edit__preview, img[class*="profile-picture"], a[aria-label="Profile photo"] img');
     result.photo = img?.getAttribute('src') || '';
     result.trace.push(result.title && result.company ? `Selected ${result.sources.company}` : 'Current role uncertain; review empty fields');
     return result;
   }
   function fieldsPass(got, expected) { const r = {}; for (const k of ['name','title','company']) r[k] = same(got[k], expected[k]); r.all = r.name && r.title && r.company; return r; }
-  return {findProfileHeading, findExperience, scrapeProfile, parseExperience, splitTitleAndCompany, stripDegree, splitName, selectCurrentRole, resolveRole, stripEmployment, uniqueRoles, isPronounOrDegree, textOf, emptyResult, fieldsPass, companyQuality: s => validLabel(s) ? 3 : 0, version:'4.8'};
+  return {findProfileHeading, findExperience, scrapeProfile, parseExperience, splitTitleAndCompany, stripDegree, isPronounOrDegree, textOf, emptyResult, fieldsPass, companyQuality: s => validLabel(s) ? 3 : 0, version:'4.6'};
 })();
 var HirelyScrape = HirelyEngine;
 if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.HirelyScrape = HirelyScrape; }
@@ -391,7 +329,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
 
   const tab = document.createElement("div");
   tab.className = "hirely-tab";
-  tab.innerHTML = '<div class="hirely-tab-logo">H</div><div class="hirely-tab-label">Hirely 4.8</div>';
+  tab.innerHTML = '<div class="hirely-tab-logo">H</div><div class="hirely-tab-label">Hirely 4.6</div>';
   root.appendChild(tab);
 
   const overlay = document.createElement("div");
@@ -455,9 +393,6 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
       state.data.title = better.title || '';
       state.data.company = better.company || '';
     }
-    state.data.publicProfile = !!better.publicProfile;
-    state.data.reviewReason = better.reviewReason;
-    state.data.experiences = better.experiences;
     state.data.trace = better.trace;
     state.data.sources = better.sources;
     for (const [id, field] of Object.entries(fieldMap)) {
@@ -470,7 +405,6 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
     if (name) name.textContent = [state.data.firstName, state.data.lastName].filter(Boolean).join(' ') || state.data.name;
     if (sub) sub.textContent = state.data.title || 'Review current job title';
     if (company) company.textContent = state.data.company || 'Review current company';
-    renderRoleOptions(state);
   }
 
   function experienceScrollTarget() {
@@ -544,7 +478,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
     activeProfile = null;
     const renderUrl = canonicalUrl(location.href);
     panel.innerHTML=
-      '<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely v4.8</span></div>'+
+      '<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely v4.6</span></div>'+
       '<button class="hirely-close" id="hcb0">&#x2715;</button></div>'+
       '<div class="hirely-body"><div class="hirely-loading">Loading...</div></div>';
     panel.querySelector("#hcb0").addEventListener("click",closeHirely);
@@ -557,7 +491,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
       else await renderProfile(session);
     } catch(e) {
       if (renderGen !== hirelyScrapeGen || !panel.classList.contains('open')) return;
-      panel.innerHTML='<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely v4.8</span></div>'+
+      panel.innerHTML='<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely v4.6</span></div>'+
         '<button class="hirely-close" id="hcbe">&#x2715;</button></div>'+
         '<div class="hirely-body"><div class="hirely-status show error">Something went wrong. Reload the page.</div></div>';
       panel.querySelector("#hcbe").addEventListener("click",closeHirely);
@@ -566,7 +500,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
 
   function renderLogin() {
     panel.innerHTML=
-      '<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely v4.8</span></div>'+
+      '<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely v4.6</span></div>'+
       '<button class="hirely-close" id="hlcb">&#x2715;</button></div>'+
       '<div class="hirely-body">'+
       '<p class="hirely-login-hint">Sign in to save contacts directly from LinkedIn.</p>'+
@@ -591,7 +525,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
 
   async function renderProfile(session) {
     panel.innerHTML=
-      '<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely v4.8</span></div>'+
+      '<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely v4.6</span></div>'+
       '<div style="display:flex;gap:8px;align-items:center;"><a class="hirely-open-app" href="'+HIRELY_CONFIG.API_BASE+'" target="_blank">Open app &#x2197;</a>'+
       '<button class="hirely-close" id="hrpcb">&#x2715;</button></div></div>'+
       '<div class="hirely-tabs"><button class="hirely-tab-btn active" id="hts">Save</button><button class="hirely-tab-btn" id="hth">History</button></div>'+
@@ -632,7 +566,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
         if (name) name.textContent = state.data.name || '';
       }
     });
-    Promise.all([Promise.resolve(null), sendMsg({type:'HIRELY_CHECK_CONTACT', url})]).then(([enriched, check]) => {
+    Promise.all([enrichFromBackend(slug), sendMsg({type:'HIRELY_CHECK_CONTACT', url})]).then(([enriched, check]) => {
       if (!liveProfile(state)) return;
       syncDraft(state);
       state.existing = check?.contact || null;
@@ -652,42 +586,6 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
     });
   }
 
-  function renderRoleOptions(state) {
-    if (!liveProfile(state) || state.tab !== 'save') return;
-    const note = panel.querySelector('.hirely-role-note');
-    if (note) {
-      const message = !state.data.publicProfile && (state.dirty.has('title') || state.dirty.has('company')) ? 'Using your selected or edited role. Review the details before saving.' : state.data.reviewReason || '';
-      note.textContent = message; note.hidden = !message;
-    }
-    const save = panel.querySelector('#hsb');
-    if (save && !state.saving) save.disabled = !!state.data.publicProfile;
-    const slot = panel.querySelector('.hirely-role-options');
-    if (!slot) return;
-    const roles = (state.data.experiences || []).filter(r => r.present);
-    const signature = JSON.stringify(roles);
-    if (roles.length < 2) { slot.replaceChildren(); delete slot.dataset.roles; return; }
-    if (slot.dataset.roles !== signature) {
-      slot.dataset.roles = signature;
-      slot.innerHTML = '<div class="hirely-field"><label for="hirely-current-role">Current role — choose if needed</label><select id="hirely-current-role" style="width:100%;padding:8px;border:1px solid #CBD5E1;border-radius:6px;background:white;color:#111827"></select></div>';
-      const select = slot.querySelector('select');
-      select.appendChild(new Option('Choose a current role or enter details below', ''));
-      roles.forEach((r,i) => select.appendChild(new Option(r.title + ' — ' + (r.company || r.employerLabel || 'Employer not listed') + ' (' + r.dates + ')', String(i))));
-      select.addEventListener('change', () => {
-        if (!liveProfile(state) || state.saving || select.value === '') return;
-        const role = roles[Number(select.value)];
-        state.dirty.add('title'); state.dirty.add('company');
-        state.data.title = role.title; state.data.company = role.company;
-        panel.querySelector('#hti').value = role.title;
-        panel.querySelector('#hci').value = role.company;
-        panel.querySelector('.hirely-profile-sub').textContent = role.title;
-        panel.querySelector('.hirely-profile-company').textContent = role.company;
-        renderRoleOptions(state);
-      });
-    }
-    const index = roles.findIndex(r => r.title === state.data.title && r.company === state.data.company);
-    slot.querySelector('select').value = index < 0 ? '' : String(index);
-  }
-
   async function renderSaveTab(container,session,data,existing) {
     const state = activeProfile;
     const valid = () => liveProfile(state) && state.data === data && state.tab === 'save';
@@ -697,15 +595,19 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
       ?'<img class="hirely-avatar" src="'+escapeAttr(data.photo)+'" />'
       :'<div class="hirely-avatar-fallback">'+(initials||"?")+"</div>";
     const COLUMN_LABELS={follow_up_today:"Follow Up Today",upcoming:"Coming Up",done:"Done"};
-    const sourceTag='<div class="hirely-source-tag">Scraped from LinkedIn · v4.8</div>';
+    const sourceTag=data.enriched
+      ?'<div class="hirely-source-tag enriched">&#10003; Enriched via Hunter.io</div>'
+      :'<div class="hirely-source-tag">Scraped from LinkedIn · v4.6</div>';
 
     if(existing){
       const columnLabel=COLUMN_LABELS[existing.column_name]||existing.column_name||"Pipeline";
-      const statusLabel=existing.email_status==="predicted"?"Predicted — inbox not checked":"Check email status in Hirely";
+      const conf=existing.email_confidence;
+      const confClass=conf>=80?"hirely-confidence-high":conf>=50?"hirely-confidence-med":"hirely-confidence-low";
+      const confLabel=conf?'<span class="hirely-confidence-pill '+confClass+'">'+conf+"%</span>":"";
       const emailDisplay=existing.email
-        ?'<div class="hirely-email-row">&#x2709; <span class="hirely-email-val">'+escapeHtml(existing.email)+"</span>"+'<span class="hirely-confidence-pill hirely-confidence-med">'+escapeHtml(statusLabel)+'</span>'+'<button class="hirely-copy-btn" data-copy="'+escapeAttr(existing.email)+'">Copy</button></div>'
-        :(data.email?'<p class="hirely-source-tag">Predicted or entered email — inbox not checked</p><div class="hirely-email-row">&#x2709; <span class="hirely-email-val">'+escapeHtml(data.email)+'</span><button class="hirely-copy-btn" data-copy="'+escapeAttr(data.email)+'">Copy</button></div>'
-        :'<button class="hirely-find-email-btn" id="hfeb">&#x2726; Predict Email — Free</button>');
+        ?'<div class="hirely-email-row">&#x2709; <span class="hirely-email-val">'+escapeHtml(existing.email)+"</span>"+confLabel+'<button class="hirely-copy-btn" data-copy="'+escapeAttr(existing.email)+'">Copy</button></div>'
+        :(data.email?'<div class="hirely-email-row">&#x2709; <span class="hirely-email-val">'+escapeHtml(data.email)+'</span><button class="hirely-copy-btn" data-copy="'+escapeAttr(data.email)+'">Copy</button></div>'
+        :'<button class="hirely-find-email-btn" id="hfeb">&#x2726; Find Email</button>');
 
       container.innerHTML=sourceTag+
         '<div class="hirely-pipeline-badge in-pipeline"><span class="hirely-badge-dot"></span>Already in your pipeline</div>'+
@@ -725,7 +627,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
         feb.disabled=true;feb.textContent="Searching...";
         const res=await sendMsg({type:"HIRELY_FIND_EMAIL",contactId:existing.id,firstName:existing.first_name,lastName:existing.last_name,company:existing.company||data.company||"",domain:existing.email_domain||""});
         if (!valid() || !feb.isConnected) return;
-        if(res.ok&&res.email){existing.email=res.email;existing.email_status=res.emailStatus;existing.email_evidence=res.emailEvidence;await renderSaveTab(container,session,data,existing);}
+        if(res.ok&&res.email){existing.email=res.email;existing.email_confidence=res.confidence||null;await renderSaveTab(container,session,data,existing);}
         else{feb.disabled=false;feb.textContent="&#x2726; Find Email";}
       });
 
@@ -738,24 +640,22 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
         '<div class="hirely-profile-sub">'+escapeHtml(displayTitle)+"</div>"+
         '<div class="hirely-profile-company">'+escapeHtml(data.company||"")+"</div></div></div>"+
         (data.email?'<div class="hirely-email-row">&#x2709; <span class="hirely-email-val">'+escapeHtml(data.email)+'</span><button class="hirely-copy-btn" data-copy="'+escapeAttr(data.email)+'">Copy</button></div>':"")+
-        '<p class="hirely-role-note" style="font-size:11px;line-height:1.4;color:#92400e;background:#fffbeb;padding:8px;border-radius:6px" hidden></p><div class="hirely-role-options"></div>'+
         '<div class="hirely-fields-edit">'+
         '<div class="hirely-row-2"><div class="hirely-field"><label>First name</label><input id="hfi" value="'+escapeAttr(data.firstName)+'" /></div>'+
         '<div class="hirely-field"><label>Last name</label><input id="hli" value="'+escapeAttr(data.lastName)+'" /></div></div>'+
         '<div class="hirely-field"><label>Job title</label><input id="hti" value="'+escapeAttr(displayTitle)+'" /></div>'+
         '<div class="hirely-field"><label>Company</label><input id="hci" value="'+escapeAttr(data.company)+'" /></div>'+
-        (data.email?"":'<div class="hirely-field"><label>Email (optional)</label><input id="hei" placeholder="Predict from saved company format" /></div>')+
+        (data.email?"":'<div class="hirely-field"><label>Email (optional)</label><input id="hei" placeholder="Find via Hunter.io below" /></div>')+
         "</div>"+
         '<button class="hirely-text-btn" id="hirely-read-role" style="margin-bottom:10px">Read current role from Experience</button>'+
         '<button class="hirely-btn" id="hsb">Save to Pipeline</button>'+
         '<div class="hirely-status" id="hss"></div>'+
-        (!data.email?'<button class="hirely-find-email-btn" id="hfeb2" style="margin-top:8px;">&#x2726; Predict Email — Free</button>':"");
+        (!data.email?'<button class="hirely-find-email-btn" id="hfeb2" style="margin-top:8px;">&#x2726; Find Email with Hunter.io</button>':"");
 
       container.querySelectorAll(".hirely-copy-btn").forEach(btn=>{
         btn.addEventListener("click",()=>{navigator.clipboard.writeText(btn.dataset.copy).then(()=>{btn.textContent="Copied!";setTimeout(()=>{btn.textContent="Copy";},1500);});});
       });
 
-      renderRoleOptions(state);
       container.querySelector('#hirely-read-role')?.addEventListener('click', () => {
         experienceScrollTarget()?.scrollIntoView({block:'start',behavior:'smooth'});
         applyScrapeToForm(scrapeProfile(), state);
@@ -770,11 +670,9 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
           headline:container.querySelector("#hti").value.trim(),
           company:container.querySelector("#hci").value.trim(),
           email:data.email||container.querySelector("#hei")?.value.trim()||"",
-          emailStatus:data.emailStatus||"unverified",emailEvidence:data.emailEvidence||"",
           url:data.url
         };
         if (!valid()) return;
-        if (state.data.publicProfile) { showStatus(statusEl,'Sign in to LinkedIn before saving this profile.','error'); return; }
         if(!payload.firstName){showStatus(statusEl,"First name is required.","error");return;}
         state.saving = true;
         btn.disabled=true;btn.textContent="Saving...";
@@ -796,7 +694,6 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
         if(res.ok&&res.email){
           if (state.dirty.has('email')) { feb2.disabled=false; feb2.textContent='Email edited manually'; return; }
           state.data.email = res.email;
-          state.data.emailStatus = res.emailStatus; state.data.emailEvidence = res.emailEvidence;
           const ei=container.querySelector("#hei");if(ei) ei.value=res.email;
           feb2.textContent="Email found";feb2.style.color="#047857";
         } else{feb2.disabled=false;feb2.textContent="&#x2726; Find Email with Hunter.io";}
@@ -850,7 +747,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
 
     function buildPanel(body) {
       if (!validCompany()) return;
-      panel.innerHTML='<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely v4.8</span></div>'+
+      panel.innerHTML='<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely v4.6</span></div>'+
         '<div style="display:flex;gap:8px;align-items:center;"><a class="hirely-open-app" href="'+HIRELY_CONFIG.API_BASE+'" target="_blank">Open app &#x2197;</a>'+
         '<button class="hirely-close" id="hcocb">&#x2715;</button></div></div>'+
         '<div class="hirely-body">'+body+"</div>"+

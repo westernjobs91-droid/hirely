@@ -17,6 +17,10 @@ export interface Contact {
   sentDate: string
   originalEmail: string
   enriched: boolean
+  emailStatus?: 'unverified' | 'predicted' | 'valid' | 'invalid' | 'accept_all' | 'unknown'
+  emailSource?: string
+  emailCheckedAt?: string | null
+  emailEvidence?: string
   activity: string[]
   notes: string
   aiDrafts?: AIDraft[]
@@ -30,4 +34,4 @@ export interface AIDraft {
   body: string
 }
 
-export type NavItem = 'dashboard' | 'contacts' | 'followups' | 'ai-drafts' | 'analytics' | 'enrichment' | 'settings'
+export type NavItem = 'dashboard' | 'contacts' | 'followups' | 'ai-drafts' | 'analytics' | 'enrichment' | 'meet' | 'settings'

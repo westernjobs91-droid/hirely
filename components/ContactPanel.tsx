@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import EmailStatusBadge from './EmailStatusBadge'
 import { Contact, AIDraft } from '@/types'
 
 interface ContactPanelProps {
@@ -167,7 +168,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
       const res = await fetch('/api/enrich', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ firstName: contact.firstName, lastName: contact.lastName, company: contact.company })
+        body: JSON.stringify({ contactId: contact.id, action: 'predict', firstName: contact.firstName, lastName: contact.lastName, company: contact.company })
       })
       const data = await res.json()
       if (res.status === 402) {
@@ -175,7 +176,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
         return
       }
       if (data.enriched && data.email) {
-        const updates: Partial<Contact> = { email: data.email, enriched: true }
+        const updates: Partial<Contact> = { email: data.email, enriched: true, emailStatus: data.emailStatus, emailSource: data.emailSource, emailCheckedAt: data.emailCheckedAt, emailEvidence: data.emailEvidence }
         if (data.phone) updates.phone = data.phone
         if (data.linkedinUrl && !contact.linkedinUrl) updates.linkedinUrl = data.linkedinUrl
         if (data.title && !contact.jobTitle) updates.jobTitle = data.title
@@ -186,7 +187,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
           setFindEmailNote(`Best guess based on ${contact.company}'s email format - confirm before sending.`)
         }
       } else {
-        setFindEmailError('No email found for this contact')
+        setFindEmailError(data.error || data.message || 'No email found. Open Email finder for an optional paid lookup.')
       }
     } catch (e) {
       setFindEmailError('Something went wrong - try again')
@@ -255,13 +256,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
             <div className="min-w-0 flex-1 pr-8">
               <div className="flex items-center gap-1.5">
                 <h2 className="text-sm font-bold text-slate-900 truncate">{contact.firstName} {contact.lastName}</h2>
-                {contact.enriched && (
-                  <span title="Email verified" className="flex-shrink-0 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center">
-                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </span>
-                )}
+                <EmailStatusBadge contact={contact} />
               </div>
               <p className="text-[11px] text-slate-500 truncate mt-0.5">{contact.jobTitle}{contact.jobTitle && contact.company ? ' · ' : ''}{contact.company}</p>
             </div>
@@ -506,7 +501,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
                     </button>
                     <button onClick={() => handleSend(draft)}
                       className={`flex items-center gap-1 px-2.5 py-1.5 text-[10px] rounded-lg font-semibold transition-all text-white ${sentDrafts.has(draft.id) ? 'bg-emerald-500' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                      {sentDrafts.has(draft.id) ? '✓ Sent!' : 'Send now'}
+                      {sentDrafts.has(draft.id) ? 'Draft opened' : 'Open email draft'}
                     </button>
                   </div>
 

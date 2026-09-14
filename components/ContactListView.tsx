@@ -1,5 +1,6 @@
 'use client'
 
+import EmailStatusBadge from './EmailStatusBadge'
 import { Contact } from '@/types'
 
 interface ContactListViewProps {
@@ -72,13 +73,7 @@ export default function ContactListView({ contacts, selectedId, onSelect, onDele
                   <p className="text-[12.5px] font-semibold text-slate-900 truncate leading-tight">{contact.firstName} {contact.lastName}</p>
                   <p className="text-[10.5px] text-slate-400 truncate leading-tight mt-0.5">{contact.jobTitle || '—'}</p>
                 </div>
-                {contact.enriched && (
-                  <div className="w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0" title="Email verified">
-                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                )}
+                <EmailStatusBadge contact={contact} />
               </div>
 
               {/* Company */}

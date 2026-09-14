@@ -117,6 +117,9 @@ async function saveContact(payload) {
     first_name: payload.firstName,
     last_name: payload.lastName,
     email: payload.email || null,
+    email_status: payload.emailStatus === 'predicted' ? 'predicted' : 'unverified',
+    email_source: payload.emailStatus === 'predicted' ? 'company_pattern' : 'extension',
+    email_evidence: payload.emailEvidence || '',
     phone: null,
     company: payload.company || null,
     job_title: payload.headline || null,
@@ -305,7 +308,7 @@ async function checkContact(url) {
   if (!session) return null;
 
   const res = await fetch(
-    `${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?select=id,first_name,last_name,email,email_confidence,job_title,company,column_name,status_label&user_id=eq.${session.user.id}&linkedin_url=eq.${encodeURIComponent(url)}&limit=1`,
+    `${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?select=id,first_name,last_name,email,email_status,email_source,email_evidence,email_checked_at,email_confidence,job_title,company,column_name,status_label&user_id=eq.${session.user.id}&linkedin_url=eq.${encodeURIComponent(url)}&limit=1`,
     {
       headers: {
         apikey: HIRELY_CONFIG.SUPABASE_ANON_KEY,

@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar'
 import ContactCard from '@/components/ContactCard'
 import ContactListView from '@/components/ContactListView'
 import AnalyticsView from '@/components/AnalyticsView'
+import MeetView from '@/components/MeetView'
 import EnrichmentView from '@/components/EnrichmentView'
 import IntegrationsView from '@/components/IntegrationsView'
 import ContactPanel from '@/components/ContactPanel'
@@ -122,6 +123,10 @@ export default function Dashboard() {
       sentDate: c.sent_date as string || '',
       originalEmail: c.original_email as string || '',
       enriched: c.enriched as boolean || false,
+      emailStatus: (c.email_status as Contact['emailStatus']) || 'unverified',
+      emailSource: c.email_source as string || '',
+      emailCheckedAt: c.email_checked_at as string || null,
+      emailEvidence: c.email_evidence as string || '',
       notes: c.notes as string || '',
       activity: c.activity as string[] || [],
       aiDrafts: c.ai_drafts as Contact['aiDrafts'] || undefined,
@@ -154,6 +159,10 @@ export default function Dashboard() {
       sent_date: contact.sentDate,
       original_email: contact.originalEmail,
       enriched: contact.enriched,
+      email_status: contact.emailStatus || 'unverified',
+      email_source: contact.emailSource || 'manual',
+      email_checked_at: contact.emailCheckedAt || null,
+      email_evidence: contact.emailEvidence || '',
       notes: contact.notes,
       activity: contact.activity,
     }).select().single()
@@ -177,12 +186,22 @@ export default function Dashboard() {
   }, [])
 
   const handleSend = useCallback((draft: AIDraft, c: Contact) => {
-    setToast(`Follow-up sent to ${c.firstName} ${c.lastName}`)
+    if (!c.email || c.emailStatus === 'invalid') { setToast('Add a usable email before preparing a draft.'); return }
+    window.location.href = 'mailto:' + encodeURIComponent(c.email) + '?subject=' + encodeURIComponent('Following up') + '&body=' + encodeURIComponent(draft.body)
+    setToast('Email draft opened. Send it from your mail app when ready.')
   }, [])
 
   const handleUpdateContact = useCallback(async (id: string, updates: Partial<Contact>) => {
+    updates = {...updates}
+    if (updates.email !== undefined && !updates.emailStatus) {
+      updates.emailStatus = 'unverified'; updates.emailSource = 'manual'; updates.emailCheckedAt = null; updates.emailEvidence = ''
+    }
     const dbUpdates: Record<string, unknown> = {}
-    if (updates.email !== undefined) dbUpdates.email = updates.email
+    if (updates.email !== undefined) { dbUpdates.email = updates.email; dbUpdates.email_status = updates.emailStatus || 'unverified'; dbUpdates.email_checked_at = updates.emailCheckedAt || null; dbUpdates.email_source = updates.emailSource || 'manual'; dbUpdates.email_evidence = updates.emailEvidence || '' }
+    if (updates.emailStatus !== undefined) dbUpdates.email_status = updates.emailStatus
+    if (updates.emailSource !== undefined) dbUpdates.email_source = updates.emailSource
+    if (updates.emailCheckedAt !== undefined) dbUpdates.email_checked_at = updates.emailCheckedAt
+    if (updates.emailEvidence !== undefined) dbUpdates.email_evidence = updates.emailEvidence
     if (updates.phone !== undefined) dbUpdates.phone = updates.phone
     if (updates.company !== undefined) dbUpdates.company = updates.company
     if (updates.linkedinUrl !== undefined) dbUpdates.linkedin_url = updates.linkedinUrl
@@ -268,7 +287,8 @@ export default function Dashboard() {
               {activeNav === 'followups' && 'Follow-ups'}
               {activeNav === 'ai-drafts' && 'AI Drafts'}
               {activeNav === 'analytics' && 'Analytics'}
-              {activeNav === 'enrichment' && 'Enrichment'}
+              {activeNav === 'enrichment' && 'Email finder'}
+              {activeNav === 'meet' && 'Hirely Meet'}
               {activeNav === 'settings' && 'Integrations'}
             </h1>
             <p className="text-[11px] text-slate-400 mt-0.5">
@@ -555,6 +575,7 @@ export default function Dashboard() {
           )}
 
           {activeNav === 'analytics' && <AnalyticsView contacts={contacts} />}
+          {activeNav === 'meet' && <MeetView contacts={contacts} />}
           {activeNav === 'enrichment' && <EnrichmentView contacts={contacts} onSelect={setSelected} onUpdateContact={handleUpdateContact} />}
           {activeNav === 'settings' && <IntegrationsView />}
 

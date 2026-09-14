@@ -1,22 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { authenticate } from '@/lib/server-auth'
 
 export async function POST(req: NextRequest) {
-  // Auth check
-  const authHeader = req.headers.get('authorization')
-  const token = authHeader?.replace('Bearer ', '')
-  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-  if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
+  const auth = await authenticate(req)
+  if (!auth) return NextResponse.json({error:'Unauthorized'},{status:401})
+  const {db} = auth
   const { domain } = await req.json()
   if (!domain) return NextResponse.json({ people: [] })
 
+  const {data:credit,error}=await db.rpc('reserve_hirely_credit',{feature:'email'})
+  if(error || !credit) return NextResponse.json({people:[],error:'Paid lookup unavailable or request limit reached'},{status:error?503:402})
   try {
     const res = await fetch(
       `https://api.hunter.io/v2/domain-search?domain=${encodeURIComponent(domain)}&limit=10&api_key=${process.env.HUNTER_API_KEY}`,

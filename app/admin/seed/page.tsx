@@ -13,6 +13,7 @@ interface CacheEntry {
   data: {
     domain?: string
     pattern?: string
+    source_url?: string
     industry?: string
     size?: string
     location?: string
@@ -46,6 +47,7 @@ export default function AdminSeedPage() {
     domain: '',
     patternSelect: '{first}.{last}',
     patternCustom: '',
+    sourceUrl: '',
     industry: '',
     size: '',
     location: '',
@@ -81,7 +83,7 @@ export default function AdminSeedPage() {
   }
 
   function resetForm() {
-    setForm({ companyName: '', domain: '', patternSelect: '{first}.{last}', patternCustom: '', industry: '', size: '', location: '' })
+    setForm({ companyName: '', domain: '', patternSelect: '{first}.{last}', patternCustom: '', sourceUrl: '', industry: '', size: '', location: '' })
     setEditingId(null)
   }
 
@@ -93,6 +95,7 @@ export default function AdminSeedPage() {
       domain: entry.data.domain || '',
       patternSelect: isKnown ? p : 'custom',
       patternCustom: isKnown ? '' : p,
+      sourceUrl: entry.data.source_url || '',
       industry: entry.data.industry || '',
       size: entry.data.size || '',
       location: entry.data.location || '',
@@ -111,6 +114,8 @@ export default function AdminSeedPage() {
     const data = {
       domain: form.domain.trim().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, ''),
       pattern: pattern || undefined,
+      source_url: form.sourceUrl.trim() || undefined,
+      observed_at: new Date().toISOString(),
       industry: form.industry.trim() || undefined,
       size: form.size.trim() || undefined,
       location: form.location.trim() || undefined,
@@ -202,6 +207,7 @@ export default function AdminSeedPage() {
               />
             </div>
             <div>
+<label className="block text-xs font-medium mb-2">Pattern evidence URL<input type="url" value={form.sourceUrl} onChange={e=>setForm(f=>({...f,sourceUrl:e.target.value}))} className="block w-full border rounded p-2 mt-1" placeholder="Public source supporting this pattern" /></label>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Email pattern</label>
               <select
                 value={form.patternSelect}

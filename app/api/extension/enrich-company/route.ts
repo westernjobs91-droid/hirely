@@ -37,7 +37,8 @@ export async function POST(req: NextRequest) {
   const { data: cached } = await serviceClient()
     .from('company_cache')
     .select('*')
-    .eq('cache_key', cKey)
+    .in('cache_key', Array.from(new Set([cKey, companyName.toLowerCase().trim()])))
+    .order('created_at', { ascending: false }).limit(1)
     .gt('expires_at', new Date().toISOString())
     .single()
 
@@ -46,46 +47,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ info: cached.data, people: [], fromCache: true })
   }
 
-  // ── Cache miss — call PDL ─────────────────────────────────────────────
-  try {
-    let url = `https://api.peopledatalabs.com/v5/company/enrich?api_key=${process.env.PDL_API_KEY}`
-    if (linkedinSlug) url += `&linkedin_url=${encodeURIComponent('https://www.linkedin.com/company/' + linkedinSlug)}`
-    url += `&name=${encodeURIComponent(companyName)}`
+  return NextResponse.json({ info: null, people: [], message: 'No saved company data. Add a company pattern in the admin page.' })
 
-    const res = await fetch(url, { method: 'GET' })
-    if (!res.ok) return NextResponse.json({ info: null, people: [] })
-
-    const pdl = await res.json()
-    if (pdl.status !== 200) return NextResponse.json({ info: null, people: [] })
-
-    const info = {
-      name: pdl.display_name || pdl.name || companyName,
-      website: pdl.website || '',
-      domain: pdl.website
-        ? pdl.website.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0]
-        : '',
-      industry: pdl.industry || '',
-      size: pdl.size || '',
-      employeeCount: pdl.employee_count || null,
-      founded: pdl.founded || null,
-      location: [pdl.location?.locality, pdl.location?.region, pdl.location?.country]
-        .filter(Boolean).join(', '),
-      summary: pdl.summary || '',
-      tags: pdl.tags || [],
-      linkedinUrl: pdl.linkedin_url || '',
-    }
-
-    // Save to cache
-    await serviceClient().from('company_cache').upsert({
-      cache_key: cKey,
-      company_name: companyName,
-      data: info,
-      expires_at: '2099-01-01T00:00:00.000Z',
-    }, { onConflict: 'cache_key' })
-
-    return NextResponse.json({ info, people: [] })
-  } catch (e) {
-    console.error('[enrich-company]', e)
-    return NextResponse.json({ info: null, people: [] })
-  }
 }

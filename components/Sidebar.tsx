@@ -23,6 +23,7 @@ interface CreditInfo {
 }
 
 const mainNav = [
+  { id: 'meet' as NavItem, label: 'Hirely Meet', path: 'M15 10l5-3v10l-5-3M4 6h9a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2z' },
   { id: 'dashboard' as NavItem, label: 'Dashboard', path: 'M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h6a1 1 0 001-1v-6a1 1 0 00-1-1h-6z' },
   { id: 'contacts' as NavItem, label: 'Contacts', path: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', badge: 'contacts' },
   { id: 'followups' as NavItem, label: 'Follow-ups', path: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', badge: 'overdue' },
@@ -31,7 +32,7 @@ const mainNav = [
 
 const insightNav = [
   { id: 'analytics' as NavItem, label: 'Analytics', path: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
-  { id: 'enrichment' as NavItem, label: 'Enrichment', path: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
+  { id: 'enrichment' as NavItem, label: 'Email finder', path: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
   { id: 'settings' as NavItem, label: 'Integrations', path: 'M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z' },
 ]
 
@@ -43,23 +44,18 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
     async function loadCredits() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const { data } = await supabase
-        .from('profiles')
-        .select('enrichments_used, enrichments_limit, plan')
-        .eq('id', user.id)
-        .single()
-      if (data) {
-        setCredits({
-          used: data.enrichments_used ?? 0,
-          limit: data.enrichments_limit ?? 10,
-          plan: data.plan ?? 'free',
-        })
-      }
+      const period = new Date().toISOString().slice(0,7) + '-01'
+      const [usage, limits] = await Promise.all([
+        supabase.from('hirely_usage').select('used').eq('user_id',user.id).eq('month',period).eq('feature','email').maybeSingle(),
+        supabase.from('hirely_limits').select('email_limit').eq('user_id',user.id).maybeSingle()
+      ])
+      if (!usage.error && !limits.error) setCredits({used:usage.data?.used||0,limit:limits.data?.email_limit??10,plan:'configured'})
+
     }
     loadCredits()
   }, [])
 
-  const creditPct = credits ? Math.min((credits.used / credits.limit) * 100, 100) : 0
+  const creditPct = credits ? Math.min((credits.used / Math.max(credits.limit,1)) * 100, 100) : 0
   const creditColor = creditPct >= 90 ? '#EF4444' : creditPct >= 70 ? '#F59E0B' : '#2563EB'
   const remaining = credits ? Math.max(credits.limit - credits.used, 0) : null
 
@@ -135,7 +131,7 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
               <svg className="w-3 h-3" style={{ color: creditColor }} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              <span className="text-[10px] font-semibold text-slate-600">Enrichments</span>
+              <span className="text-[10px] font-semibold text-slate-600">Paid email requests</span>
             </div>
             <span className="text-[10px] font-bold" style={{ color: creditColor }}>
               {remaining} left

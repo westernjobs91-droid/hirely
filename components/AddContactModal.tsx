@@ -35,10 +35,10 @@ export default function AddContactModal({ onClose, onAdd }: AddContactModalProps
       status: 'due-today',
       column: 'today' as PipelineColumn,
       statusLabel: 'Due in 2 weeks',
-      sentDate: 'Just now',
+      sentDate: '',
       originalEmail: form.originalEmail,
       enriched: false,
-      activity: ['Contact added', 'Enriching contact data...'],
+      activity: ['Contact added'],
       notes: ''
     }
 
@@ -47,50 +47,8 @@ export default function AddContactModal({ onClose, onAdd }: AddContactModalProps
     onClose()
     setLoading(false)
 
-    // Enrich in background if email missing
-    if (!form.email && form.firstName && form.company) {
-      try {
-        const res = await fetch('/api/enrich', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            firstName: form.firstName,
-            lastName: form.lastName,
-            company: form.company
-          })
-        })
-        const data = await res.json()
+    // Enrichment happens explicitly in Email finder after this contact is saved.
 
-        if (data.enriched && data.email) {
-          // Build update object with everything Apollo/Hunter returned
-          const updates: Record<string, string | boolean> = {
-            enriched: true,
-          }
-          if (data.email) updates.email = data.email
-          if (data.phone) updates.phone = data.phone
-          if (data.linkedinUrl && !form.linkedinUrl) updates.linkedin_url = data.linkedinUrl
-          if (data.title && !form.jobTitle) updates.job_title = data.title
-
-          // Update Supabase with all enriched data
-          const { error } = await supabase
-            .from('contacts')
-            .update(updates)
-            .eq('first_name', form.firstName)
-            .eq('company', form.company)
-            .eq('enriched', false)
-
-          if (error) {
-            console.error('Failed to update enriched data:', error)
-          } else {
-            console.log(`✅ Enriched via ${data.source}: ${data.email}`)
-          }
-        } else {
-          console.log('No email found by Apollo or Hunter.io')
-        }
-      } catch (e) {
-        console.error('Enrichment failed', e)
-      }
-    }
   }
 
   const inp = "w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:border-blue-400 focus:shadow-[0_0_0_3px_rgba(37,99,235,.1)] transition-all font-sans"
@@ -151,7 +109,7 @@ export default function AddContactModal({ onClose, onAdd }: AddContactModalProps
               <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
             </svg>
             <p className="text-[11px] text-emerald-700 leading-relaxed">
-              Leave email blank - Apollo and Hunter.io will automatically find their verified work email, phone number and LinkedIn profile in the background.
+              Leave email blank and use Email finder after saving. Free predictions and optional paid verification are available.
             </p>
           </div>
         </div>
