@@ -53,6 +53,8 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
 
     }
     loadCredits()
+    window.addEventListener('hirely:credits-changed', loadCredits)
+    return () => window.removeEventListener('hirely:credits-changed', loadCredits)
   }, [])
 
   const creditPct = credits ? Math.min((credits.used / Math.max(credits.limit,1)) * 100, 100) : 0

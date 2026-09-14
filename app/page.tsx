@@ -201,6 +201,36 @@ export default function Dashboard() {
     return true
   }, [contacts,user])
 
+  const handleFindEmailForContact = useCallback(async (contact: Contact) => {
+    if (!contact.firstName || !contact.company) { setToast('Add a contact name and company before searching.'); return false }
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const response = await fetch('/api/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ contactId: contact.id, action: 'find', allowPaid: true, firstName: contact.firstName, lastName: contact.lastName, company: contact.company })
+      })
+      const data = await response.json()
+      window.dispatchEvent(new Event('hirely:credits-changed'))
+      if (response.status === 402) { setToast('Monthly email credit limit reached.'); return false }
+      if (!response.ok || !data.email) { setToast(data.error || data.message || 'No work email found.'); return false }
+      const saved = await handleUpdateContact(contact.id, {
+        email: data.email,
+        enriched: true,
+        emailStatus: data.emailStatus,
+        emailSource: data.emailSource,
+        emailCheckedAt: data.emailCheckedAt,
+        emailEvidence: data.emailEvidence,
+      })
+      if (!saved) return false
+      setToast(data.guessed ? 'Predicted work email saved. Verify it before outreach.' : 'Work email saved.')
+      return true
+    } catch {
+      setToast('Email search could not finish. Check your connection and try again.')
+      return false
+    }
+  }, [handleUpdateContact])
+
   const todayCol = contacts.filter(c => c.column === 'today' && matchesPipelineFilter(c,filter))
   const upcomingCol = contacts.filter(c => c.column === 'upcoming' && matchesPipelineFilter(c,filter)).sort((a,b)=>(followUpDay(a)||'9999').localeCompare(followUpDay(b)||'9999'))
   const doneCol = contacts.filter(c => c.column === 'done' && matchesPipelineFilter(c,filter))
@@ -542,14 +572,16 @@ export default function Dashboard() {
           {activeNav === 'contacts' && (
             <div className="px-6 py-4">
               <ContactListView contacts={allContactsFiltered} selectedId={selected?.id} onSelect={setSelected}
-                onDelete={handleDelete} onMarkDone={handleMarkDone} emptyMessage={searchQuery ? 'No contacts match your search.' : 'No contacts yet - add one to get started.'} />
+                onDelete={handleDelete} onMarkDone={handleMarkDone} onFindEmail={handleFindEmailForContact}
+                emptyMessage={searchQuery ? 'No contacts match your search.' : 'No contacts yet - add one to get started.'} />
             </div>
           )}
 
           {activeNav === 'followups' && (
             <div className="px-6 py-4">
               <ContactListView contacts={followupsFiltered} selectedId={selected?.id} onSelect={setSelected}
-                onDelete={handleDelete} onMarkDone={handleMarkDone} emptyMessage="Nothing due - you're all caught up! 🎉" />
+                onDelete={handleDelete} onMarkDone={handleMarkDone} onFindEmail={handleFindEmailForContact}
+                emptyMessage="Nothing due - you're all caught up! 🎉" />
             </div>
           )}
 
