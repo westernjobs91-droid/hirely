@@ -1,0 +1,22 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
+const uid='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',path=uid+'/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb.mp3';
+function harness({loggedIn=true,key='test',credit=true,missing=false,text='We need two machine operators.',failure=false}={}){
+ const calls={uploads:0,downloads:0,credits:0,providers:0};let form;
+ const storage={async createSignedUploadUrl(){calls.uploads++;return{data:{token:'upload-token'},error:null}},async download(){calls.downloads++;return missing?{error:{message:'missing'}}:{data:new Blob(['test audio'],{type:'audio/mpeg'})}}};
+ const db={storage:{from:name=>{assert.equal(name,'hirely-meet-audio');return storage}},async rpc(name,args){assert.equal(name,'reserve_hirely_credit');assert.equal(args.feature,'meet');calls.credits++;return{data:credit}}};
+ const module={exports:{}};const code=ts.transpileModule(fs.readFileSync('app/api/meet/audio/route.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ vm.runInNewContext(code,{module,exports:module.exports,require:n=>n==='next/server'?{NextResponse:{json:(d,o)=>Response.json(d,o)}}:n==='@/lib/server-auth'?{authenticate:async()=>loggedIn?{db,user:{id:uid}}:null}:require(n),process:{env:{OPENAI_API_KEY:key}},Blob,FormData,AbortSignal,console,fetch:async(url,options)=>{calls.providers++;assert.equal(url,'https://api.openai.com/v1/audio/transcriptions');form=options.body;if(failure)throw new Error('timeout');return Response.json({text})}});
+ return{calls,get form(){return form},run:body=>module.exports.POST(new Request('http://localhost/api/meet/audio',{method:'POST',body:JSON.stringify(body)}))};
+}
+const request={action:'transcribe',path,allowPaid:true};
+test('audio rejects anonymous users before storage or provider access',async()=>{const h=harness({loggedIn:false});assert.equal((await h.run(request)).status,401);assert.equal(h.calls.providers,0);assert.equal(h.calls.downloads,0)});
+test('audio setup failure prevents any upload or charge',async()=>{const h=harness({key:''});assert.equal((await h.run({action:'upload',name:'call.mp3',size:50})).status,503);assert.equal(h.calls.uploads,0);assert.equal(h.calls.credits,0)});
+test('audio upload validates file extension and size',async()=>{const h=harness();for(const item of [{name:'test.exe',size:10},{name:'call.mp3',size:0},{name:'call.mp3',size:25*1024*1024}])assert.equal((await h.run({action:'upload',...item})).status,400);assert.equal(h.calls.uploads,0)});
+test('valid audio upload yields only an owner-scoped path and upload token',async()=>{const h=harness();const result=await(await h.run({action:'upload',name:'call.mp3',size:100})).json();assert.ok(result.path.startsWith(uid+'/'));assert.equal(result.token,'upload-token');assert.equal(h.calls.credits,0)});
+test('audio rejects other owners and arbitrary URLs',async()=>{const h=harness();for(const file of ['other/file.mp3','https://evil.example/file.mp3',uid+'/../file.mp3'])assert.equal((await h.run({...request,path:file})).status,404);assert.equal(h.calls.downloads,0);assert.equal(h.calls.providers,0)});
+test('audio requires explicit credit consent',async()=>{const h=harness();assert.equal((await h.run({...request,allowPaid:false})).status,400);assert.equal(h.calls.credits,0)});
+test('missing audio file is not charged',async()=>{const h=harness({missing:true});assert.equal((await h.run(request)).status,404);assert.equal(h.calls.credits,0)});
+test('exhausted Meet credits prevent provider calls',async()=>{const h=harness({credit:false});assert.equal((await h.run(request)).status,402);assert.equal(h.calls.providers,0)});
+test('Whisper receives multipart audio and returns the transcript',async()=>{const h=harness();const result=await(await h.run(request)).json();assert.equal(result.transcript,'We need two machine operators.');assert.equal(h.form.get('model'),'whisper-1');assert.equal(h.form.get('file').name,'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb.mp3');assert.equal(h.calls.credits,1);assert.equal(h.calls.providers,1)});
+test('empty transcript is reported without false success',async()=>{const h=harness({text:''});assert.equal((await h.run(request)).status,422);assert.equal(h.calls.providers,1)});
+test('audio timeout is not automatically retried',async()=>{const h=harness({failure:true});assert.equal((await h.run(request)).status,502);assert.equal(h.calls.providers,1)});
