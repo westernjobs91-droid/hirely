@@ -34,3 +34,10 @@ export function matchesPipelineFilter(c:Contact,filter:string,today=localDay()):
  }
  return true
 }
+
+export function schedulingPatch(current:Contact,updates:Partial<Contact>):Partial<Contact> {
+ if(updates.sentDate===undefined&&updates.column===undefined)return {...updates}
+ if(updates.sentDate!==undefined&&updates.sentDate!==''&&!validDay(updates.sentDate))throw new Error('Choose a valid follow-up date.')
+ const next=normalizeFollowUp({...current,...updates,...(updates.sentDate!==undefined?{column:updates.column||'upcoming'}:{})})
+ return {...updates,column:next.column,status:next.status,statusLabel:next.statusLabel,sentDate:next.sentDate}
+}

@@ -15,7 +15,7 @@ import AddContactModal from '@/components/AddContactModal'
 import ImportModal from '@/components/ImportModal'
 import Toast from '@/components/Toast'
 import AIDraftsView from '@/components/AIDraftsView'
-import { normalizeFollowUp, matchesPipelineFilter, localDay, followUpDay } from '@/lib/follow-up'
+import { normalizeFollowUp, matchesPipelineFilter, localDay, followUpDay, schedulingPatch } from '@/lib/follow-up'
 import { Contact, NavItem, AIDraft } from '@/types'
 
 const filters = ['All', 'This week', 'Overdue', 'Replied']
@@ -179,10 +179,8 @@ export default function Dashboard() {
     if(!user)return false
     updates = {...updates}
     const current=contacts.find(c=>c.id===id)
-    if(current){
-      const next=normalizeFollowUp({...current,...updates,...(updates.sentDate!==undefined?{column:updates.column||'upcoming'}:{})})
-      updates={...updates,column:next.column,status:next.status,statusLabel:next.statusLabel,sentDate:next.sentDate}
-    }
+    if(!current){setToast('Contact not found. Refresh and try again.');return false}
+    try{updates=schedulingPatch(current,updates)}catch(e){setToast(e instanceof Error?e.message:'Invalid follow-up date');return false}
     if (updates.email !== undefined && !updates.emailStatus) {
       updates.emailStatus = 'unverified'; updates.emailSource = 'manual'; updates.emailCheckedAt = null; updates.emailEvidence = ''
     }
@@ -203,8 +201,10 @@ export default function Dashboard() {
     if (updates.statusLabel !== undefined) dbUpdates.status_label = updates.statusLabel
     if (updates.status !== undefined) dbUpdates.status = updates.status
     if (updates.notes !== undefined) dbUpdates.notes = updates.notes
-    const { error } = await supabase.from('contacts').update(dbUpdates).eq('id', id).eq('user_id',user.id)
-    if (error) { console.error('Failed to update contact:', error); setToast('Error updating contact'); return false }
+    if(updates.activity!==undefined)dbUpdates.activity=updates.activity
+    const { data: savedContact, error } = await supabase.from('contacts').update(dbUpdates).eq('id', id).eq('user_id',user.id).select('id,sent_date,column_name,status,status_label').maybeSingle()
+    if (error || !savedContact) { console.error('Failed to update contact:', error); setToast('Error updating contact'); return false }
+    if(updates.sentDate!==undefined&&savedContact.sent_date!==updates.sentDate){setToast('The follow-up date was not saved as expected. Refresh and try again.');return false}
     setContacts(prev => prev.map(c => (c.id === id ? { ...c, ...updates } : c)))
     setSelected(prev => (prev && prev.id === id ? { ...prev, ...updates } : prev))
     return true

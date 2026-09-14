@@ -1,7 +1,7 @@
 'use client'
 import ContactPhoto from './ContactPhoto'
 
-import { localDay } from '@/lib/follow-up'
+import { localDay, validDay } from '@/lib/follow-up'
 import { useState, useEffect } from 'react'
 import EmailStatusBadge from './EmailStatusBadge'
 import { Contact, AIDraft } from '@/types'
@@ -65,6 +65,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
   const [savingNote, setSavingNote] = useState(false)
   const [followUpDate, setFollowUpDate] = useState('')
   const [savingFollowUp, setSavingFollowUp] = useState(false)
+  const [followUpError,setFollowUpError]=useState('')
   const [followUpSaved, setFollowUpSaved] = useState(false)
 
   useEffect(() => {
@@ -75,6 +76,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
     setSaving(false)
     setDraftsError(null)
     setNotes(contact?.notes || '')
+    setFollowUpError('')
     setFollowUpDate(contact?.sentDate || '')
     setFollowUpSaved(false)
   }, [contact?.id])
@@ -127,13 +129,8 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
 
   const logActivity = async (message: string) => {
     if (!contact) return
-    const { supabase: sb } = await import('@/lib/supabase')
     const entry = JSON.stringify({ type: 'action', label: message, date: new Date().toISOString() })
-    const updated = [...(contact.activity || []), entry]
-    const { data: { session } } = await sb.auth.getSession()
-    if (!session) return
-    await sb.from('contacts').update({ activity: updated }).eq('id', contact.id)
-    await onUpdateContact(contact.id, { activity: updated })
+    await onUpdateContact(contact.id, { activity: [...(contact.activity || []), entry] })
   }
 
   const handleGenerateDrafts = async () => {
@@ -206,19 +203,20 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
   }
 
   const handleSaveFollowUp = async () => {
-    if (!contact || !followUpDate) return
+    if (!contact || savingFollowUp) return
+    setFollowUpError('');setFollowUpSaved(false)
+    if(!validDay(followUpDate)){setFollowUpError('Choose a valid follow-up date.');return}
     setSavingFollowUp(true)
-    // Save the date but keep in Coming up: auto-move runs on that date
-    const saved=await onUpdateContact(contact.id, {
-      column: 'upcoming',
-      sentDate: followUpDate,
-      statusLabel: 'Follow Up Scheduled'
-    })
-    if(!saved){setSavingFollowUp(false);return}
-    await logActivity(`Follow-up scheduled for ${new Date(followUpDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`)
-    setSavingFollowUp(false)
-    setFollowUpSaved(true)
-    setTimeout(() => setFollowUpSaved(false), 2000)
+    try{
+      const label=`Follow-up scheduled for ${new Date(followUpDate+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`
+      const saved=await onUpdateContact(contact.id,{
+        column:'upcoming',sentDate:followUpDate,
+        activity:[...(contact.activity||[]),JSON.stringify({type:'action',label,date:new Date().toISOString()})]
+      })
+      if(!saved){setFollowUpError('The date could not be saved. Please try again.');return}
+      setFollowUpSaved(true)
+    }catch{setFollowUpError('The date could not be saved. Check your connection and try again.')}
+    finally{setSavingFollowUp(false)}
   }
 
   const handleMoveToDone = async () => {
@@ -404,9 +402,11 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
                     <div className="flex gap-2 items-center">
                       <input
                         type="date"
+                        aria-label="Follow-up date"
+                        disabled={savingFollowUp}
                         value={followUpDate}
                         min={localDay()}
-                        onChange={e => { setFollowUpDate(e.target.value); setFollowUpSaved(false) }}
+                        onChange={e => { setFollowUpDate(e.target.value); setFollowUpSaved(false);setFollowUpError('') }}
                         className="flex-1 px-2.5 py-1.5 border border-amber-200 rounded-lg text-[11px] text-slate-700 bg-white focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-50 transition-all"
                       />
                       <button
@@ -418,9 +418,11 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
                             : 'bg-amber-500 hover:bg-amber-600 text-white'
                         }`}
                       >
-                        {savingFollowUp ? '...' : followUpSaved ? 'Saved ✓' : 'Set'}
+                        {savingFollowUp ? 'Saving…' : followUpSaved ? 'Saved ✓' : 'Save date'}
                       </button>
                     </div>
+                    {followUpError&&<p role="alert" className="text-xs text-red-600 mt-2">{followUpError}</p>}
+                    {followUpSaved&&<p role="status" className="text-xs text-emerald-700 mt-2">Follow-up saved for {new Date(followUpDate+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}.</p>}
                     <p className="text-[9.5px] text-amber-600 mt-1.5">Contact auto-moves to Follow up today on this date</p>
                   </div>
                 </div>
