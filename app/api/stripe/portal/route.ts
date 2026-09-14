@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   );
 
   try {
-    // Use verified user.id — not client-supplied userId
+    // Use verified user.id: not client-supplied userId
     const { data: profile } = await supabase
       .from("profiles")
       .select("stripe_customer_id")

@@ -14,16 +14,16 @@ test('freshness and catch-all do not become verification',()=>{
  assert.equal(patterns.providerStatus('accept_all'),'accept_all');
  assert.equal(patterns.providerStatus('deliverable'),'unknown');
 });
-function harness({user=true,contact=null,cache=null,company=null,reserved=true}={}){
+function harness({user=true,contact=null,cache=null,company=null,reserved=true,providerEmail="jane.smith@example.com",providerFail=false,providerThrows=false}={}){
  const writes=[],calls=[];let fetched=0,credits=0;
  const db={from(table){let action='read';const chain=new Proxy({}, {get(_,key){
   if(key==='update'||key==='upsert'||key==='insert')return data=>{action=key;writes.push({table,data});return chain};
-  const result=()=>({data:table==='contacts'?(action==='read'?contact:{id:contact?.id}):table==='email_resolutions'?cache:table==='company_cache'?company:null,error:null});
+  const result=()=>({data:table==='contacts'?(action==='read'?contact:{id:contact?.id}):table==='email_resolutions'?cache:table==='company_cache'?company:table==='hirely_limits'?{email_limit:reserved?10:0}:null,error:null});
   if(key==='then')return(resolve,reject)=>Promise.resolve(result()).then(resolve,reject);
   if(key==='single'||key==='maybeSingle')return async()=>result();
   return(...args)=>{calls.push([table,key,...args]);return chain}
  }});return chain},async rpc(){credits++;return {data:reserved,error:null}}};
- const resolver=load('lib/resolve-email.ts',{'next/server':{NextResponse:{json:(body,init)=>Response.json(body,init)}},'./server-auth':{authenticate:async()=>user?{db,user:{id:'u1'}}:null},'./email-patterns':patterns,'@supabase/supabase-js':{createClient:()=>db},fetch:async()=>{fetched++;return Response.json({data:{email:'jane.smith@example.com',status:'accept_all',score:93}})}}).resolveEmail;
+ const resolver=load('lib/resolve-email.ts',{'next/server':{NextResponse:{json:(body,init)=>Response.json(body,init)}},'./server-auth':{authenticate:async()=>user?{db,user:{id:'u1'}}:null},'./email-patterns':patterns,'@supabase/supabase-js':{createClient:()=>db},fetch:async()=>{fetched++;if(providerThrows)throw new Error('timeout');if(providerFail)return Response.json({}, {status:502});return Response.json({data:{email:providerEmail,status:'accept_all',score:93}})}}).resolveEmail;
  const run=body=>resolver(new Request('http://localhost/api/enrich',{method:'POST',body:JSON.stringify(body)}));
  return{run,writes,calls,get fetched(){return fetched},get credits(){return credits}};
 }
@@ -39,3 +39,7 @@ test('fresh cache avoids repeat paid calls',async()=>{const h=harness({cache:{em
 test('cached results cannot bypass exhausted credits',async()=>{const h=harness({reserved:false,cache:{email:'jane@example.com',status:'valid',created_at:new Date().toISOString(),checked_at:new Date().toISOString()}});assert.equal((await h.run(person)).status,402);assert.equal(h.fetched,0);assert.equal(h.writes.length,0)});
 test('legacy prediction action cannot bypass credit consent',async()=>{const h=harness();assert.equal((await h.run({...person,action:'predict',allowPaid:false})).status,400);assert.equal(h.credits,0);assert.equal(h.fetched,0)});
 test('fresh unverified provider result is reused without claiming verification',async()=>{const h=harness({cache:{email:'jane@example.com',status:'unknown',source:'hunter_finder',created_at:new Date().toISOString()}});const d=await(await h.run(person)).json();assert.equal(d.emailStatus,'unknown');assert.equal(h.credits,1);assert.equal(h.fetched,0)});
+
+test('no email from database or provider costs no credit',async()=>{const h=harness({providerEmail:null});const d=await(await h.run(person)).json();assert.equal(d.creditsUsed,0);assert.equal(h.credits,0);assert.equal(h.fetched,1);assert.equal(h.writes.length,0)});
+test('provider failure costs no credit',async()=>{const h=harness({providerFail:true});assert.equal((await h.run(person)).status,502);assert.equal(h.credits,0)});
+test('provider timeout costs no credit',async()=>{const h=harness({providerThrows:true});assert.equal((await h.run(person)).status,502);assert.equal(h.credits,0)});

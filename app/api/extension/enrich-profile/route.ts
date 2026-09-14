@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   const cleanUrl = linkedinUrl.split('?')[0].replace(/\/$/, '')
 
   try {
-    // Check if contact already exists in DB for this user — free, no API credit burned
+    // Check if contact already exists in DB for this user: free, no API credit burned
     const { data: cached } = await supabase
       .from('contacts')
       .select('first_name, last_name, job_title, company')
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // RockApis Real-Time LinkedIn Scraper API — "Get Profile Data By URL"
+    // RockApis Real-Time LinkedIn Scraper API: "Get Profile Data By URL"
     // Host: linkedin-data-api.p.rapidapi.com
     // Endpoint: GET /get-profile-data-by-url?url=<linkedinUrl>
     const res = await fetch(

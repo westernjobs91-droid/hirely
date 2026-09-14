@@ -75,7 +75,7 @@ export default function Dashboard() {
       c.column === 'upcoming' &&
       c.createdAt &&
       Math.floor((Date.now() - new Date(c.createdAt).getTime()) / 86400000) >= 7 &&
-      !c.email // only move if no email found yet — if they have email they should have been contacted
+      !c.email // only move if no email found yet: if they have email they should have been contacted
         ? false // don't auto-move enriched contacts, recruiter should act deliberately
         : c.column === 'upcoming' &&
           c.createdAt &&

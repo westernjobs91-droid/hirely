@@ -174,7 +174,7 @@ export default function AnalyticsView({ contacts }: AnalyticsViewProps) {
         />
       </div>
 
-      {/* Row 2 — Weekly bar + Pipeline donut */}
+      {/* Row 2: Weekly bar + Pipeline donut */}
       <div className="grid grid-cols-3 gap-4">
         <div className="col-span-2">
           <SectionCard title="Contacts added - last 6 weeks">
@@ -209,7 +209,7 @@ export default function AnalyticsView({ contacts }: AnalyticsViewProps) {
         </SectionCard>
       </div>
 
-      {/* Row 3 — Top companies + Enrichment donut */}
+      {/* Row 3: Top companies + Enrichment donut */}
       <div className="grid grid-cols-3 gap-4">
         <div className="col-span-2">
           <SectionCard title="Top companies">
@@ -252,7 +252,7 @@ export default function AnalyticsView({ contacts }: AnalyticsViewProps) {
         </SectionCard>
       </div>
 
-      {/* Row 4 — Funnel + Job titles + Monthly */}
+      {/* Row 4: Funnel + Job titles + Monthly */}
       <div className="grid grid-cols-3 gap-4">
 
         <SectionCard title="Pipeline funnel">

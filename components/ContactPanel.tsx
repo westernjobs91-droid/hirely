@@ -207,7 +207,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
   const handleSaveFollowUp = async () => {
     if (!contact || !followUpDate) return
     setSavingFollowUp(true)
-    // Save the date but keep in Coming up — auto-move runs on that date
+    // Save the date but keep in Coming up: auto-move runs on that date
     await onUpdateContact(contact.id, {
       sentDate: followUpDate,
       statusLabel: 'Follow Up Scheduled'
@@ -239,7 +239,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
 
       {/* Profile header */}
       <div className="flex-shrink-0">
-        {/* Colored banner — thin accent strip */}
+        {/* Colored banner: thin accent strip */}
         <div className="h-2 w-full" style={{ backgroundColor: contact.avatarColor }} />
 
         {/* Close button + profile content */}
@@ -287,7 +287,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
                   </svg>
                 )}
-                {findingEmail ? 'Searching...' : 'Find email — 1 credit'}
+                {findingEmail ? 'Searching...' : 'Find email (1 credit)'}
               </button>
             )}
             <button onClick={() => setActiveTab('drafts')}
@@ -299,7 +299,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
             </button>
           </div>
 
-          {/* Mark as done — always visible */}
+          {/* Mark as done: always visible */}
           {contact.column !== 'done' && (
             <button
               onClick={handleMoveToDone}
@@ -309,7 +309,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
             </button>
           )}
 
-          {!contact.email && <p role="status" className="text-[11px] text-slate-600 bg-slate-50 rounded-lg px-2.5 py-2 mt-2">Find a work email for 1 Hirely credit. Each search attempt uses a credit, including when no email is found.</p>}
+          {!contact.email && <p role="status" className="text-[11px] text-slate-600 bg-slate-50 rounded-lg px-2.5 py-2 mt-2">Find a work email for 1 Hirely credit. No result, no charge.</p>}
           {findEmailError && <p className="text-[10px] text-red-600 bg-red-50 border border-red-100 rounded-lg px-2.5 py-1.5 mt-2">{findEmailError}</p>}
           {findEmailNote && <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5 mt-2">{findEmailNote}</p>}
         </div>

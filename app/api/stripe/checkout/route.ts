@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
 
-    // Use verified user.id and user.email — not client-supplied values
+    // Use verified user.id and user.email: not client-supplied values
     const userId = user.id
     const userEmail = user.email
 

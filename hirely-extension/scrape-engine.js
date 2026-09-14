@@ -1,4 +1,4 @@
-/* Hirely Capture — LinkedIn profile scraper v2
+/* Hirely Capture: LinkedIn profile scraper v2
    Load this BEFORE content.js. Exposes window.HirelyScrape.scrapeProfile(doc, url). */
 (function (root) {
   "use strict";

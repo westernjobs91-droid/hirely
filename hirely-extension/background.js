@@ -162,7 +162,7 @@ async function saveContact(payload) {
   }
   const contact = Array.isArray(data) ? data[0] : data;
 
-  // No automatic enrichment call here on purpose — Apollo/Hunter credits are
+  // No automatic enrichment call here on purpose: Apollo/Hunter credits are
   // limited, and firing a lookup on every single save (before the recruiter
   // has had a chance to fix a mis-scraped company name) wastes them. The
   // "Find email" button on the dashboard is the deliberate place enrichment

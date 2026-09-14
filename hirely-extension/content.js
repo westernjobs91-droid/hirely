@@ -1,4 +1,4 @@
-/* Hirely Capture v4.8 — complete content.js replacement.
+/* Hirely Capture v4.8: complete content.js replacement.
  * Requires your existing HIRELY_CONFIG and background message handlers.
  * This file includes the scraper; do not also load the old scraper/content.js.
  * Conservative extraction: title/company stay paired; past jobs are never
@@ -12,7 +12,7 @@ var HirelyEngine = (() => {
   const noise = /^(experience|education|show all.*|show more.*|see more.*|see all.*|skills[:：]?.*|\d+ skills|.*\+\d+ skills|connect|message|follow|contact info|1st|2nd|3rd\+?)$/i;
   const employment = /^(?:(?:permanent|temporary|contract) )?(full[- ]time|part[- ]time|contract|permanent|freelance|self[- ]employed|internship|apprenticeship|seasonal|on[- ]call|co[- ]op|on[- ]site|hybrid|remote)$/i;
   const current = /\b(present|current|aujourd’hui|aujourd'hui|actualidad|heute)\b|現在|至今/i;
-  const date = s => /\b(?:19|20)\d{2}\b/.test(s) && /[–—-]|\bto\b|\bà\b|\bau\b|\bbis\b|至/.test(s);
+  const date = s => /\b(?:19|20)\d{2}\b/.test(s) && /[–\u2014-]|\bto\b|\bà\b|\bau\b|\bbis\b|至/.test(s);
   const roleHint = /\b(engineer|developer|manager|director|founder|owner|partner|lead|head|officer|president|ceo|cto|cfo|coo|vp|consultant|analyst|designer|specialist|recruiter|coordinator|assistant|associate|professor|teacher|researcher|scientist|nurse|physician|lawyer|accountant|intern|administrator|executive)\b/i;
   function hidden(el) {
     for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
@@ -50,10 +50,10 @@ var HirelyEngine = (() => {
     const parenthetical = value.match(/\s*\(([^()]*)\)\s*$/);
     if (parenthetical && parenthetical[1].split(/\s*,\s*/).every(credential)) value = value.slice(0, parenthetical.index).trim();
     for (;;) {
-      const match = value.match(/^(.*?)(,\s*|\s+[-–—]\s+|\s+)([A-Za-z][A-Za-z.®™\uFE0F]*)$/);
+      const match = value.match(/^(.*?)(,\s*|\s+[-–\u2014]\s+|\s+)([A-Za-z][A-Za-z.®™\uFE0F]*)$/);
       if (!match || !credential(match[3])) break;
       // A bare suffix must be uppercase and follow an existing full name.
-      if (!/[,–—-]/.test(match[2]) && (match[1].trim().split(/\s+/).length < 2 || match[3] !== match[3].toUpperCase())) break;
+      if (!/[,–\u2014-]/.test(match[2]) && (match[1].trim().split(/\s+/).length < 2 || match[3] !== match[3].toUpperCase())) break;
       value = match[1].trim();
     }
     return value;
@@ -75,7 +75,7 @@ var HirelyEngine = (() => {
     if (exact.length === 1) return exact[0];
     const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
     const ranked = pool.map(role => {
-      const m = clean(role.dates).match(/^(?:([A-Za-z]+)\s+)?((?:19|20)\d{2})\s*[–—-]/);
+      const m = clean(role.dates).match(/^(?:([A-Za-z]+)\s+)?((?:19|20)\d{2})\s*[–\u2014-]/);
       const month = m?.[1] ? months.indexOf(m[1].slice(0,3).toLowerCase()) : 0;
       return {role, start: m && month >= 0 ? Number(m[2]) * 12 + month : null};
     });
@@ -202,7 +202,7 @@ var HirelyEngine = (() => {
     const h = clean(headline);
     // Headline is freeform; infer a role only when an explicit role phrase exists.
     const first = h.split(/\s*\|\s*/)[0];
-    const match = first.match(/^(.{2,140}?)\s+(?:at|@)\s+(.{1,160})$/i) || first.match(/^(.{2,140}?)\s+[—–]\s+(.{1,160})$/);
+    const match = first.match(/^(.{2,140}?)\s+(?:at|@)\s+(.{1,160})$/i) || first.match(/^(.{2,140}?)\s+[\u2014–]\s+(.{1,160})$/);
     if (match && roleHint.test(match[1]) && !/\b(former|previous|ex[- ]|aspiring|seeking|looking|helping)\b/i.test(match[1])) {
       const company = stripEmployment(match[2]);
       if (validLabel(company)) return {title: clean(match[1]), company};
@@ -756,10 +756,10 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
     if (roles.length < 2) { slot.replaceChildren(); delete slot.dataset.roles; return; }
     if (slot.dataset.roles !== signature) {
       slot.dataset.roles = signature;
-      slot.innerHTML = '<div class="hirely-field"><label for="hirely-current-role">Current role — choose if needed</label><select id="hirely-current-role" style="width:100%;padding:8px;border:1px solid #CBD5E1;border-radius:6px;background:white;color:#111827"></select></div>';
+      slot.innerHTML = '<div class="hirely-field"><label for="hirely-current-role">Current role: choose if needed</label><select id="hirely-current-role" style="width:100%;padding:8px;border:1px solid #CBD5E1;border-radius:6px;background:white;color:#111827"></select></div>';
       const select = slot.querySelector('select');
       select.appendChild(new Option('Choose a current role or enter details below', ''));
-      roles.forEach((r,i) => select.appendChild(new Option(r.title + ' — ' + (r.company || r.employerLabel || 'Employer not listed') + ' (' + r.dates + ')', String(i))));
+      roles.forEach((r,i) => select.appendChild(new Option(r.title + ': ' + (r.company || r.employerLabel || 'Employer not listed') + ' (' + r.dates + ')', String(i))));
       select.addEventListener('change', () => {
         if (!liveProfile(state) || state.saving || select.value === '') return;
         const role = roles[Number(select.value)];
@@ -796,11 +796,11 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
     section.innerHTML='<div class="hirely-section-heading"><span>Work email</span><span class="hirely-status-label-chip">'+escapeHtml(email?(labels[status]||'Not verified'):'Not found')+'</span></div>';
     const row=container.querySelector('.hirely-email-row');if(row)section.appendChild(row);
     const help=document.createElement('p');help.className='hirely-email-help';
-    help.textContent=email?(status==='predicted'?'This address has not been verified.':'Review or verify this address in Hirely before outreach.'):'1 Hirely credit per search, including when no email is found.';
+    help.textContent=email?(status==='predicted'?'This address has not been verified.':'Review or verify this address in Hirely before outreach.'):'1 Hirely credit per email found.';
     section.appendChild(help);
     const lookupFeedback=document.createElement('div');lookupFeedback.id='hlookup';lookupFeedback.className='hirely-status';lookupFeedback.setAttribute('role','status');lookupFeedback.setAttribute('aria-live','polite');
 
-    const find=container.querySelector('#hfeb, #hfeb2');if(find){find.textContent='Find email — 1 credit';find.style.marginTop='0';find.hidden=!!email;section.appendChild(find);}
+    const find=container.querySelector('#hfeb, #hfeb2');if(find){find.textContent='Find email (1 credit)';find.style.marginTop='0';find.hidden=!!email;section.appendChild(find);}
     if(manual){const entry=disclosure(email?'Edit email address':'Enter an email you already know','hirely-manual');entry.open=!!state.emailEditing;entry.appendChild(manual);entry.addEventListener('toggle',()=>{state.emailEditing=entry.open;});section.appendChild(entry);}
     section.appendChild(lookupFeedback);
     container.querySelector('.hirely-profile-card')?.after(section);
@@ -814,7 +814,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
 
   function emailLookupResult(container, button, res) {
     button.disabled=false;
-    button.textContent='Find email — 1 credit';
+    button.textContent='Find email (1 credit)';
     const message=res.message||res.error||'Could not search. Please try again.';
     showStatus(container.querySelector('#hlookup'),message,'info');
   }
@@ -832,11 +832,11 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
 
     if(existing){
       const columnLabel=COLUMN_LABELS[existing.column_name]||existing.column_name||"Pipeline";
-      const statusLabel=existing.email_status==="predicted"?"Predicted — inbox not checked":"Check email status in Hirely";
+      const statusLabel=existing.email_status==="predicted"?"Predicted: inbox not checked":"Check email status in Hirely";
       const emailDisplay=existing.email
         ?'<div class="hirely-email-row">&#x2709; <span class="hirely-email-val">'+escapeHtml(existing.email)+"</span>"+'<span class="hirely-confidence-pill hirely-confidence-med">'+escapeHtml(statusLabel)+'</span>'+'<button class="hirely-copy-btn" data-copy="'+escapeAttr(existing.email)+'">Copy</button></div>'
-        :(data.email?'<p class="hirely-source-tag">Predicted or entered email — inbox not checked</p><div class="hirely-email-row">&#x2709; <span class="hirely-email-val">'+escapeHtml(data.email)+'</span><button class="hirely-copy-btn" data-copy="'+escapeAttr(data.email)+'">Copy</button></div>'
-        :'<button class="hirely-find-email-btn" id="hfeb">&#x2726; Predict Email — Free</button>');
+        :(data.email?'<p class="hirely-source-tag">Predicted or entered email: inbox not checked</p><div class="hirely-email-row">&#x2709; <span class="hirely-email-val">'+escapeHtml(data.email)+'</span><button class="hirely-copy-btn" data-copy="'+escapeAttr(data.email)+'">Copy</button></div>'
+        :'<button class="hirely-find-email-btn" id="hfeb">&#x2726; Find email (1 credit)</button>');
 
       container.innerHTML=sourceTag+
         '<div class="hirely-pipeline-badge in-pipeline"><span class="hirely-badge-dot"></span>Saved to your CRM</div>'+
@@ -883,12 +883,12 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
         '<div class="hirely-field"><label>Last name</label><input id="hli" value="'+escapeAttr(data.lastName)+'" /></div></div>'+
         '<div class="hirely-field"><label>Job title</label><input id="hti" value="'+escapeAttr(displayTitle)+'" /></div>'+
         '<div class="hirely-field"><label>Company</label><input id="hci" value="'+escapeAttr(data.company)+'" /></div>'+
-        '<div class="hirely-field"><label>Work email — enter if known</label><input type="email" id="hei" value="'+escapeAttr(data.email||'')+'" placeholder="name@company.com" /><small>Leave blank to save without an email, or use the email search above.</small></div>'+
+        '<div class="hirely-field"><label>Work email: enter if known</label><input type="email" id="hei" value="'+escapeAttr(data.email||'')+'" placeholder="name@company.com" /><small>Leave blank to save without an email, or use the email search above.</small></div>'+
         "</div>"+
         '<button class="hirely-text-btn" id="hirely-read-role" style="margin-bottom:10px">Read current role from Experience</button>'+
         '<button class="hirely-btn" id="hsb">Save contact</button>'+
         '<div class="hirely-status" id="hss"></div>'+
-        '<button class="hirely-find-email-btn" id="hfeb2">Find email — 1 credit</button>';
+        '<button class="hirely-find-email-btn" id="hfeb2">Find email (1 credit)</button>';
 
       enhanceCapture(container, data, existing, state);
       container.querySelectorAll(".hirely-copy-btn").forEach(btn=>{

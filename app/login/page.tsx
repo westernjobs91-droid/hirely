@@ -59,7 +59,7 @@ export default function LoginPage() {
             Place more.<br />Follow up smarter.
           </h1>
           <p className="text-blue-200 text-lg leading-relaxed mb-10">
-            The CRM built for recruiters. One click from your inbox — contact saved, LinkedIn enriched, AI follow-ups ready.
+            The CRM built for recruiters. One click from your inbox: contact saved, LinkedIn enriched, AI follow-ups ready.
           </p>
           <div className="space-y-4">
             {[

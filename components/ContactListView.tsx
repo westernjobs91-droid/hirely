@@ -72,13 +72,13 @@ export default function ContactListView({ contacts, selectedId, onSelect, onDele
                 </div>
                 <div className="min-w-0">
                   <p className="text-[12.5px] font-semibold text-slate-900 truncate leading-tight">{contact.firstName} {contact.lastName}</p>
-                  <p className="text-[10.5px] text-slate-400 truncate leading-tight mt-0.5">{contact.jobTitle || '—'}</p>
+                  <p className="text-[10.5px] text-slate-400 truncate leading-tight mt-0.5">{contact.jobTitle || '-'}</p>
                 </div>
                 <EmailStatusBadge contact={contact} />
               </div>
 
               {/* Company */}
-              <p className="text-[12px] text-slate-600 truncate font-medium">{contact.company || '—'}</p>
+              <p className="text-[12px] text-slate-600 truncate font-medium">{contact.company || '-'}</p>
 
               {/* Email */}
               {contact.email ? (

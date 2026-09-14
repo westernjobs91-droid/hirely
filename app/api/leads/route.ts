@@ -21,7 +21,7 @@ function createClient() {
   )
 }
 
-// GET /api/leads — fetch all contacts for logged in user
+// GET /api/leads: fetch all contacts for logged in user
 export async function GET() {
   const supabase = createClient()
 
@@ -43,7 +43,7 @@ export async function GET() {
   return NextResponse.json(data)
 }
 
-// POST /api/leads — add a new contact manually
+// POST /api/leads: add a new contact manually
 export async function POST(request: Request) {
   const supabase = createClient()
 
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
   return NextResponse.json(data, { status: 201 })
 }
 
-// PATCH /api/leads — update contact
+// PATCH /api/leads: update contact
 export async function PATCH(request: Request) {
   const supabase = createClient()
 
@@ -121,7 +121,7 @@ export async function PATCH(request: Request) {
   return NextResponse.json(data)
 }
 
-// DELETE /api/leads — delete a contact
+// DELETE /api/leads: delete a contact
 export async function DELETE(request: Request) {
   const supabase = createClient()
 
