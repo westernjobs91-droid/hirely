@@ -310,7 +310,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
             </button>
           )}
 
-          {!contact.email && <p role="status" className="text-[11px] text-slate-600 bg-slate-50 rounded-lg px-2.5 py-2 mt-2">Find a work email for 1 Hirely credit. No result, no charge.</p>}
+          {!contact.email && <p role="status" className="text-[11px] text-slate-600 bg-slate-50 rounded-lg px-2.5 py-2 mt-2">Find a work email for 1 Hirely credit. The credit is used when the search starts.</p>}
           {findEmailError && <p className="text-[10px] text-red-600 bg-red-50 border border-red-100 rounded-lg px-2.5 py-1.5 mt-2">{findEmailError}</p>}
           {findEmailNote && <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5 mt-2">{findEmailNote}</p>}
         </div>

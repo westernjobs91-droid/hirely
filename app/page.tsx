@@ -28,16 +28,6 @@ function getGreeting(name: string) {
   return `Good evening, ${first}`
 }
 
-function getPipelineHealth(contacts: Contact[]) {
-  if (contacts.length === 0) return { score: 0, label: 'No contacts yet', color: 'text-slate-400' }
-  const overdue = contacts.filter(c => c.status === 'overdue').length
-  const replied = contacts.filter(c => c.status === 'replied' || c.status === 'meeting-set').length
-  const score = Math.min(100, Math.max(0, Math.round(100 - (overdue / contacts.length) * 100 + (replied / contacts.length) * 20)))
-  if (score >= 80) return { score, label: 'Healthy', color: 'text-emerald-600' }
-  if (score >= 50) return { score, label: 'Needs attention', color: 'text-amber-600' }
-  return { score, label: 'Action required', color: 'text-red-600' }
-}
-
 export default function Dashboard() {
   const router = useRouter()
   const [user, setUser] = useState<{ id: string; email: string; name: string } | null>(null)
@@ -153,12 +143,13 @@ export default function Dashboard() {
   }, [user])
 
   const handleDelete = useCallback(async (id: string) => {
-    const { error } = await supabase.from('contacts').delete().eq('id', id)
+    if (!user || !window.confirm('Delete this contact? This cannot be undone.')) return
+    const { error } = await supabase.from('contacts').delete().eq('id', id).eq('user_id', user.id)
     if (error) { setToast('Error deleting contact'); return }
     setContacts(prev => prev.filter(c => c.id !== id))
     if (selected?.id === id) setSelected(null)
     setToast('Contact deleted')
-  }, [selected])
+  }, [selected, user])
 
   const handleMarkDone = useCallback(async (id: string) => {
     if(!user)return
@@ -217,7 +208,6 @@ export default function Dashboard() {
   const overdueCount = contacts.filter(c => c.status === 'overdue').length
   const enrichedCount = contacts.filter(c => c.enriched).length
   const repliedCount = contacts.filter(c => c.status === 'replied' || c.status === 'meeting-set').length
-  const health = getPipelineHealth(contacts)
 
   const matchesSearch = (c: Contact, query: string) => {
     if (!query.trim()) return true
@@ -309,7 +299,7 @@ export default function Dashboard() {
 
           {/* ── DASHBOARD VIEW ── */}
           {activeNav === 'dashboard' && (
-            <div className="p-6 space-y-5">
+            <div className="p-6 flex flex-col gap-5">
 
               {/* Greeting + health strip */}
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl px-5 py-4 text-white relative overflow-hidden">
@@ -326,13 +316,11 @@ export default function Dashboard() {
                     </p>
                   </div>
                   <div className="text-right flex-shrink-0 ml-6">
-                    <div className="text-2xl font-black">{health.score}</div>
-                    <div title="A simple indicator based on overdue contacts and recorded replies, not email verification or revenue." className="text-blue-100 text-xs font-medium mt-0.5">Pipeline score</div>
-                    <div className={`text-xs font-semibold mt-1 px-2 py-0.5 rounded-full inline-block ${
-                      health.score >= 80 ? 'bg-emerald-500/20 text-emerald-200' :
-                      health.score >= 50 ? 'bg-amber-500/20 text-amber-200' :
-                      'bg-red-500/20 text-red-200'
-                    }`}>{health.label}</div>
+                    <div className="text-2xl font-black">{followUpCount}</div>
+                    <div className="text-blue-100 text-xs font-medium mt-0.5">Follow-ups due</div>
+                    <div className={`text-xs font-semibold mt-1 px-2 py-0.5 rounded-full inline-block ${overdueCount > 0 ? 'bg-red-500/20 text-red-100' : 'bg-emerald-500/20 text-emerald-100'}`}>
+                      {overdueCount > 0 ? `${overdueCount} overdue` : 'Nothing overdue'}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -367,9 +355,9 @@ export default function Dashboard() {
                     onClick: () => setActiveNav('enrichment'),
                   },
                   {
-                    label: 'Replies received',
+                    label: 'Contacts replied',
                     value: repliedCount,
-                    sub: contacts.length > 0 ? `${Math.round((repliedCount / contacts.length) * 100)}% reply rate` : 'reply rate',
+                    sub: repliedCount > 0 ? `${repliedCount} recorded in your CRM` : 'No replies recorded yet',
                     icon: 'M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6',
                     accent: '#059669', bg: 'bg-emerald-50', iconColor: 'text-emerald-600',
                     onClick: () => { setActiveNav('contacts') },
@@ -395,7 +383,7 @@ export default function Dashboard() {
               </div>
 
               {/* Pipeline */}
-              <div>
+              <div className="order-2">
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                   <div className="flex items-center gap-2">
                     <h2 className="text-sm font-bold text-slate-900">Recruiter Pipeline</h2>
@@ -522,7 +510,7 @@ export default function Dashboard() {
                 if (actions.length === 0) return null
 
                 return (
-                  <div>
+                  <div className="order-1">
                     <div className="flex items-center gap-2 mb-3">
                       <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                       <h3 className="text-xs font-bold text-slate-700 uppercase tracking-widest">Suggested actions</h3>

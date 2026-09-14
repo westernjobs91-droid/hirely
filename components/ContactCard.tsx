@@ -68,15 +68,14 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
               {contact.firstName} {contact.lastName}
             </p>
             {onDelete && (
-              <button
-                onClick={e => { e.stopPropagation(); onDelete(contact.id) }}
-                className="opacity-60 group-hover:opacity-100 focus:opacity-100 transition-opacity text-slate-300 hover:text-red-400 flex-shrink-0 -mt-0.5"
-                title="Delete"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              <details className="relative flex-shrink-0 -mt-1" onClick={e => e.stopPropagation()}>
+                <summary aria-label="Contact actions" title="Contact actions" className="list-none cursor-pointer w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center [&::-webkit-details-marker]:hidden">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
+                </summary>
+                <div className="absolute right-0 top-8 z-20 w-36 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                  <button onClick={() => onDelete(contact.id)} className="w-full rounded-lg px-3 py-2 text-left text-[11px] font-semibold text-red-600 hover:bg-red-50">Delete contact</button>
+                </div>
+              </details>
             )}
           </div>
 

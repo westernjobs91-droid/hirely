@@ -132,7 +132,7 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
               <svg className="w-3 h-3" style={{ color: creditColor }} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              <span className="text-[10px] font-semibold text-slate-600">Paid email requests</span>
+              <span className="text-[10px] font-semibold text-slate-600">Email credits</span>
             </div>
             <span className="text-[10px] font-bold" style={{ color: creditColor }}>
               {remaining} left

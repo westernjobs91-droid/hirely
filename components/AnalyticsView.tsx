@@ -77,6 +77,7 @@ export default function AnalyticsView({ contacts }: AnalyticsViewProps) {
   const enrichedCount = contacts.filter(c => c.enriched).length
   const withEmailCount = contacts.filter(c => c.email).length
   const repliedCount = contacts.filter(c => c.status === 'replied' || c.status === 'meeting-set').length
+  const meetingSetCount = contacts.filter(c => c.status === 'meeting-set').length
   const replyRate = total > 0 ? Math.round((repliedCount / total) * 100) : 0
 
   const enrichmentPie = [
@@ -114,9 +115,9 @@ export default function AnalyticsView({ contacts }: AnalyticsViewProps) {
   // Conversion funnel
   const funnelSteps = [
     { label: 'Saved', value: total, color: COLORS.blue },
-    { label: 'Enriched', value: enrichedCount, color: COLORS.violet },
     { label: 'Have email', value: withEmailCount, color: COLORS.cyan },
-    { label: 'Replied', value: repliedCount, color: COLORS.emerald },
+    { label: 'Replied', value: repliedCount, color: COLORS.violet },
+    { label: 'Meeting set', value: meetingSetCount, color: COLORS.emerald },
   ]
 
   // Monthly trend
@@ -166,7 +167,7 @@ export default function AnalyticsView({ contacts }: AnalyticsViewProps) {
         <StatCard label="Emails enriched" value={`${total > 0 ? Math.round((enrichedCount / total) * 100) : 0}%`} sub={`${enrichedCount} of ${total} contacts`} color={COLORS.violet}
           icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}
         />
-        <StatCard label="Companies reached" value={companyMap.size} sub={`across ${total} contacts`} color={COLORS.cyan}
+        <StatCard label="Companies saved" value={companyMap.size} sub={`across ${total} contacts`} color={COLORS.cyan}
           icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>}
         />
         <StatCard label="Reply rate" value={`${replyRate}%`} sub={`${repliedCount} replied or meeting set`} color={COLORS.emerald}
@@ -255,7 +256,7 @@ export default function AnalyticsView({ contacts }: AnalyticsViewProps) {
       {/* Row 4: Funnel + Job titles + Monthly */}
       <div className="grid grid-cols-3 gap-4">
 
-        <SectionCard title="Pipeline funnel">
+        <SectionCard title="Outreach funnel">
           <div className="space-y-2">
             {funnelSteps.map((step, i) => {
               const pct = total > 0 ? Math.round((step.value / total) * 100) : 0
@@ -275,11 +276,6 @@ export default function AnalyticsView({ contacts }: AnalyticsViewProps) {
                   <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
                     <div className="h-full rounded-full" style={{ width: `${width}%`, backgroundColor: step.color, opacity: 0.85 }} />
                   </div>
-                  {i < funnelSteps.length - 1 && step.value > 0 && (
-                    <div className="text-[9px] text-slate-300 pl-4 mt-0.5">
-                      ↓ {funnelSteps[i + 1].value > 0 ? Math.round((funnelSteps[i + 1].value / step.value) * 100) : 0}% convert
-                    </div>
-                  )}
                 </div>
               )
             })}
@@ -291,7 +287,7 @@ export default function AnalyticsView({ contacts }: AnalyticsViewProps) {
             </div>
             <div className="bg-slate-50 rounded-xl p-2.5 text-center">
               <div className="text-lg font-black text-slate-900">{companyMap.size}</div>
-              <div className="text-[9px] text-slate-400 font-medium mt-0.5">Companies targeted</div>
+              <div className="text-[9px] text-slate-400 font-medium mt-0.5">Companies saved</div>
             </div>
           </div>
         </SectionCard>
