@@ -10,6 +10,7 @@ export interface Contact {
   company: string
   jobTitle: string
   linkedinUrl: string
+  photoUrl?: string | null
   avatarColor: string
   status: ContactStatus
   column: PipelineColumn

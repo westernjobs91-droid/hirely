@@ -1,4 +1,5 @@
 'use client'
+import ContactPhoto from './ContactPhoto'
 
 import { useState, useEffect } from 'react'
 import EmailStatusBadge from './EmailStatusBadge'
@@ -251,7 +252,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-black text-white flex-shrink-0 shadow-sm"
               style={{ background: contact.avatarColor }}>
-              {initials}
+              <ContactPhoto url={contact.photoUrl} initials={initials} name={`${contact.firstName} ${contact.lastName}`} />
             </div>
             <div className="min-w-0 flex-1 pr-8">
               <div className="flex items-center gap-1.5">

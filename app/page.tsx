@@ -116,6 +116,7 @@ export default function Dashboard() {
       company: c.company as string || '',
       jobTitle: c.job_title as string || '',
       linkedinUrl: c.linkedin_url as string || '',
+      photoUrl: c.photo_url as string || null,
       avatarColor: c.avatar_color as string || '#2563EB',
       status: c.status as Contact['status'],
       column: c.column_name as Contact['column'],

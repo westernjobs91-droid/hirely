@@ -1,4 +1,5 @@
 'use client'
+import ContactPhoto from './ContactPhoto'
 
 import EmailStatusBadge from './EmailStatusBadge'
 import { Contact } from '@/types'
@@ -67,7 +68,7 @@ export default function ContactListView({ contacts, selectedId, onSelect, onDele
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 shadow-sm"
                   style={{ background: contact.avatarColor }}>
-                  {initials}
+                  <ContactPhoto url={contact.photoUrl} initials={initials} name={`${contact.firstName} ${contact.lastName}`} />
                 </div>
                 <div className="min-w-0">
                   <p className="text-[12.5px] font-semibold text-slate-900 truncate leading-tight">{contact.firstName} {contact.lastName}</p>

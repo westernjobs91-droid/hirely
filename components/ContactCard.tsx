@@ -1,4 +1,5 @@
 'use client'
+import ContactPhoto from './ContactPhoto'
 
 import { Contact } from '@/types'
 
@@ -55,7 +56,7 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
         {/* Avatar */}
         <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 shadow-sm"
           style={{ background: contact.avatarColor }}>
-          {initials}
+          <ContactPhoto url={contact.photoUrl} initials={initials} name={`${contact.firstName} ${contact.lastName}`} />
         </div>
 
         {/* Info */}

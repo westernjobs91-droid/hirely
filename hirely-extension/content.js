@@ -270,8 +270,11 @@ var HirelyEngine = (() => {
     result.experiences = positions;
     const role = resolveRole(positions, badge, result.headline);
     Object.assign(result, role, {sources:{...result.sources,...role.sources}});
-    const img = card.querySelector('img.pv-top-card-profile-picture__image, img.profile-photo-edit__preview, img[class*="profile-picture"], a[aria-label="Profile photo"] img');
-    result.photo = img?.getAttribute('src') || '';
+    const photoScope = main?.querySelector('section[componentkey$="Topcard"]') || card;
+    const img = photoScope.querySelector('img.pv-top-card-profile-picture__image, img.profile-photo-edit__preview, img[class*="profile-picture"], a[aria-label="Profile photo"] img, button[aria-label*="profile photo" i] img')
+      || Array.from(photoScope.querySelectorAll('img')).find(i => same(i.alt, result.name));
+    const photoUrl = img?.currentSrc || img?.getAttribute('src') || img?.getAttribute('data-delayed-url') || '';
+    result.photo = /^https:\/\//i.test(photoUrl) ? photoUrl : '';
     result.trace.push(result.title && result.company ? `Selected ${result.sources.company}` : 'Current role uncertain; review empty fields');
     return result;
   }
@@ -378,7 +381,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
     .hirely-history-time { font-size: 10px; color: #94A3B8; flex-shrink: 0; }
     .hirely-history-empty { text-align: center; padding: 24px 0; color: #94A3B8; font-size: 12px; }
     .hirely-overlay { position: fixed; inset: 0; background: transparent; z-index: 2147483001; display: none; }
-    .hirely-overlay.open { display: block; }
+    .hirely-overlay.open { display: none; pointer-events: none; }
   `
 
   const host = document.createElement("div");
@@ -391,7 +394,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
 
   const tab = document.createElement("div");
   tab.className = "hirely-tab";
-  tab.innerHTML = '<div class="hirely-tab-logo">H</div><div class="hirely-tab-label">Hirely 4.8</div>';
+  tab.innerHTML = '<div class="hirely-tab-logo">H</div><div class="hirely-tab-label">Hirely</div>';
   root.appendChild(tab);
 
   const overlay = document.createElement("div");
@@ -402,7 +405,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
   panel.className = "hirely-panel";
   root.appendChild(panel);
 
-  overlay.addEventListener("click", closeHirely);
+  // The panel is non-modal: LinkedIn remains clickable while it stays open.
 
   function escapeHtml(str) { return String(str ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
   function escapeAttr(str) { return escapeHtml(str); }
@@ -470,6 +473,11 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
     if (name) name.textContent = [state.data.firstName, state.data.lastName].filter(Boolean).join(' ') || state.data.name;
     if (sub) sub.textContent = state.data.title || 'Review current job title';
     if (company) company.textContent = state.data.company || 'Review current company';
+    const avatar = panel.querySelector('.hirely-avatar, .hirely-avatar-fallback');
+    if (state.data.photo && avatar && avatar.getAttribute('src') !== state.data.photo) {
+      const img=document.createElement('img'); img.className='hirely-avatar'; img.alt='Profile photo'; img.src=state.data.photo;
+      img.addEventListener('error',()=>{img.replaceWith(document.createTextNode('Photo unavailable'));}); avatar.replaceWith(img);
+    }
     renderRoleOptions(state);
   }
 
@@ -544,7 +552,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
     activeProfile = null;
     const renderUrl = canonicalUrl(location.href);
     panel.innerHTML=
-      '<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely v4.8</span></div>'+
+      '<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely</span></div>'+
       '<button class="hirely-close" id="hcb0">&#x2715;</button></div>'+
       '<div class="hirely-body"><div class="hirely-loading">Loading...</div></div>';
     panel.querySelector("#hcb0").addEventListener("click",closeHirely);
@@ -554,10 +562,11 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
       const session=result?.session||null;
       if(!session) renderLogin();
       else if(/linkedin\.com\/company\/[^/?#]+/.test(window.location.href)) await renderCompany(session);
-      else await renderProfile(session);
+      else if(PROFILE_RE.test(location.href)) await renderProfile(session);
+      else { const body=panel.querySelector('.hirely-body'); body.textContent='Open a LinkedIn profile to view and save it. Hirely will stay open as you browse.'; }
     } catch(e) {
       if (renderGen !== hirelyScrapeGen || !panel.classList.contains('open')) return;
-      panel.innerHTML='<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely v4.8</span></div>'+
+      panel.innerHTML='<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely</span></div>'+
         '<button class="hirely-close" id="hcbe">&#x2715;</button></div>'+
         '<div class="hirely-body"><div class="hirely-status show error">Something went wrong. Reload the page.</div></div>';
       panel.querySelector("#hcbe").addEventListener("click",closeHirely);
@@ -566,7 +575,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
 
   function renderLogin() {
     panel.innerHTML=
-      '<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely v4.8</span></div>'+
+      '<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely</span></div>'+
       '<button class="hirely-close" id="hlcb">&#x2715;</button></div>'+
       '<div class="hirely-body">'+
       '<p class="hirely-login-hint">Sign in to save contacts directly from LinkedIn.</p>'+
@@ -591,7 +600,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
 
   async function renderProfile(session) {
     panel.innerHTML=
-      '<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely v4.8</span></div>'+
+      '<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely</span></div>'+
       '<div style="display:flex;gap:8px;align-items:center;"><a class="hirely-open-app" href="'+HIRELY_CONFIG.API_BASE+'" target="_blank">Open app &#x2197;</a>'+
       '<button class="hirely-close" id="hrpcb">&#x2715;</button></div></div>'+
       '<div class="hirely-tabs"><button class="hirely-tab-btn active" id="hts">Save</button><button class="hirely-tab-btn" id="hth">History</button></div>'+
@@ -623,6 +632,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
       if (field && liveProfile(state)) {
         state.dirty.add(field);
         state.data[field] = event.target.value;
+        if(field==='email'){state.data.emailStatus='unverified';state.data.emailEvidence='Manually entered; inbox not checked.';}
         if (field === 'firstName' || field === 'lastName') state.data.name = [state.data.firstName,state.data.lastName].filter(Boolean).join(' ');
         const sub = tabBody.querySelector('.hirely-profile-sub');
         const co = tabBody.querySelector('.hirely-profile-company');
@@ -693,11 +703,11 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
     const valid = () => liveProfile(state) && state.data === data && state.tab === 'save';
     if (!valid()) return;
     const initials=((data.firstName?.[0]||"")+(data.lastName?.[0]||"")).toUpperCase();
-    const avatarHtml=data.photo
-      ?'<img class="hirely-avatar" src="'+escapeAttr(data.photo)+'" />'
+    const avatarHtml=(data.photo || existing?.photo_url)
+      ?'<img class="hirely-avatar" src="'+escapeAttr(data.photo || existing?.photo_url)+'" alt="Profile photo" />'
       :'<div class="hirely-avatar-fallback">'+(initials||"?")+"</div>";
     const COLUMN_LABELS={follow_up_today:"Follow Up Today",upcoming:"Coming Up",done:"Done"};
-    const sourceTag='<div class="hirely-source-tag">Scraped from LinkedIn · v4.8</div>';
+    const sourceTag='';
 
     if(existing){
       const columnLabel=COLUMN_LABELS[existing.column_name]||existing.column_name||"Pipeline";
@@ -715,10 +725,16 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
         '<div class="hirely-profile-company">'+escapeHtml(data.company||existing.company||"")+"</div></div></div>"+
         '<div class="hirely-pipeline-status"><div class="hirely-status-item"><span class="hirely-status-label">Pipeline</span><span class="hirely-status-val">'+escapeHtml(columnLabel)+"</span></div>"+
         '<div class="hirely-status-divider"></div><div class="hirely-status-item"><span class="hirely-status-label">Status</span><span class="hirely-status-val">'+escapeHtml(existing.status_label||"Active")+"</span></div></div>"+
-        emailDisplay+'<a class="hirely-btn hirely-btn-outline" href="'+HIRELY_CONFIG.API_BASE+'" target="_blank">View in Pipeline &#x2197;</a>';
+        emailDisplay+(data.photo?'<button class="hirely-btn hirely-btn-outline" id="hsphoto">Save profile photo</button><div class="hirely-status" id="hphoto-status"></div>':'')+'<a class="hirely-btn hirely-btn-outline" href="'+HIRELY_CONFIG.API_BASE+'" target="_blank">View in Pipeline &#x2197;</a>';
 
       container.querySelectorAll(".hirely-copy-btn").forEach(btn=>{
         btn.addEventListener("click",()=>{navigator.clipboard.writeText(btn.dataset.copy).then(()=>{btn.textContent="Copied!";setTimeout(()=>{btn.textContent="Copy";},1500);});});
+      });
+      container.querySelector('#hsphoto')?.addEventListener('click',async()=>{
+        const btn=container.querySelector('#hsphoto');btn.disabled=true;
+        const res=await sendMsg({type:'HIRELY_SAVE_PHOTO',contactId:existing.id,photo:data.photo});
+        if(!valid()||!btn.isConnected)return;
+        btn.disabled=false;showStatus(container.querySelector('#hphoto-status'),res.ok?'Profile photo saved.':res.error||'Could not save photo.',res.ok?'info':'error');
       });
       const feb=container.querySelector("#hfeb");
       if(feb) feb.addEventListener("click",async()=>{
@@ -726,7 +742,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
         const res=await sendMsg({type:"HIRELY_FIND_EMAIL",contactId:existing.id,firstName:existing.first_name,lastName:existing.last_name,company:existing.company||data.company||"",domain:existing.email_domain||""});
         if (!valid() || !feb.isConnected) return;
         if(res.ok&&res.email){existing.email=res.email;existing.email_status=res.emailStatus;existing.email_evidence=res.emailEvidence;await renderSaveTab(container,session,data,existing);}
-        else{feb.disabled=false;feb.textContent="&#x2726; Find Email";}
+        else{feb.disabled=false;feb.textContent=res.message||res.error||"No saved company pattern. Try Email finder in Hirely.";}
       });
 
     } else {
@@ -744,7 +760,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
         '<div class="hirely-field"><label>Last name</label><input id="hli" value="'+escapeAttr(data.lastName)+'" /></div></div>'+
         '<div class="hirely-field"><label>Job title</label><input id="hti" value="'+escapeAttr(displayTitle)+'" /></div>'+
         '<div class="hirely-field"><label>Company</label><input id="hci" value="'+escapeAttr(data.company)+'" /></div>'+
-        (data.email?"":'<div class="hirely-field"><label>Email (optional)</label><input id="hei" placeholder="Predict from saved company format" /></div>')+
+        '<div class="hirely-field"><label>Work email — enter if known</label><input type="email" id="hei" value="'+escapeAttr(data.email||'')+'" placeholder="name@company.com" /><small>Leave blank to save without email, or use Predict Email below.</small></div>'+
         "</div>"+
         '<button class="hirely-text-btn" id="hirely-read-role" style="margin-bottom:10px">Read current role from Experience</button>'+
         '<button class="hirely-btn" id="hsb">Save to Pipeline</button>'+
@@ -769,12 +785,13 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
           lastName:container.querySelector("#hli").value.trim(),
           headline:container.querySelector("#hti").value.trim(),
           company:container.querySelector("#hci").value.trim(),
-          email:data.email||container.querySelector("#hei")?.value.trim()||"",
+          email:container.querySelector("#hei")?.value.trim()||"",
           emailStatus:data.emailStatus||"unverified",emailEvidence:data.emailEvidence||"",
-          url:data.url
+          url:data.url, photo:data.photo||''
         };
         if (!valid()) return;
         if (state.data.publicProfile) { showStatus(statusEl,'Sign in to LinkedIn before saving this profile.','error'); return; }
+        if(payload.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)){showStatus(statusEl,"Enter a valid email or leave it blank.","error");return;}
         if(!payload.firstName){showStatus(statusEl,"First name is required.","error");return;}
         state.saving = true;
         btn.disabled=true;btn.textContent="Saving...";
@@ -790,16 +807,17 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
 
       const feb2=container.querySelector("#hfeb2");
       if(feb2) feb2.addEventListener("click",async()=>{
+        syncDraft(state);
         feb2.disabled=true;feb2.textContent="Searching...";
         const res=await sendMsg({type:"HIRELY_FIND_EMAIL",contactId:null,firstName:container.querySelector("#hfi").value.trim(),lastName:container.querySelector("#hli").value.trim(),company:container.querySelector("#hci").value.trim(),domain:""});
         if (!valid() || !feb2.isConnected) return;
         if(res.ok&&res.email){
-          if (state.dirty.has('email')) { feb2.disabled=false; feb2.textContent='Email edited manually'; return; }
+          if (state.dirty.has('email') && state.data.email) { feb2.disabled=false; feb2.textContent='Email edited manually'; return; }
           state.data.email = res.email;
           state.data.emailStatus = res.emailStatus; state.data.emailEvidence = res.emailEvidence;
           const ei=container.querySelector("#hei");if(ei) ei.value=res.email;
           feb2.textContent="Email found";feb2.style.color="#047857";
-        } else{feb2.disabled=false;feb2.textContent="&#x2726; Find Email with Hunter.io";}
+        } else{feb2.disabled=false;feb2.textContent="Predict Email — Free";showStatus(container.querySelector("#hss"),res.message||res.error||"No saved company pattern. Try Email finder in Hirely.","info");}
       });
     }
   }
@@ -850,7 +868,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
 
     function buildPanel(body) {
       if (!validCompany()) return;
-      panel.innerHTML='<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely v4.8</span></div>'+
+      panel.innerHTML='<div class="hirely-header"><div class="hirely-header-title"><div class="hirely-header-logo">H</div><span>Hirely</span></div>'+
         '<div style="display:flex;gap:8px;align-items:center;"><a class="hirely-open-app" href="'+HIRELY_CONFIG.API_BASE+'" target="_blank">Open app &#x2197;</a>'+
         '<button class="hirely-close" id="hcocb">&#x2715;</button></div></div>'+
         '<div class="hirely-body">'+body+"</div>"+
@@ -910,7 +928,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
 
   tab.addEventListener("click",openHirely);
   chrome.storage.local.get("hirely_panel_open",({hirely_panel_open})=>{
-    if(hirely_panel_open&&(PROFILE_RE.test(window.location.href)||COMPANY_RE.test(window.location.href))) openHirely();
+    if(hirely_panel_open) openHirely();
   });
 
   let lastUrl=canonicalUrl(window.location.href),renderTimer=null, lastIdentity=profileIdentity();
@@ -922,7 +940,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
     hirelyScrapeGen++;
     activeProfile?.observer?.disconnect();
     activeProfile=null;
-    if(!PROFILE_RE.test(cur)&&!COMPANY_RE.test(cur)){closeHirely();return;}
+    // Keep the panel open on search and feed pages between profiles.
     if(panel.classList.contains("open")){
       if(renderTimer) clearTimeout(renderTimer);
       renderTimer=setTimeout(()=>{renderTimer=null;render();},400);

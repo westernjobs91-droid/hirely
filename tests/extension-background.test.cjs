@@ -1,0 +1,22 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+function setup({expired=false,refreshOK=true,photoRows=[{id:7}]}={}){
+ let listener,stored={access_token:'old',refresh_token:'refresh',expires_at:expired?0:Date.now()+3600000,user:{id:'owner'}};const requests=[];
+ const ctx={importScripts(){},HIRELY_CONFIG:{SUPABASE_URL:'https://db.example',SUPABASE_ANON_KEY:'public',API_BASE:'https://app.example'},Date,URL,console,
+ chrome:{storage:{local:{get:async()=>({hirely_session:stored}),set:async v=>{stored=v.hirely_session},remove:async()=>{stored=null}}},runtime:{onMessage:{addListener:f=>listener=f},onInstalled:{addListener(){}}},action:{onClicked:{addListener(){}}},tabs:{}},
+ fetch:async(url,options={})=>{requests.push({url,options});if(url.includes('grant_type=refresh_token'))return Response.json(refreshOK?{access_token:'fresh',refresh_token:'next',expires_in:3600}:{error:'expired'},{status:refreshOK?200:401});if(options.method==='PATCH')return Response.json(photoRows);if(url.includes('find-email'))return Response.json({ok:false,needsPaidLookup:true,message:'No saved company pattern.'});return Response.json([])}};
+ vm.createContext(ctx);vm.runInContext(fs.readFileSync('hirely-extension/background.js','utf8'),ctx);
+ return {requests,ctx,run:msg=>new Promise(resolve=>listener(msg,{},resolve))};
+}
+test('extension refreshes an expired session before a free prediction',async()=>{const h=setup({expired:true});const r=await h.run({type:'HIRELY_FIND_EMAIL',firstName:'Jane',company:'Example'});assert.equal(h.requests.length,2);assert.equal(h.requests[1].options.headers.Authorization,'Bearer fresh');const b=JSON.parse(h.requests[1].options.body);assert.equal(b.action,'predict');assert.equal(b.allowPaid,false);assert.equal(r.message,'No saved company pattern.')});
+test('concurrent extension requests share one session refresh',async()=>{const h=setup({expired:true});await Promise.all([h.run({type:'HIRELY_GET_SESSION'}),h.run({type:'HIRELY_GET_SESSION'})]);assert.equal(h.requests.length,1)});
+test('failed refresh prevents email lookup',async()=>{const h=setup({expired:true,refreshOK:false});const r=await h.run({type:'HIRELY_FIND_EMAIL'});assert.equal(r.error,'NOT_LOGGED_IN');assert.equal(h.requests.length,1)});
+test('new contacts include the profile image URL',async()=>{const h=setup();await vm.runInContext("saveContact({firstName:'Jane',lastName:'Smith',url:'https://www.linkedin.com/in/test',photo:'https://media.licdn.com/test.jpg'})",h.ctx);const req=h.requests.find(r=>r.options.method==='POST');assert.equal(JSON.parse(req.options.body).photo_url,'https://media.licdn.com/test.jpg')});
+test('saving an existing photo scopes the update to the account',async()=>{const h=setup();const r=await h.run({type:'HIRELY_SAVE_PHOTO',contactId:7,photo:'https://media.licdn.com/test.jpg'});assert.equal(r.ok,true);assert.match(h.requests[0].url,/user_id=eq.owner/);assert.equal(JSON.parse(h.requests[0].options.body).photo_url,'https://media.licdn.com/test.jpg')});
+test('photo update cannot falsely succeed without an owned contact',async()=>{const h=setup({photoRows:[]});const r=await h.run({type:'HIRELY_SAVE_PHOTO',contactId:7,photo:'https://media.licdn.com/test.jpg'});assert.equal(r.ok,false);assert.match(r.error,/Contact not found/)});
+test('non-HTTPS photo is rejected before any write',async()=>{const h=setup();const r=await h.run({type:'HIRELY_SAVE_PHOTO',contactId:7,photo:'javascript:alert(1)'});assert.equal(r.ok,false);assert.equal(h.requests.length,0)});
+test('open panel survives profile to search to profile navigation',()=>{
+ const code=fs.readFileSync('hirely-extension/content.js','utf8');const start=code.indexOf('  let lastUrl=canonicalUrl(window.location.href)');const end=code.indexOf('\n  },250);',start)+11;
+ const callbacks=[],renders=[];let closed=false;const ctx={window:{location:{href:'https://www.linkedin.com/in/one'}},canonicalUrl:v=>v,profileIdentity:()=>'',navigationIdentity:null,hirelyScrapeGen:0,activeProfile:null,panel:{classList:{contains:()=>true}},render:()=>renders.push(1),closeHirely:()=>{closed=true},setInterval:f=>callbacks.push(f),setTimeout:f=>{f();return 1},clearTimeout(){}};
+ vm.createContext(ctx);vm.runInContext(code.slice(start,end),ctx);
+ ctx.window.location.href='https://www.linkedin.com/search/results/people/';callbacks[0]();ctx.window.location.href='https://www.linkedin.com/in/two';callbacks[0]();assert.equal(closed,false);assert.equal(renders.length,2);assert.equal(ctx.hirelyScrapeGen,2);
+});

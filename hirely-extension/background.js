@@ -48,7 +48,14 @@ async function login(email, password) {
   return session;
 }
 
+let pendingRefresh=null;
 async function refreshIfNeeded(session) {
+  if(!session)return null;
+  if(Date.now()<session.expires_at-60000)return session;
+  if(!pendingRefresh)pendingRefresh=refreshSession(session).finally(()=>{pendingRefresh=null;});
+  return pendingRefresh;
+}
+async function refreshSession(session) {
   if (!session) return null;
   if (Date.now() < session.expires_at - 60000) return session; // still valid (1 min buffer)
 
@@ -125,6 +132,7 @@ async function saveContact(payload) {
     job_title: payload.headline || null,
     linkedin_url: payload.url,
     avatar_color: pickColor(payload.firstName),
+    photo_url: /^https:\/\//i.test(payload.photo || "") ? payload.photo : null,
     status: "active",
     column_name: "upcoming",
     status_label: "New",
@@ -212,7 +220,7 @@ async function hunterDomainSearch(domain) {
 
 
 async function findEmailForContact(contactId, firstName, lastName, company, domain) {
-  const session = await getSession();
+  const session = await refreshIfNeeded(await getSession());
   if (!session) throw new Error('NOT_LOGGED_IN');
   try {
     const res = await fetch(`${HIRELY_CONFIG.API_BASE}/api/extension/find-email`, {
@@ -221,7 +229,7 @@ async function findEmailForContact(contactId, firstName, lastName, company, doma
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`
       },
-      body: JSON.stringify({ contactId, firstName, lastName, company, domain })
+      body: JSON.stringify({ contactId, firstName, lastName, company, domain, action: "predict", allowPaid: false })
     });
     const data = await res.json();
     if (!res.ok) return { ok: false, message: data.error || 'Email lookup failed' };
@@ -274,6 +282,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       } else if (msg.type === "HIRELY_ENRICH_PROFILE") {
         const result = await enrichProfile(msg.linkedinUrl);
         sendResponse(result);
+      } else if (msg.type === "HIRELY_SAVE_PHOTO") {
+        const session=await refreshIfNeeded(await getSession());
+        if(!session)throw new Error('NOT_LOGGED_IN');
+        if(!msg.contactId||!/^https:\/\//i.test(msg.photo||''))throw new Error('A contact and profile photo are required.');
+        const res=await fetch(`${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?id=eq.${encodeURIComponent(msg.contactId)}&user_id=eq.${session.user.id}`,{
+          method:'PATCH',headers:{apikey:HIRELY_CONFIG.SUPABASE_ANON_KEY,Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({photo_url:msg.photo})
+        });
+        const rows=await res.json();
+        if(!res.ok)throw new Error('Photo could not be saved. Check that the contact-photo database migration is installed.');
+        if(!Array.isArray(rows)||!rows.length)throw new Error('Contact not found in your account.');
+        sendResponse({ok:true});
       } else if (msg.type === "HIRELY_FIND_EMAIL") {
         const result = await findEmailForContact(msg.contactId, msg.firstName, msg.lastName, msg.company, msg.domain);
         sendResponse(result);
@@ -308,7 +327,7 @@ async function checkContact(url) {
   if (!session) return null;
 
   const res = await fetch(
-    `${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?select=id,first_name,last_name,email,email_status,email_source,email_evidence,email_checked_at,email_confidence,job_title,company,column_name,status_label&user_id=eq.${session.user.id}&linkedin_url=eq.${encodeURIComponent(url)}&limit=1`,
+    `${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?select=id,first_name,last_name,email,email_status,email_source,email_evidence,email_checked_at,email_confidence,photo_url,job_title,company,column_name,status_label&user_id=eq.${session.user.id}&linkedin_url=eq.${encodeURIComponent(url)}&limit=1`,
     {
       headers: {
         apikey: HIRELY_CONFIG.SUPABASE_ANON_KEY,
