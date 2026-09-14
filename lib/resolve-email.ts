@@ -1,9 +1,17 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { approvedCompanyPattern, recordCompanySearch } from './company-data'
 import { authenticate } from './server-auth'
 import { isFresh, normalizeDomain, normalizeName, predictEmail, providerStatus, EmailStatus } from './email-patterns'
 
 export async function resolveEmail(request: Request) {
+  const event={company:'',domain:'',apiCalled:false,result:false,track:false}
+  const response=await resolveEmailInternal(request,event)
+  if(event.track){try{const data=await response.clone().json();event.result=response.ok&&!!data.email}catch{}
+    await recordCompanySearch(event)
+  }
+  return response
+}
+async function resolveEmailInternal(request:Request,event:{company:string;domain:string;apiCalled:boolean;result:boolean;track:boolean}) {
   const auth = await authenticate(request)
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { db, user } = auth
@@ -24,6 +32,7 @@ export async function resolveEmail(request: Request) {
   const identity = JSON.stringify([normalizeName(first), normalizeName(last), company.toLowerCase(), domain])
   if (!first || (!company && !domain)) return NextResponse.json({ error: 'A name and company or domain are required' }, { status: 400 })
   if (body.allowPaid !== true) return NextResponse.json({ error: 'Confirm a 1-credit email request. Update Hirely if you still see a free lookup button.' }, { status: 400 })
+  Object.assign(event,{company,domain,track:action==='find'})
   let charged = false
   async function charge() {
     if (charged) return null
@@ -59,18 +68,9 @@ export async function resolveEmail(request: Request) {
     return finish(cached.email, cached.status, cached.source, cached.checked_at, cached.evidence, cached.provider_score)
 
   let candidate = stored || '', evidence = ''
-  // Read curated company metadata only; never reuse another customer's contacts.
-  if (!candidate && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    const service = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } })
-    const keys = [company.toLowerCase()], slug = text(body.linkedinSlug).toLowerCase()
-    if (/^[a-z0-9-]+$/.test(slug)) keys.unshift('slug:' + slug)
-    const { data: companies } = await service.from('company_cache').select('data,cache_key').in('cache_key', keys).gt('expires_at', new Date().toISOString())
-    const match = companies?.find(c => c.data?.pattern && (!domain || normalizeDomain(c.data.domain || '') === domain))
-    if (match) {
-      candidate = predictEmail(first, last, match.data.domain, match.data.pattern) || ''
-      evidence = 'Company pattern ' + match.data.pattern + '. Inbox not checked.'
-      if (match.data.source_url) evidence += ' Source: ' + match.data.source_url
-    }
+  if(!candidate){
+    const match=await approvedCompanyPattern(company,domain)
+    if(match){candidate=predictEmail(first,last,match.domain,match.pattern)||'';evidence=match.evidence}
   }
   if (action === 'find' && candidate && !stored) return finish(candidate, 'predicted', 'company_pattern', null, evidence)
   if (action === 'verify' && !candidate) return NextResponse.json({ error: 'Find or enter an email first.' }, { status: 400 })
@@ -91,6 +91,7 @@ export async function resolveEmail(request: Request) {
       params.set('first_name', first); params.set('last_name', last)
       if (domain) params.set('domain', domain); else params.set('company', company)
     }
+    event.apiCalled=true
     const response = await fetch('https://api.hunter.io/v2/' + (action === 'verify' ? 'email-verifier' : 'email-finder') + '?' + params,
       { cache: 'no-store', signal: AbortSignal.timeout(20000) })
     if (!response.ok) return NextResponse.json({ error: 'Email search could not complete. No credit used.' }, { status: 502 })

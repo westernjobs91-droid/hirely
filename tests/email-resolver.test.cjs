@@ -23,7 +23,7 @@ function harness({user=true,contact=null,cache=null,company=null,reserved=true,p
   if(key==='single'||key==='maybeSingle')return async()=>result();
   return(...args)=>{calls.push([table,key,...args]);return chain}
  }});return chain},async rpc(){credits++;return {data:reserved,error:null}}};
- const resolver=load('lib/resolve-email.ts',{'next/server':{NextResponse:{json:(body,init)=>Response.json(body,init)}},'./server-auth':{authenticate:async()=>user?{db,user:{id:'u1'}}:null},'./email-patterns':patterns,'@supabase/supabase-js':{createClient:()=>db},fetch:async()=>{fetched++;if(providerThrows)throw new Error('timeout');if(providerFail)return Response.json({}, {status:502});return Response.json({data:{email:providerEmail,status:'accept_all',score:93}})}}).resolveEmail;
+ const resolver=load('lib/resolve-email.ts',{'next/server':{NextResponse:{json:(body,init)=>Response.json(body,init)}},'./server-auth':{authenticate:async()=>user?{db,user:{id:'u1'}}:null},'./email-patterns':patterns,'./company-data':{approvedCompanyPattern:async()=>company?.[0]?.data?{...company[0].data,evidence:'Test reviewed pattern'}:null,recordCompanySearch:async()=>{}},fetch:async()=>{fetched++;if(providerThrows)throw new Error('timeout');if(providerFail)return Response.json({}, {status:502});return Response.json({data:{email:providerEmail,status:'accept_all',score:93}})}}).resolveEmail;
  const run=body=>resolver(new Request('http://localhost/api/enrich',{method:'POST',body:JSON.stringify(body)}));
  return{run,writes,calls,get fetched(){return fetched},get credits(){return credits}};
 }

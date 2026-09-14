@@ -76,6 +76,7 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
         <span className="text-base font-semibold text-slate-900 tracking-tight">Hirely</span>
       </div>
 
+      {userEmail.toLowerCase()==='growwithjey@gmail.com'&&<a href="/admin/companies" className="mx-3 mt-3 rounded-xl bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100">Company Data <span className="text-[10px] opacity-70">Admin</span></a>}
       {/* Search */}
       <div className="px-3 py-2.5 border-b border-slate-100">
         <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 focus-within:bg-white focus-within:border-blue-300 transition-colors">
