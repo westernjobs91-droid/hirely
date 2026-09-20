@@ -44,12 +44,9 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
     async function loadCredits() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const period = new Date().toISOString().slice(0,7) + '-01'
-      const [usage, limits] = await Promise.all([
-        supabase.from('hirely_usage').select('used').eq('user_id',user.id).eq('month',period).eq('feature','email').maybeSingle(),
-        supabase.from('hirely_limits').select('email_limit').eq('user_id',user.id).maybeSingle()
-      ])
-      if (!usage.error && !limits.error) setCredits({used:usage.data?.used||0,limit:limits.data?.email_limit??10,plan:'configured'})
+      const { data, error } = await supabase.rpc('get_hirely_entitlements')
+      if (!error && data) setCredits({used:data.email_used,limit:data.email_limit,plan:data.plan})
+      else setCredits(null)
 
     }
     loadCredits()

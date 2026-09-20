@@ -1,0 +1,11 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript')
+function load(path,deps){const m={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{module:m,exports:m.exports,require:n=>deps[n],Object,Response,Request});return m.exports}
+function outlook({user=true,paid=true,unavailable=false,existing=null,writeError=null}={}){
+ const calls=[];const db={from(table){const q={};for(const k of ['select','eq','ilike','limit','insert'])q[k]=(...a)=>{calls.push([table,k,...a]);return q};q.maybeSingle=async()=>({data:existing,error:null});q.single=async()=>({data:{id:5},error:writeError});return q}}
+ const route=load('app/api/outlook/contacts/route.ts',{'next/server':{NextResponse:Response},'@/lib/server-auth':{authenticate:async()=>user?{db,user:{id:'owner'}}:null},'@/lib/plans':{getEntitlements:async()=>{if(unavailable)throw Error('down');return{outlook:paid}}}})
+ return{calls,run:(body={first_name:'Jane',last_name:'Smith',email:'jane@example.com',user_id:'attacker'})=>route.POST(new Request('https://test/api/outlook/contacts',{method:'POST',body:JSON.stringify(body)}))}
+}
+test('Outlook capture requires a verified paid account before accessing contacts',async()=>{for(const config of [{user:false},{paid:false},{unavailable:true}]){const h=outlook(config);assert.ok((await h.run()).status>=400);assert.equal(h.calls.length,0)}})
+test('Outlook capture uses only the authenticated owner and safe fields',async()=>{const h=outlook();assert.equal((await h.run()).status,201);const row=h.calls.find(c=>c[1]==='insert')[2];assert.equal(row.user_id,'owner');assert.equal(row.first_name,'Jane');assert.equal(row.enriched,false)})
+test('Outlook refuses duplicate and trashed contacts without writing',async()=>{for(const existing of [{id:1},{id:1,deleted_at:'2026-09-20'}]){const h=outlook({existing});assert.equal((await h.run()).status,409);assert.equal(h.calls.some(c=>c[1]==='insert'),false)}})
+test('Outlook surfaces contact capacity failures without false success',async()=>{const h=outlook({writeError:{code:'P0001',message:'Contact limit reached'}});const r=await h.run();assert.equal(r.status,409);assert.equal((await r.json()).error,'Contact limit reached')})

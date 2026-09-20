@@ -155,6 +155,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
       setDraftsError('Something went wrong. Try again.')
     } finally {
       setGeneratingDrafts(false)
+      window.dispatchEvent(new Event('hirely:credits-changed'))
     }
   }
 

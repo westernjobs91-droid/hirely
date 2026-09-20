@@ -139,7 +139,7 @@ export default function Dashboard() {
       notes: contact.notes,
       activity: contact.activity,
     }).select().single()
-    if (error) { console.error(error); setToast('Error saving contact'); return false }
+    if (error) { console.error(error); setToast(error.code==='P0001'?error.message:'Error saving contact'); return false }
     setContacts(prev => [{ ...contact, id: data.id, createdAt: data.created_at }, ...prev])
     setToast('Contact saved!')
     return true

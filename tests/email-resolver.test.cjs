@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
 function load(file,deps={}){const module={exports:{}};const js=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;vm.runInNewContext(js,{module,exports:module.exports,require:n=>deps[n]||require(n),URL,URLSearchParams,Response,Request,AbortSignal,process:{env:{NEXT_PUBLIC_SUPABASE_URL:'https://test.invalid',SUPABASE_SERVICE_ROLE_KEY:'test',HUNTER_API_KEY:'test'}},fetch:deps.fetch,console,Date});return module.exports}
-const patterns=load('lib/email-patterns.ts');
+const patterns=load('lib/email-patterns.ts'),plans=load('lib/plans.ts');
 test('supports real company formats without accepting arbitrary templates',()=>{
  assert.equal(patterns.predictEmail('Jane','Smith','https://www.example.com/','{f}{last}'),'jsmith@example.com');
  assert.equal(patterns.predictEmail('José',"O’Neill",'example.com','{first}.{last}'),'jose.oneill@example.com');
@@ -22,8 +22,8 @@ function harness({user=true,contact=null,cache=null,company=null,reserved=true,p
   if(key==='then')return(resolve,reject)=>Promise.resolve(result()).then(resolve,reject);
   if(key==='single'||key==='maybeSingle')return async()=>result();
   return(...args)=>{calls.push([table,key,...args]);return chain}
- }});return chain},async rpc(){credits++;return {data:reserved&&!reservationFails,error:null}}};
- const resolver=load('lib/resolve-email.ts',{'next/server':{NextResponse:{json:(body,init)=>Response.json(body,init)}},'./server-auth':{authenticate:async()=>user?{db,user:{id:'u1'}}:null},'./email-patterns':patterns,'./company-data':{approvedCompanyPattern:async()=>company?.[0]?.data?{...company[0].data,evidence:'Test reviewed pattern'}:null,recordCompanySearch:async()=>{}},fetch:async()=>{fetched++;if(providerThrows)throw new Error('timeout');if(providerFail)return Response.json({}, {status:502});return Response.json({data:{email:providerEmail,status:'accept_all',score:93}})}}).resolveEmail;
+ }});return chain},async rpc(name){calls.push(['rpc',name]);if(name==='get_hirely_entitlements')return {data:{plan:'solo',email_limit:reserved?10:0,email_used:usage},error:quotaError?{message:'unavailable'}:null};credits++;return {data:reserved&&!reservationFails,error:null}}};
+ const resolver=load('lib/resolve-email.ts',{'next/server':{NextResponse:{json:(body,init)=>Response.json(body,init)}},'./server-auth':{authenticate:async()=>user?{db,user:{id:'u1'}}:null},'./email-patterns':patterns,'./plans':plans,'./company-data':{approvedCompanyPattern:async()=>company?.[0]?.data?{...company[0].data,evidence:'Test reviewed pattern'}:null,recordCompanySearch:async()=>{}},fetch:async()=>{fetched++;if(providerThrows)throw new Error('timeout');if(providerFail)return Response.json({}, {status:502});return Response.json({data:{email:providerEmail,status:'accept_all',score:93}})}}).resolveEmail;
  const run=body=>resolver(new Request('http://localhost/api/enrich',{method:'POST',body:JSON.stringify(body)}));
  return{run,writes,calls,get fetched(){return fetched},get credits(){return credits}};
 }
@@ -44,7 +44,7 @@ test('no-result search uses zero credits',async()=>{const h=harness({providerEma
 test('provider failure uses zero credits',async()=>{const h=harness({providerFail:true});const response=await h.run(person);assert.equal(response.status,502);assert.equal(h.credits,0);assert.match((await response.json()).error,/No credit used/)});
 test('provider timeout uses zero credits',async()=>{const h=harness({providerThrows:true});const response=await h.run(person);assert.equal(response.status,502);assert.equal(h.credits,0);assert.match((await response.json()).error,/No credit used/)});
 
-test('exhausted current-month usage stops provider calls',async()=>{const h=harness({usage:10});assert.equal((await h.run(person)).status,402);assert.equal(h.fetched,0);assert.equal(h.credits,0);assert.ok(h.calls.some(c=>c[0]==='hirely_usage'&&c[1]==='eq'&&c[2]==='month'&&c[3]===new Date().toISOString().slice(0,7)+'-01'))});
+test('exhausted current-month usage stops provider calls',async()=>{const h=harness({usage:10});assert.equal((await h.run(person)).status,402);assert.equal(h.fetched,0);assert.equal(h.credits,0);assert.ok(h.calls.some(c=>c[0]==='rpc'&&c[1]==='get_hirely_entitlements'))});
 test('quota lookup failure stops provider calls without charging',async()=>{const h=harness({quotaError:true});assert.equal((await h.run(person)).status,503);assert.equal(h.fetched,0);assert.equal(h.credits,0)});
 test('malformed provider email is not a billable result',async()=>{for(const email of [' ',{},'not-an-email']){const h=harness({providerEmail:email});assert.equal((await(await h.run(person)).json()).creditsUsed,0);assert.equal(h.credits,0)}});
 test('atomic reservation prevents a result from bypassing a concurrent quota exhaustion',async()=>{const h=harness({reservationFails:true});assert.equal((await h.run(person)).status,402);assert.equal(h.fetched,1);assert.equal(h.credits,1)});

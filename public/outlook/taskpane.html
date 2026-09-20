@@ -196,7 +196,7 @@
         activity: [{ type: "created", source: "Outlook Add-in", date: new Date().toISOString() }]
       };
 
-      const res = await fetch(`${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts`, {
+      const res = await fetch('/api/outlook/contacts', {
         method: "POST",
         headers: {
           apikey: HIRELY_CONFIG.SUPABASE_ANON_KEY,
@@ -207,7 +207,7 @@
         body: JSON.stringify(body)
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || "Failed to save contact to Hirely.");
+      if (!res.ok) throw new Error(data.error || data.message || "Failed to save contact to Hirely.");
       return Array.isArray(data) ? data[0] : data;
     }
 

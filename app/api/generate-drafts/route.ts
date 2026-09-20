@@ -1,31 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-// ── Auth helper ───────────────────────────────────────────────────────────
-async function getAuthenticatedUser(req: NextRequest) {
-  const authHeader = req.headers.get('authorization')
-  const token = authHeader?.replace('Bearer ', '')
-  if (!token) return null
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-  const { data: { user }, error } = await supabase.auth.getUser(token)
-  if (error || !user) return null
-  return user
-}
+import { authenticate } from '@/lib/server-auth'
 
 export async function POST(req: NextRequest) {
   try {
     // ── Auth check ────────────────────────────────────────────────────────
-    const user = await getAuthenticatedUser(req)
-    if (!user) {
+    const auth = await authenticate(req)
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { firstName, lastName, company, jobTitle, originalEmail } = await req.json()
 
-    if (!firstName) {
+    if (typeof firstName !== 'string' || !firstName.trim() || [firstName,lastName,company,jobTitle,originalEmail].some(v=>v != null && (typeof v !== 'string' || v.length>20000))) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
@@ -60,8 +46,12 @@ Respond with ONLY a JSON array of exactly 3 objects, no markdown fences, no prea
   {"label": "Final attempt", "timing": "Final", "body": "..."}
 ]`
 
+    const { data: credit, error: creditError } = await auth.db.rpc('reserve_hirely_credit', {feature:'draft'})
+    if (creditError) return NextResponse.json({error:'Draft limits unavailable. No AI request made.'},{status:503})
+    if (!credit) return NextResponse.json({error:'Your plan has no draft generations remaining this month. Upgrade for more.'},{status:402})
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
+      signal: AbortSignal.timeout(45000),
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': anthropicKey,

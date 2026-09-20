@@ -80,7 +80,7 @@ export default function AddContactModal({ onClose, onAdd }: AddContactModalProps
           </div>
 
           <div>
-            <label className={lbl}>Work email <span className="text-slate-400 font-normal">(leave blank - Apollo will find it)</span></label>
+            <label className={lbl}>Work email <span className="text-slate-400 font-normal">(optional — use Email finder after saving)</span></label>
             <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="sarah@rogers.com" className={inp} />
           </div>
 

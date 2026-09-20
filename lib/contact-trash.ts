@@ -5,7 +5,7 @@ export async function setContactTrashed(db: any, userId: string, id: string | nu
     .eq('id', id).eq('user_id', userId)
   query = trashed ? query.is('deleted_at', null) : query.not('deleted_at', 'is', null)
   const { data, error } = await query.select('id').maybeSingle()
-  if (error) throw new Error('Could not change this contact. Try again or contact support.')
+  if (error) throw new Error(error.code==='P0001'?error.message:'Could not change this contact. Try again or contact support.')
   if (!data) throw new Error('Contact changed or is no longer available. Refresh and try again.')
   return data
 }

@@ -2,6 +2,7 @@
 import {useEffect,useState} from 'react'
 import {supabase} from '@/lib/supabase'
 import {Contact} from '@/types'
+import PlanUsage from './PlanUsage'
 const AUDIO_UPLOADS_ENABLED = false
 type Meeting={id:string;title:string;meeting_type:string;raw_notes:string;summary:string|null;contact_id:number|null;created_at:string;status:string}
 export default function MeetView({contacts}:{contacts:Contact[]}){
@@ -17,7 +18,7 @@ export default function MeetView({contacts}:{contacts:Contact[]}){
  async function save(action:string){
   setBusy(true);setMessage('')
   try{const r=await fetch('/api/meet',{method:'POST',headers:await headers(),body:JSON.stringify({id,title,notes,meeting_type:kind,contactId:contactId||null,action})});const d=await r.json();if(d.summary)setSummary(d.summary);if(!r.ok)throw new Error(d.error);setSummary(d.meeting?.summary||'');await load();setMessage(action==='save'?'Meeting notes saved.':'Summary saved. Review it against your notes.')}
-  catch(e){setMessage(e instanceof Error?e.message:'Could not save meeting')}finally{setBusy(false)}
+  catch(e){setMessage(e instanceof Error?e.message:'Could not save meeting')}finally{setBusy(false);window.dispatchEvent(new Event('hirely:credits-changed'))}
  }
  async function transcribeAudio(){
   if(!audioFile||busy)return
@@ -59,6 +60,7 @@ export default function MeetView({contacts}:{contacts:Contact[]}){
  const kinds:Record<string,string>={client_intake:'Client intake',candidate_interview:'Candidate interview',internal_debrief:'Internal debrief'}
  const filtered=meetings.filter(m=>m.title.toLowerCase().includes(meetingQuery.toLowerCase()))
  return <section className="max-w-[1440px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+  <PlanUsage />
   <header className="flex flex-wrap items-center justify-between gap-4">
    <div className="flex items-center gap-3.5"><div className="w-12 h-12 rounded-2xl bg-violet-100 text-violet-600 flex items-center justify-center"><svg aria-hidden="true" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="5" width="13" height="14" rx="3"/><path d="m16 10 5-3v10l-5-3"/></svg></div><div><h2 className="text-2xl font-bold tracking-tight text-slate-900">Hirely Meet</h2><p className="text-sm text-slate-500 mt-1">Every conversation, ready for the next step.</p></div></div>
    <button disabled={busy} onClick={fresh} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-blue-200 transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50"><span aria-hidden="true" className="text-xl leading-none">+</span>New meeting</button>

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { approvedCompanyPattern, recordCompanySearch } from './company-data'
 import { authenticate } from './server-auth'
+import { getEntitlements } from './plans'
 import { isFresh, normalizeDomain, normalizeName, predictEmail, providerStatus, EmailStatus } from './email-patterns'
 
 export async function resolveEmail(request: Request) {
@@ -78,13 +79,10 @@ async function resolveEmailInternal(request:Request,event:{company:string;domain
   if (!key) return NextResponse.json({ error: 'Email search is temporarily unavailable. No credit used.' }, { status: 503 })
   // Check before calling the provider, but only consume a credit in finish().
   // The atomic reservation there remains authoritative if requests race.
-  const month = new Date().toISOString().slice(0, 7) + '-01'
-  const [limits, usage] = await Promise.all([
-    db.from('hirely_limits').select('email_limit').eq('user_id', user.id).maybeSingle(),
-    db.from('hirely_usage').select('used').eq('user_id', user.id).eq('month', month).eq('feature', 'email').maybeSingle(),
-  ])
-  if (limits.error || usage.error) return NextResponse.json({ error: 'Credit controls unavailable. No credit used.', creditsUsed: 0 }, { status: 503 })
-  if ((usage.data?.used ?? 0) >= (limits.data?.email_limit ?? 10)) return NextResponse.json({ error: 'Monthly email credit limit reached.', creditsUsed: 0 }, { status: 402 })
+  let entitlement
+  try { entitlement = await getEntitlements(db) }
+  catch { return NextResponse.json({ error: 'Credit controls unavailable. No credit used.', creditsUsed: 0 }, { status: 503 }) }
+  if (entitlement.email_used >= entitlement.email_limit) return NextResponse.json({ error: 'Monthly email credit limit reached.', creditsUsed: 0 }, { status: 402 })
   try {
     const params = new URLSearchParams({ api_key: key })
     if (action === 'verify') params.set('email', candidate)
