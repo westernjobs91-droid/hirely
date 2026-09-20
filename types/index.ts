@@ -35,4 +35,4 @@ export interface AIDraft {
   body: string
 }
 
-export type NavItem = 'dashboard' | 'contacts' | 'followups' | 'ai-drafts' | 'analytics' | 'enrichment' | 'meet' | 'settings'
+export type NavItem = 'dashboard' | 'contacts' | 'followups' | 'ai-drafts' | 'analytics' | 'enrichment' | 'meet' | 'settings' | 'trash'

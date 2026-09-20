@@ -1,4 +1,4 @@
-/* Hirely Capture v4.8: complete content.js replacement.
+/* Hirely Capture v5.0: complete content.js replacement.
  * Requires your existing HIRELY_CONFIG and background message handlers.
  * This file includes the scraper; do not also load the old scraper/content.js.
  * Conservative extraction: title/company stay paired; past jobs are never
@@ -112,11 +112,28 @@ var HirelyEngine = (() => {
     return clone;
   }
 
+  function findProfileCard(doc) {
+    const main = doc.querySelector('main, [role="main"]');
+    if (!main) return null;
+    const modern = main.querySelector('[componentkey$="Topcard"]');
+    if (modern && !modern.closest(excluded)) return modern;
+    // Independent fallback: a bounded profile introduction with contact info,
+    // a profile photo, and exactly one visible heading. Never use page metadata.
+    for (const link of main.querySelectorAll('a[href*="/overlay/contact-info"]')) {
+      if (link.closest(excluded)) continue;
+      for (let card = link.parentElement; card && card !== main; card = card.parentElement) {
+        const headings = Array.from(card.querySelectorAll('h1,h2')).filter(n => !hidden(n) && !n.closest(excluded) && textOf(n));
+        if (headings.length > 1) break;
+        if (headings.length === 1 && card.querySelector('[aria-label="Profile photo" i]')) return card;
+      }
+    }
+    return null;
+  }
   function findProfileHeading(doc) {
     const main = doc.querySelector('main, [role="main"]');
     if (!main) return null;
-    const modern = main.querySelector('section[componentkey$="Topcard"]');
-    return Array.from((modern || main).querySelectorAll(modern ? 'h1, h2' : 'h1')).find(n => !n.closest(excluded) && !hidden(n) && textOf(n)) || null;
+    const card = findProfileCard(doc);
+    return Array.from((card || main).querySelectorAll(card ? 'h1, h2' : 'h1')).find(n => !n.closest(excluded) && !hidden(n) && textOf(n)) || null;
   }
   function modernExperience(section) {
     const items = Array.from(section.querySelectorAll('[componentkey^="entity-collection-item-"]'));
@@ -148,7 +165,10 @@ var HirelyEngine = (() => {
   function findExperience(doc) {
     const main = doc.querySelector('main, [role="main"]');
     if (!main) return null;
-    const anchor = main.querySelector('section[componentkey$="ExperienceTopLevelSection"], #experience, section[id*="experience" i]');
+    // SDUI component keys are stable across section/div wrapper changes.
+    const modern = main.querySelector('[componentkey$="ExperienceTopLevelSection"]');
+    if (modern && !modern.closest(excluded)) return modern;
+    const anchor = main.querySelector('#experience, section[id*="experience" i]');
     if (anchor && !anchor.closest(excluded)) return anchor.closest('section') || anchor;
     const h = Array.from(main.querySelectorAll('h2, h3')).find(n => /^(experience|expérience|experiencia|berufserfahrung)$/i.test(textOf(n)) && !n.closest(excluded));
     return h?.closest('section') || null;
@@ -266,12 +286,12 @@ var HirelyEngine = (() => {
       result.reviewReason = 'Sign in to LinkedIn to read this profile’s current Experience.';
       return result;
     }
-    // Bound the intro to the smallest enclosing section; never scan all main
-    // text for company guesses or use stale document titles after SPA navigation.
-    const card = h1.closest('section') || h1.parentElement;
+    // Bind to the identified top card, regardless of its HTML tag. Never
+    // scan the rest of main for headlines, company badges, or profile photos.
+    const card = findProfileCard(doc) || h1.closest('section') || h1.parentElement;
     const headlineEl = card.querySelector('[data-anonymize="headline"], .pv-text-details__left-panel .text-body-medium, .text-body-medium.break-words, .text-body-medium');
     result.headline = textOf(headlineEl);
-    if (!result.headline && card.matches('section[componentkey$="Topcard"]')) {
+    if (!result.headline && card === findProfileCard(doc)) {
       const p = Array.from(card.querySelectorAll('p')).find(n => (h1.compareDocumentPosition(n) & 4) && !n.closest('a,button,[role="button"]') && !/^[·•\s]*(?:(?:1st|2nd|3rd)\+?|she\/her|he\/him|they\/them)[·•\s]*$/i.test(textOf(n)) && textOf(n));
       result.headline = textOf(p);
     }
@@ -286,12 +306,26 @@ var HirelyEngine = (() => {
     result.experiences = positions;
     const role = resolveRole(positions, badge, result.headline);
     Object.assign(result, role, {sources:{...result.sources,...role.sources}});
-    result.photo = extractProfilePhoto(main?.querySelector('section[componentkey$="Topcard"]') || card, result.name);
+    result.photo = extractProfilePhoto(card, result.name);
     result.trace.push(result.title && result.company ? `Selected ${result.sources.company}` : 'Current role uncertain; review empty fields');
     return result;
   }
+  function safeScrapeProfile(doc, url) {
+    try {
+      const result = scrapeProfile(doc, url);
+      result.extractionStatus = result.name ? 'ready' : 'unavailable';
+      if (!result.name) result.reviewReason = 'Could not read this profile yet. Retry, or enter the details manually below.';
+      return result;
+    } catch {
+      // Never let a DOM change break the panel or reuse a previous profile.
+      return {...emptyResult(), url, extractionStatus:'error', reviewReason:'LinkedIn profile reading failed. Retry, or enter the details manually below.', trace:['extraction-error']};
+    }
+  }
+  function canSaveProfile(data) {
+    return !data.publicProfile && !!clean(data.firstName) && !/^(unknown|profile unavailable)$/i.test(clean(data.firstName));
+  }
   function fieldsPass(got, expected) { const r = {}; for (const k of ['name','title','company']) r[k] = same(got[k], expected[k]); r.all = r.name && r.title && r.company; return r; }
-  return {extractProfilePhoto, findProfileHeading, findExperience, scrapeProfile, parseExperience, splitTitleAndCompany, stripDegree, splitName, selectCurrentRole, resolveRole, stripEmployment, uniqueRoles, isPronounOrDegree, textOf, emptyResult, fieldsPass, companyQuality: s => validLabel(s) ? 3 : 0, version:'4.8'};
+  return {safeScrapeProfile, canSaveProfile, extractProfilePhoto, findProfileHeading, findExperience, scrapeProfile, parseExperience, splitTitleAndCompany, stripDegree, splitName, selectCurrentRole, resolveRole, stripEmployment, uniqueRoles, isPronounOrDegree, textOf, emptyResult, fieldsPass, companyQuality: s => validLabel(s) ? 3 : 0, version:'5.0'};
 })();
 var HirelyScrape = HirelyEngine;
 if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.HirelyScrape = HirelyScrape; }
@@ -493,7 +527,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
 
   const textOfHeading = n => (n.textContent || '').trim().toLowerCase();
   function scrapeProfile() {
-    return {...HirelyEngine.scrapeProfile(document, canonicalUrl(location.href)), email: ''};
+    return {...HirelyEngine.safeScrapeProfile(document, canonicalUrl(location.href)), email: ''};
   }
   function syncDraft(state) {
     if (!liveProfile(state)) return;
@@ -506,7 +540,27 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
     }
   }
   function applyScrapeToForm(better, state) {
-    if (state?.saving || !liveProfile(state) || !better?.name || canonicalUrl(better.url) !== state.url) return;
+    if (state?.saving || !liveProfile(state) || !better || canonicalUrl(better.url) !== state.url) return;
+    state.data.extractionStatus = better.extractionStatus;
+    if (!better.name) {
+      state.data.reviewReason = better.reviewReason;
+      for (const field of ['firstName','lastName','title','company','headline','photo']) {
+        if (!state.dirty.has(field)) state.data[field] = '';
+      }
+      state.data.name = [state.data.firstName,state.data.lastName].filter(Boolean).join(' ');
+      state.data.experiences = [];
+      for (const [id, field] of Object.entries(fieldMap)) {
+        const input = panel.querySelector('#' + id);
+        if (input && !state.dirty.has(field)) input.value = state.data[field] || '';
+      }
+      for (const [selector, value] of [['.hirely-profile-name', state.data.name || 'Profile unavailable'], ['.hirely-profile-sub',state.data.title], ['.hirely-profile-company',state.data.company]]) {
+        const node = panel.querySelector(selector); if (node) node.textContent = value;
+      }
+      const avatar = panel.querySelector('.hirely-avatar');
+      if (avatar) { const placeholder = document.createElement('div'); placeholder.className='hirely-avatar-fallback'; placeholder.textContent='?'; avatar.replaceWith(placeholder); }
+      renderRoleOptions(state);
+      return;
+    }
     if (navigationIdentity !== null) {
       if (profileIdentity() === navigationIdentity) return;
       navigationIdentity = null;
@@ -591,7 +645,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
       applyScrapeToForm(scrapeProfile(), state);
       await new Promise(resolve => setTimeout(resolve, 500));
     }
-    if (liveProfile(state)) logProfileView(state.data);
+    if (liveProfile(state) && state.data.name) logProfileView(state.data);
   }
 
   function sendMsg(msg, timeoutMs=5000) {
@@ -717,7 +771,8 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
         const name = tabBody.querySelector('.hirely-profile-name');
         if (sub) sub.textContent = state.data.title || '';
         if (co) co.textContent = state.data.company || '';
-        if (name) name.textContent = state.data.name || '';
+        if (name) name.textContent = state.data.name || 'Profile unavailable';
+        renderRoleOptions(state);
       }
     });
     Promise.all([Promise.resolve(null), sendMsg({type:'HIRELY_CHECK_CONTACT', url})]).then(([enriched, check]) => {
@@ -744,11 +799,11 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
     if (!liveProfile(state) || state.tab !== 'save') return;
     const note = panel.querySelector('.hirely-role-note');
     if (note) {
-      const message = !state.data.publicProfile && (state.dirty.has('title') || state.dirty.has('company')) ? 'Using your selected or edited role. Review the details before saving.' : state.data.reviewReason || '';
+      const message = state.data.extractionStatus !== 'ready' ? state.data.reviewReason : !state.data.publicProfile && (state.dirty.has('title') || state.dirty.has('company')) ? 'Using your selected or edited role. Review the details before saving.' : state.data.reviewReason || '';
       note.textContent = message; note.hidden = !message;
     }
     const save = panel.querySelector('#hsb');
-    if (save && !state.saving) save.disabled = !!state.data.publicProfile;
+    if (save && !state.saving) save.disabled = !HirelyEngine.canSaveProfile(state.data);
     const slot = panel.querySelector('.hirely-role-options');
     if (!slot) return;
     const roles = (state.data.experiences || []).filter(r => r.present);
@@ -782,7 +837,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
     const fields=container.querySelector('.hirely-fields-edit');
     const manual=container.querySelector('#hei')?.closest('.hirely-field');
     if(fields){
-      const edit=disclosure('Edit profile details');edit.open=!!state.editing;
+      const edit=disclosure('Edit profile details');edit.open=!!state.editing || !data.name;
       fields.before(edit);edit.appendChild(fields);
       const read=container.querySelector('#hirely-read-role');if(read)edit.appendChild(read);
       edit.addEventListener('toggle',()=>{state.editing=edit.open;});
@@ -831,6 +886,12 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
     const sourceTag='';
 
     if(existing){
+      if (existing.deleted_at) {
+        container.innerHTML = '<div class="hirely-profile-name">'+escapeHtml([existing.first_name,existing.last_name].filter(Boolean).join(' '))+'</div>'+
+          '<p>This contact is in Trash. Open Hirely and choose Trash in the sidebar to restore it with its saved details.</p>'+
+          '<a class="hirely-btn" href="'+HIRELY_CONFIG.API_BASE+'" target="_blank">Open Hirely CRM &#x2197;</a>';
+        return;
+      }
       const columnLabel=COLUMN_LABELS[existing.column_name]||existing.column_name||"Pipeline";
       const statusLabel=existing.email_status==="predicted"?"Predicted: inbox not checked":"Check email status in Hirely";
       const emailDisplay=existing.email
@@ -873,7 +934,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
       container.innerHTML=sourceTag+
         '<div class="hirely-pipeline-badge new-contact"><span class="hirely-badge-dot"></span>New contact</div>'+
         '<div class="hirely-profile-card">'+avatarHtml+
-        '<div class="hirely-profile-info"><div class="hirely-profile-name">'+escapeHtml(data.name||"Unknown")+"</div>"+
+        '<div class="hirely-profile-info"><div class="hirely-profile-name">'+escapeHtml(data.name||"Profile unavailable")+"</div>"+
         '<div class="hirely-profile-sub">'+escapeHtml(displayTitle)+"</div>"+
         '<div class="hirely-profile-company">'+escapeHtml(data.company||"")+"</div></div></div>"+
         (data.email?'<div class="hirely-email-row">&#x2709; <span class="hirely-email-val">'+escapeHtml(data.email)+'</span><button class="hirely-copy-btn" data-copy="'+escapeAttr(data.email)+'">Copy</button></div>':"")+
@@ -886,6 +947,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
         '<div class="hirely-field"><label>Work email: enter if known</label><input type="email" id="hei" value="'+escapeAttr(data.email||'')+'" placeholder="name@company.com" /><small>Leave blank to save without an email, or use the email search above.</small></div>'+
         "</div>"+
         '<button class="hirely-text-btn" id="hirely-read-role" style="margin-bottom:10px">Read current role from Experience</button>'+
+        '<button class="hirely-text-btn" id="hirely-retry-profile">Retry reading profile</button>'+
         '<button class="hirely-btn" id="hsb">Save contact</button>'+
         '<div class="hirely-status" id="hss"></div>'+
         '<button class="hirely-find-email-btn" id="hfeb2">Find email (1 credit)</button>';
@@ -896,6 +958,11 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
       });
 
       renderRoleOptions(state);
+      container.querySelector('#hirely-retry-profile')?.addEventListener('click', () => {
+        if (!valid() || state.saving) return;
+        applyScrapeToForm(scrapeProfile(), state);
+        readCurrentExperience(state).catch(() => {});
+      });
       container.querySelector('#hirely-read-role')?.addEventListener('click', () => {
         experienceScrollTarget()?.scrollIntoView({block:'start',behavior:'smooth'});
         applyScrapeToForm(scrapeProfile(), state);
@@ -916,7 +983,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
         if (!valid()) return;
         if (state.data.publicProfile) { showStatus(statusEl,'Sign in to LinkedIn before saving this profile.','error'); return; }
         if(payload.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)){showStatus(statusEl,"Enter a valid email or leave it blank.","error");return;}
-        if(!payload.firstName){showStatus(statusEl,"First name is required.","error");return;}
+        if(!HirelyEngine.canSaveProfile({...state.data, firstName:payload.firstName})){showStatus(statusEl,"Enter a valid first name before saving.","error");return;}
         state.saving = true;
         btn.disabled=true;btn.textContent="Saving...";
         const res=await sendMsg({type:"HIRELY_SAVE_CONTACT",payload});
@@ -925,6 +992,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
         btn.disabled=false;
         if(res.ok){state.existing=res.contact; if(!state.existing){showStatus(statusEl,"Saved. Open Hirely to view your contact.","success");btn.textContent="Saved";btn.disabled=true;return;} await renderSaveTab(container,session,data,state.existing);}
         else if(res.error==="ALREADY_EXISTS") showStatus(statusEl,"Saved to your CRM.","info");
+        else if(res.error==="CONTACT_IN_TRASH") { state.existing=res.contact; await renderSaveTab(container,session,data,state.existing); }
         else if(res.error==="NOT_LOGGED_IN") renderLogin();
         else{btn.textContent="Save contact";showStatus(statusEl,res.error||"Something went wrong.","error");}
       });

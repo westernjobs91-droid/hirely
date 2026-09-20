@@ -73,7 +73,7 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
                 </summary>
                 <div className="absolute right-0 top-8 z-20 w-36 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
-                  <button onClick={() => onDelete(contact.id)} className="w-full rounded-lg px-3 py-2 text-left text-[11px] font-semibold text-red-600 hover:bg-red-50">Delete contact</button>
+                  <button onClick={() => onDelete(contact.id)} className="w-full rounded-lg px-3 py-2 text-left text-[11px] font-semibold text-red-600 hover:bg-red-50">Move to Trash</button>
                 </div>
               </details>
             )}

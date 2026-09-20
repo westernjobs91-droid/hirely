@@ -8,7 +8,8 @@ export async function POST(req: NextRequest) {
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } }
   )
   const { data: { user }, error: authError } = await supabase.auth.getUser(token)
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -28,6 +29,7 @@ export async function POST(req: NextRequest) {
       .select('first_name, last_name, job_title, company')
       .eq('linkedin_url', cleanUrl)
       .eq('user_id', user.id)
+      .is('deleted_at', null)
       .single()
 
     if (cached?.first_name) {

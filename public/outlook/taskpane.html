@@ -155,10 +155,10 @@
 
     async function findExisting(session, email) {
       const res = await fetch(
-        `${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?select=id,first_name,last_name&user_id=eq.${session.user.id}&email=eq.${encodeURIComponent(email)}`,
+        `${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?select=id,first_name,last_name,deleted_at&user_id=eq.${session.user.id}&email=eq.${encodeURIComponent(email)}`,
         { headers: { apikey: HIRELY_CONFIG.SUPABASE_ANON_KEY, Authorization: `Bearer ${session.access_token}` } }
       );
-      if (!res.ok) return null;
+      if (!res.ok) throw new Error("Could not check saved contacts. Please retry.");
       const data = await res.json().catch(() => []);
       return Array.isArray(data) && data.length > 0 ? data[0] : null;
     }
@@ -170,7 +170,7 @@
       if (payload.email) {
         const existing = await findExisting(session, payload.email);
         if (existing) {
-          const err = new Error("ALREADY_EXISTS");
+          const err = new Error(existing.deleted_at ? "This contact is in Trash. Restore it in Hirely before saving again." : "ALREADY_EXISTS");
           err.contact = existing;
           throw err;
         }

@@ -22,7 +22,7 @@ async function resolveEmailInternal(request:Request,event:{company:string;domain
   if (!['predict', 'find', 'verify'].includes(action)) return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
   let contact: any = null
   if (body.contactId != null) {
-    const { data, error } = await db.from('contacts').select('*').eq('id', body.contactId).eq('user_id', user.id).maybeSingle()
+    const { data, error } = await db.from('contacts').select('*').eq('id', body.contactId).eq('user_id', user.id).is('deleted_at', null).maybeSingle()
     if (error || !data) return NextResponse.json({ error: 'Contact not found' }, { status: 404 })
     contact = data
   }
@@ -51,7 +51,7 @@ async function resolveEmailInternal(request:Request,event:{company:string;domain
     if (contact) {
       const { data, error } = await db.from('contacts').update({ email, enriched: true, email_status: status,
         email_source: source, email_checked_at: checkedAt, email_evidence: evidence, email_confidence: score,
-      }).eq('id', contact.id).eq('user_id', user.id).select('id').single()
+      }).eq('id', contact.id).eq('user_id', user.id).is('deleted_at', null).select('id').single()
       if (error || !data) return NextResponse.json({ error: 'Email found but could not be saved. Check the database migration.', candidate: result }, { status: 503 })
     }
     return NextResponse.json(result)

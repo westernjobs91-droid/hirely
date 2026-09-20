@@ -1,9 +1,9 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-function setup({expired=false,refreshOK=true,photoRows=[{id:7}]}={}){
+function setup({expired=false,refreshOK=true,photoRows=[{id:7}],existingRows=[],readOK=true}={}){
  let listener,stored={access_token:'old',refresh_token:'refresh',expires_at:expired?0:Date.now()+3600000,user:{id:'owner'}};const requests=[];
  const ctx={importScripts(){},HIRELY_CONFIG:{SUPABASE_URL:'https://db.example',SUPABASE_ANON_KEY:'public',API_BASE:'https://app.example'},Date,URL,console,
  chrome:{storage:{local:{get:async()=>({hirely_session:stored}),set:async v=>{stored=v.hirely_session},remove:async()=>{stored=null}}},runtime:{onMessage:{addListener:f=>listener=f},onInstalled:{addListener(){}}},action:{onClicked:{addListener(){}}},tabs:{}},
- fetch:async(url,options={})=>{requests.push({url,options});if(url.includes('grant_type=refresh_token'))return Response.json(refreshOK?{access_token:'fresh',refresh_token:'next',expires_in:3600}:{error:'expired'},{status:refreshOK?200:401});if(options.method==='PATCH')return Response.json(photoRows);if(url.includes('find-email'))return Response.json({ok:false,needsPaidLookup:true,message:'No saved company pattern.'});return Response.json([])}};
+ fetch:async(url,options={})=>{requests.push({url,options});if(url.includes('grant_type=refresh_token'))return Response.json(refreshOK?{access_token:'fresh',refresh_token:'next',expires_in:3600}:{error:'expired'},{status:refreshOK?200:401});if(options.method==='PATCH')return Response.json(photoRows);if(url.includes('find-email'))return Response.json({ok:false,needsPaidLookup:true,message:'No saved company pattern.'});return Response.json(readOK?existingRows:{error:'unavailable'},{status:readOK?200:503})}};
  vm.createContext(ctx);vm.runInContext(fs.readFileSync('hirely-extension/background.js','utf8'),ctx);
  return {requests,ctx,run:msg=>new Promise(resolve=>listener(msg,{},resolve))};
 }
@@ -23,3 +23,15 @@ test('open panel survives profile to search to profile navigation',()=>{
 
 test('paid extension search requires an explicit paid choice',async()=>{const h=setup();const r=await h.run({type:'HIRELY_FIND_EMAIL',action:'find',firstName:'Jane',company:'Example'});assert.equal(r.ok,false);assert.equal(h.requests.length,0)});
 test('explicit paid extension choice reaches the shared resolver',async()=>{const h=setup();await h.run({type:'HIRELY_FIND_EMAIL',action:'find',allowPaid:true,firstName:'Jane',company:'Example'});const b=JSON.parse(h.requests[0].options.body);assert.equal(b.action,'find');assert.equal(b.allowPaid,true)});
+
+test('trashed LinkedIn contacts are identified and cannot be saved again',async()=>{
+ const h=setup({existingRows:[{id:7,first_name:'Jane',deleted_at:'2026-09-19T00:00:00Z'}]});
+ const check=await h.run({type:'HIRELY_CHECK_CONTACT',url:'https://www.linkedin.com/in/jane'});assert.ok(check.contact.deleted_at);
+ const result=await h.run({type:'HIRELY_SAVE_CONTACT',payload:{firstName:'Jane',url:'https://www.linkedin.com/in/jane'}});
+ assert.equal(result.error,'CONTACT_IN_TRASH');assert.equal(h.requests.some(r=>r.options.method==='POST'),false);
+});
+test('failed duplicate check never allows a blind contact insert',async()=>{
+ const h=setup({readOK:false});const result=await h.run({type:'HIRELY_SAVE_CONTACT',payload:{firstName:'Jane',url:'https://www.linkedin.com/in/jane'}});
+ assert.equal(result.ok,false);assert.equal(h.requests.some(r=>r.options.method==='POST'),false);
+});
+test('photo writes explicitly exclude trashed contacts',async()=>{const h=setup();await h.run({type:'HIRELY_SAVE_PHOTO',contactId:7,photo:'https://media.licdn.com/test.jpg'});assert.match(h.requests[0].url,/deleted_at=is.null/)});

@@ -19,7 +19,7 @@ export async function POST(request:Request) {
   return NextResponse.json({error:'Enter a title, meeting type and notes (up to 40,000 characters).'},{status:400})
  const {db,user}=auth
  if(contactId){
-  const {data}=await db.from('contacts').select('id').eq('id',contactId).eq('user_id',user.id).maybeSingle()
+  const {data}=await db.from('contacts').select('id').eq('id',contactId).eq('user_id',user.id).is('deleted_at',null).maybeSingle()
   if(!data)return NextResponse.json({error:'Contact not found'},{status:404})
  }
  const {data:old,error:readError}=await db.from('hirely_meetings').select('*').eq('id',id).eq('user_id',user.id).maybeSingle()

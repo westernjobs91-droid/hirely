@@ -94,7 +94,7 @@ function pickColor(seed) {
 
 async function findExisting(session, url) {
   const res = await fetch(
-    `${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?select=id,first_name,last_name&user_id=eq.${session.user.id}&linkedin_url=eq.${encodeURIComponent(url)}`,
+    `${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?select=id,first_name,last_name,deleted_at&user_id=eq.${session.user.id}&linkedin_url=eq.${encodeURIComponent(url)}`,
     {
       headers: {
         apikey: HIRELY_CONFIG.SUPABASE_ANON_KEY,
@@ -102,7 +102,7 @@ async function findExisting(session, url) {
       }
     }
   );
-  if (!res.ok) return null;
+  if (!res.ok) throw new Error("Could not check saved contacts. Please retry before saving.");
   const data = await res.json();
   return Array.isArray(data) && data.length > 0 ? data[0] : null;
 }
@@ -114,7 +114,7 @@ async function saveContact(payload) {
 
   const existing = await findExisting(session, payload.url);
   if (existing) {
-    const err = new Error("ALREADY_EXISTS");
+    const err = new Error(existing.deleted_at ? "CONTACT_IN_TRASH" : "ALREADY_EXISTS");
     err.contact = existing;
     throw err;
   }
@@ -287,7 +287,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         const session=await refreshIfNeeded(await getSession());
         if(!session)throw new Error('NOT_LOGGED_IN');
         if(!msg.contactId||!/^https:\/\//i.test(msg.photo||''))throw new Error('A contact and profile photo are required.');
-        const res=await fetch(`${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?id=eq.${encodeURIComponent(msg.contactId)}&user_id=eq.${session.user.id}`,{
+        const res=await fetch(`${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?deleted_at=is.null&id=eq.${encodeURIComponent(msg.contactId)}&user_id=eq.${session.user.id}`,{
           method:'PATCH',headers:{apikey:HIRELY_CONFIG.SUPABASE_ANON_KEY,Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({photo_url:msg.photo})
         });
         const rows=await res.json();
@@ -328,7 +328,7 @@ async function checkContact(url) {
   if (!session) return null;
 
   const res = await fetch(
-    `${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?select=id,first_name,last_name,email,email_status,email_source,email_evidence,email_checked_at,email_confidence,photo_url,job_title,company,column_name,status_label&user_id=eq.${session.user.id}&linkedin_url=eq.${encodeURIComponent(url)}&limit=1`,
+    `${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?select=id,first_name,last_name,email,email_status,email_source,email_evidence,email_checked_at,email_confidence,photo_url,job_title,company,column_name,status_label,deleted_at&user_id=eq.${session.user.id}&linkedin_url=eq.${encodeURIComponent(url)}&limit=1`,
     {
       headers: {
         apikey: HIRELY_CONFIG.SUPABASE_ANON_KEY,
@@ -336,7 +336,7 @@ async function checkContact(url) {
       }
     }
   );
-  if (!res.ok) return null;
+  if (!res.ok) throw new Error("Could not check saved contacts. Please retry before saving.");
   const data = await res.json();
   return Array.isArray(data) && data.length > 0 ? data[0] : null;
 }

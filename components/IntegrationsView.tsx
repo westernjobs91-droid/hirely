@@ -33,10 +33,10 @@ export default function IntegrationsView() {
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">How to install</p>
               <ol className="space-y-1.5">
                 {[
-                  'Download the extension file from the link below',
+                  'Download the extension zip with the button below and unzip it',
                   'Go to chrome://extensions in your browser',
                   'Enable Developer Mode (top right toggle)',
-                  'Click "Load unpacked" and select the extension folder',
+                  'Click "Load unpacked" and select the unzipped folder',
                   'Pin Hirely to your toolbar and log in',
                 ].map((step, i) => (
                   <li key={i} className="flex items-start gap-2">
@@ -46,7 +46,8 @@ export default function IntegrationsView() {
                 ))}
               </ol>
               <a
-                href="mailto:jay@hirelypro.com?subject=Hirely Extension Download"
+                href="/downloads/hirely-extension-1.3.3.zip"
+                download
                 className="mt-3 flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11.5px] font-semibold transition-colors"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>

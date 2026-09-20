@@ -14,6 +14,8 @@ import ContactPanel from '@/components/ContactPanel'
 import AddContactModal from '@/components/AddContactModal'
 import ImportModal from '@/components/ImportModal'
 import Toast from '@/components/Toast'
+import TrashView from '@/components/TrashView'
+import { setContactTrashed } from '@/lib/contact-trash'
 import AIDraftsView from '@/components/AIDraftsView'
 import { normalizeFollowUp, matchesPipelineFilter, localDay, followUpDay, schedulingPatch } from '@/lib/follow-up'
 import { Contact, NavItem, AIDraft } from '@/types'
@@ -73,6 +75,7 @@ export default function Dashboard() {
       .from('contacts')
       .select('*')
       .eq('user_id', userId)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
     if (error) { console.error(error); return }
     const mapped: Contact[] = (data || []).map((c: Record<string, unknown>) => ({
@@ -143,20 +146,20 @@ export default function Dashboard() {
   }, [user])
 
   const handleDelete = useCallback(async (id: string) => {
-    if (!user || !window.confirm('Delete this contact? This cannot be undone.')) return
-    const { error } = await supabase.from('contacts').delete().eq('id', id).eq('user_id', user.id)
-    if (error) { setToast('Error deleting contact'); return }
+    if (!user) return
+    try { await setContactTrashed(supabase, user.id, id, true) }
+    catch (error) { setToast((error as Error).message); return }
     setContacts(prev => prev.filter(c => c.id !== id))
     if (selected?.id === id) setSelected(null)
-    setToast('Contact deleted')
+    setToast('Contact moved to Trash. You can restore it from the sidebar.')
   }, [selected, user])
 
   const handleMarkDone = useCallback(async (id: string) => {
     if(!user)return
     const current=contacts.find(c=>c.id===id);if(!current)return
     const done=normalizeFollowUp({...current,column:'done'})
-    const {error}=await supabase.from('contacts').update({column_name:'done',status:done.status,status_label:'Done'}).eq('id',id).eq('user_id',user.id)
-    if(error){setToast('Could not mark contact as done');return}
+    const {data: saved,error}=await supabase.from('contacts').update({column_name:'done',status:done.status,status_label:'Done'}).eq('id',id).eq('user_id',user.id).is('deleted_at',null).select('id').maybeSingle()
+    if(error || !saved){setToast('Could not mark contact as done. Refresh and try again.');return}
     setContacts(prev=>prev.map(c=>c.id===id?done:c));setSelected(prev=>prev?.id===id?done:prev)
   }, [contacts,user])
 
@@ -193,7 +196,7 @@ export default function Dashboard() {
     if (updates.status !== undefined) dbUpdates.status = updates.status
     if (updates.notes !== undefined) dbUpdates.notes = updates.notes
     if(updates.activity!==undefined)dbUpdates.activity=updates.activity
-    const { data: savedContact, error } = await supabase.from('contacts').update(dbUpdates).eq('id', id).eq('user_id',user.id).select('id,sent_date,column_name,status,status_label').maybeSingle()
+    const { data: savedContact, error } = await supabase.from('contacts').update(dbUpdates).eq('id', id).eq('user_id',user.id).is('deleted_at',null).select('id,sent_date,column_name,status,status_label').maybeSingle()
     if (error || !savedContact) { console.error('Failed to update contact:', error); setToast('Error updating contact'); return false }
     if(updates.sentDate!==undefined&&savedContact.sent_date!==updates.sentDate){setToast('The follow-up date was not saved as expected. Refresh and try again.');return false}
     setContacts(prev => prev.map(c => (c.id === id ? { ...c, ...updates } : c)))
@@ -302,6 +305,7 @@ export default function Dashboard() {
               {activeNav === 'enrichment' && 'Email finder'}
               {activeNav === 'meet' && 'Hirely Meet'}
               {activeNav === 'settings' && 'Integrations'}
+              {activeNav === 'trash' && 'Trash'}
             </h1>
             <p className="text-[11px] text-slate-400 mt-0.5">
               {activeNav === 'dashboard' && today}
@@ -312,11 +316,11 @@ export default function Dashboard() {
           <div className="flex items-center gap-2">
             {(activeNav === 'dashboard' || activeNav === 'contacts') && (
               <>
-                <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50 transition-colors font-medium">
+                <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                   Import
                 </button>
-                <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 px-3.5 py-1.5 text-white rounded-lg text-xs font-semibold shadow-sm transition-all hover:shadow-md" style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)' }}>
+                <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 px-3.5 py-1.5 text-white rounded-lg text-xs font-semibold shadow-sm transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2" style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)' }}>
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                   Add contact
                 </button>
@@ -589,6 +593,7 @@ export default function Dashboard() {
           {activeNav === 'meet' && <MeetView contacts={contacts} />}
           {activeNav === 'enrichment' && <EnrichmentView contacts={contacts} onSelect={setSelected} onUpdateContact={handleUpdateContact} />}
           {activeNav === 'settings' && <IntegrationsView />}
+          {activeNav === 'trash' && user && <TrashView userId={user.id} onRestored={() => loadContacts(user.id)} />}
 
           {activeNav === 'ai-drafts' && (
             <AIDraftsView contacts={contacts} onSelect={(c) => { setSelected(c); setActiveNav('contacts'); }} />
@@ -600,7 +605,7 @@ export default function Dashboard() {
         <ContactPanel contact={selected} onClose={() => setSelected(null)} onSendDraft={handleSend} onUpdateContact={handleUpdateContact} />
       )}
       {showAdd && <AddContactModal onClose={() => setShowAdd(false)} onAdd={handleAdd} />}
-      {showImport && <ImportModal onClose={() => setShowImport(false)} />}
+      {showImport && <ImportModal onClose={() => setShowImport(false)} onOpenIntegrations={() => setActiveNav('settings')} />}
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
     </div>
   )

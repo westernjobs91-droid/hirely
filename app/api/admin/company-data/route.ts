@@ -37,7 +37,7 @@ export async function POST(request:Request){
   let count=0
   // Seed only the signed-in administrator's CRM. No employee names or emails are copied.
   for(let offset=0;offset<10000;offset+=500){
-   const {data,error}=await auth.db.from('contacts').select('company').eq('user_id',auth.user.id).range(offset,offset+499)
+   const {data,error}=await auth.db.from('contacts').select('company').eq('user_id',auth.user.id).is('deleted_at',null).range(offset,offset+499)
    if(error)return fail('Could not read CRM company names.',503)
    const unique=new Map<string,any>();for(const c of data||[]){if(c.company?.trim()){const key='name:'+companyKey(c.company);unique.set(key,{company_key:key,company_name:c.company.trim().slice(0,250)})}}
    if(unique.size){const result=await db.from('company_requests').upsert(Array.from(unique.values()),{onConflict:'company_key',ignoreDuplicates:true});if(result.error)return fail('Could not seed the queue.',503);count+=unique.size}
