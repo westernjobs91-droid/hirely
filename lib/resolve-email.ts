@@ -76,8 +76,15 @@ async function resolveEmailInternal(request:Request,event:{company:string;domain
   if (action === 'verify' && !candidate) return NextResponse.json({ error: 'Find or enter an email first.' }, { status: 400 })
   const key = process.env.HUNTER_API_KEY
   if (!key) return NextResponse.json({ error: 'Email search is temporarily unavailable. No credit used.' }, { status: 503 })
-  const creditError = await charge()
-  if (creditError) return creditError
+  // Check before calling the provider, but only consume a credit in finish().
+  // The atomic reservation there remains authoritative if requests race.
+  const month = new Date().toISOString().slice(0, 7) + '-01'
+  const [limits, usage] = await Promise.all([
+    db.from('hirely_limits').select('email_limit').eq('user_id', user.id).maybeSingle(),
+    db.from('hirely_usage').select('used').eq('user_id', user.id).eq('month', month).eq('feature', 'email').maybeSingle(),
+  ])
+  if (limits.error || usage.error) return NextResponse.json({ error: 'Credit controls unavailable. No credit used.', creditsUsed: 0 }, { status: 503 })
+  if ((usage.data?.used ?? 0) >= (limits.data?.email_limit ?? 10)) return NextResponse.json({ error: 'Monthly email credit limit reached.', creditsUsed: 0 }, { status: 402 })
   try {
     const params = new URLSearchParams({ api_key: key })
     if (action === 'verify') params.set('email', candidate)
@@ -88,10 +95,10 @@ async function resolveEmailInternal(request:Request,event:{company:string;domain
     event.apiCalled=true
     const response = await fetch('https://api.hunter.io/v2/' + (action === 'verify' ? 'email-verifier' : 'email-finder') + '?' + params,
       { cache: 'no-store', signal: AbortSignal.timeout(20000) })
-    if (!response.ok) return NextResponse.json({ error: 'Email search could not complete. 1 email credit was used.' }, { status: 502 })
+    if (!response.ok) return NextResponse.json({ error: 'Email search could not complete. No credit used.', creditsUsed: 0 }, { status: 502 })
     const { data } = await response.json()
     const email = action === 'verify' ? candidate : data?.email
-    if (!email) return NextResponse.json({ ok: false, enriched: false, creditsUsed: 1, message: 'No email found. 1 email credit used.' })
+    if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ ok: false, enriched: false, creditsUsed: 0, message: 'No email found. No credit used.' })
     const status = providerStatus(action === 'verify' ? data?.status : data?.verification?.status)
     const checkedAt = action === 'verify' ? new Date().toISOString() : data?.verification?.date || null
     const source = action === 'verify' ? 'hunter_verifier' : 'hunter_finder'
@@ -102,5 +109,5 @@ async function resolveEmailInternal(request:Request,event:{company:string;domain
     }, { onConflict: 'user_id,identity_key' })
     cacheSaved = !cacheError
     return finish(email, status, source, checkedAt, details, score)
-  } catch { return NextResponse.json({ error: 'Email search timed out or failed. 1 email credit was used; no automatic retry was made.' }, { status: 502 }) }
+  } catch { return NextResponse.json({ error: 'Email search timed out or failed. No credit used; no automatic retry was made.', creditsUsed: 0 }, { status: 502 }) }
 }
