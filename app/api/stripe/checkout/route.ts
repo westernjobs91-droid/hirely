@@ -28,11 +28,11 @@ export async function POST(req: Request) {
       if (open.has_more) throw new Error('Open checkouts need review.')
       for (const session of open.data) {
         if (session.mode !== 'subscription') continue
-        if (session.metadata?.hirely_price === selected.id && session.url) return session.url
+        if (session.metadata?.hirely_price === selected.id && session.managed_payments?.enabled === true && session.url) return session.url
         await stripe.checkout.sessions.expire(session.id)
       }
       const session = await stripe.checkout.sessions.create({
-        customer, mode: 'subscription', payment_method_types: ['card'], line_items: [{ price: selected.id, quantity: 1 }],
+        customer, mode: 'subscription', managed_payments: { enabled: true }, line_items: [{ price: selected.id, quantity: 1 }],
         success_url: origin + '/?upgraded=true', cancel_url: origin + '/pricing', client_reference_id: auth.user.id,
         metadata: { hirely_price: selected.id }, subscription_data: { metadata: { userId: auth.user.id } },
       }, { idempotencyKey: 'hirely-checkout-' + lease })
