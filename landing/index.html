@@ -205,7 +205,14 @@
       padding: 8px 10px;
     }
     .mock-card-top { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-    .mock-av { width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0; }
+    .mock-av { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; position: relative; overflow: hidden; background: linear-gradient(145deg,var(--avatar-bg),#fff); box-shadow: inset 0 0 0 1px rgba(15,23,42,.08); }
+    .mock-av::before { content:""; position:absolute; width:9px; height:10px; border-radius:48% 48% 45% 45%; background:var(--skin); left:7.5px; top:4px; box-shadow:0 -3px 0 1px var(--hair); }
+    .mock-av::after { content:""; position:absolute; width:20px; height:12px; border-radius:50% 50% 0 0; background:var(--shirt); left:2px; bottom:-6px; }
+    .av-one { --avatar-bg:#DBEAFE; --skin:#C98F68; --hair:#2B1B17; --shirt:#2563EB; }
+    .av-two { --avatar-bg:#EDE9FE; --skin:#8B5E3C; --hair:#171717; --shirt:#7C3AED; }
+    .av-three { --avatar-bg:#D1FAE5; --skin:#E3B184; --hair:#4A2C20; --shirt:#059669; }
+    .av-four { --avatar-bg:#CFFAFE; --skin:#B97850; --hair:#2F1B12; --shirt:#0891B2; }
+    .av-five { --avatar-bg:#FEF3C7; --skin:#D69A70; --hair:#1F2937; --shirt:#D97706; }
     .mock-card-name { font-size: 10px; font-weight: 700; color: var(--slate-900); }
     .mock-card-title { font-size: 9px; color: var(--slate-400); }
     .mock-card-email { font-size: 9px; color: var(--emerald); display: flex; align-items: center; gap: 3px; }
@@ -509,10 +516,10 @@
             <div class="mock-col-body">
               <div class="mock-card">
                 <div class="mock-card-top">
-                  <div class="mock-av" style="background:#2563EB;"></div>
-                  <div><div class="mock-card-name">Sarah Chen</div><div class="mock-card-title">HR Director · Maple Leaf</div></div>
+                  <div class="mock-av av-one" aria-hidden="true"></div>
+                  <div><div class="mock-card-name">Maya Carter</div><div class="mock-card-title">HR Director · Northstar Foods</div></div>
                 </div>
-                <div class="mock-card-email">✓ sarah@mapleleaf.com</div>
+                <div class="mock-card-email">✓ maya@northstar.example</div>
                 <div class="mock-card-footer">
                   <span class="mock-badge" style="background:#FEF2F2;color:#EF4444;">Overdue</span>
                   <span style="font-size:8px;color:#EF4444;font-weight:700;">14d ago</span>
@@ -520,10 +527,10 @@
               </div>
               <div class="mock-card">
                 <div class="mock-card-top">
-                  <div class="mock-av" style="background:#7C3AED;"></div>
-                  <div><div class="mock-card-name">Mike Commisso</div><div class="mock-card-title">VP Operations · Triple M</div></div>
+                  <div class="mock-av av-two" aria-hidden="true"></div>
+                  <div><div class="mock-card-name">Jordan Brooks</div><div class="mock-card-title">VP Operations · Atlas Works</div></div>
                 </div>
-                <div class="mock-card-email">✓ mcommisso@triplemmetal.com</div>
+                <div class="mock-card-email">✓ jordan@atlas.example</div>
                 <div class="mock-card-footer">
                   <span class="mock-badge" style="background:#FEF2F2;color:#EF4444;">Overdue</span>
                   <span style="font-size:8px;color:#F59E0B;font-weight:700;">8d ago</span>
@@ -540,10 +547,10 @@
             <div class="mock-col-body">
               <div class="mock-card">
                 <div class="mock-card-top">
-                  <div class="mock-av" style="background:#059669;"></div>
-                  <div><div class="mock-card-name">Paruna Parhar</div><div class="mock-card-title">Talent Acquisition · CMI</div></div>
+                  <div class="mock-av av-three" aria-hidden="true"></div>
+                  <div><div class="mock-card-name">Priya Shah</div><div class="mock-card-title">Talent Acquisition · Cedar Labs</div></div>
                 </div>
-                <div class="mock-card-email">✓ pparhar@conestogameats.com</div>
+                <div class="mock-card-email">✓ priya@cedar.example</div>
                 <div class="mock-card-footer">
                   <span class="mock-badge" style="background:#FEF3C7;color:#D97706;">New</span>
                   <span style="font-size:8px;color:#64748B;">2d ago</span>
@@ -551,10 +558,10 @@
               </div>
               <div class="mock-card">
                 <div class="mock-card-top">
-                  <div class="mock-av" style="background:#0891B2;"></div>
-                  <div><div class="mock-card-name">Robert Marshall</div><div class="mock-card-title">Talent Partner · Triple M</div></div>
+                  <div class="mock-av av-four" aria-hidden="true"></div>
+                  <div><div class="mock-card-name">Evan Martin</div><div class="mock-card-title">Talent Partner · Summit Tech</div></div>
                 </div>
-                <div class="mock-card-email">✓ rmarshall@triplemmetal.com</div>
+                <div class="mock-card-email">✓ evan@summit.example</div>
                 <div class="mock-card-footer">
                   <span class="mock-badge" style="background:#FEF3C7;color:#D97706;">New</span>
                   <span style="font-size:8px;color:#64748B;">3d ago</span>
@@ -571,10 +578,10 @@
             <div class="mock-col-body">
               <div class="mock-card">
                 <div class="mock-card-top">
-                  <div class="mock-av" style="background:#D97706;"></div>
-                  <div><div class="mock-card-name">Amrita Singh</div><div class="mock-card-title">TA Professional · YaYA Foods</div></div>
+                  <div class="mock-av av-five" aria-hidden="true"></div>
+                  <div><div class="mock-card-name">Leila Morgan</div><div class="mock-card-title">TA Professional · Harbor Foods</div></div>
                 </div>
-                <div class="mock-card-email">✓ amrita.singh@yayafoods.com</div>
+                <div class="mock-card-email">✓ leila@harbor.example</div>
                 <div class="mock-card-footer">
                   <span class="mock-badge" style="background:#D1FAE5;color:#059669;">Replied</span>
                   <span style="font-size:8px;color:#10B981;font-weight:600;">✓</span>
