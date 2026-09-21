@@ -34,6 +34,8 @@ async function main() {
   const local = JSON.parse(execFileSync('npx', ['--yes', 'supabase', 'status', '--workdir', project, '-o', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }))
   assert.match(local.API_URL, /^http:\/\/(127\.0\.0\.1|localhost):54321$/)
   Object.assign(process.env, {
+    STRIPE_MODE: 'sandbox',
+    STRIPE_SANDBOX_ALLOW_ALL: 'true', // This harness refuses non-local databases.
     STRIPE_SECRET_KEY: match[1], NEXT_PUBLIC_SUPABASE_URL: local.API_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: local.ANON_KEY, SUPABASE_SERVICE_ROLE_KEY: local.SERVICE_ROLE_KEY,
     NEXT_PUBLIC_APP_URL: 'http://localhost:4317', STRIPE_WEBHOOK_SECRET: 'whsec_' + randomUUID(),

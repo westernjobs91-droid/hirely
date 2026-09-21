@@ -2,7 +2,10 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'crypto'
 import { PLANS, Plan } from './plans'
+import { stripeIsLive, assertBillingAccess } from './billing-mode'
+export { assertBillingAccess } from './billing-mode'
 export function billingClients() {
+  stripeIsLive()
   if (!process.env.STRIPE_SECRET_KEY || !process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('Billing is not configured.')
   return { stripe: new Stripe(process.env.STRIPE_SECRET_KEY, { timeout: 15000, maxNetworkRetries: 1 }),
     admin: createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } }) }
@@ -47,6 +50,7 @@ export async function syncCustomer(stripe: any, admin: any, customer: string) {
   if (error) throw new Error('Billing storage unavailable.')
   if (!account) throw new Error('Customer needs billing reconciliation.')
   if (account.source === 'manual') return
+  assertBillingAccess(account.user_id)
   await withBillingLock(admin, account.user_id, async lease => {
     // Read current Stripe state under a lease, never historical event metadata.
     const subscriptions = await listSubscriptions(stripe, customer)

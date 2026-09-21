@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { authenticate } from '@/lib/server-auth'
-import { appOrigin, billingClients, checkoutPrice, listSubscriptions, subscriptionManagementUrl, withBillingLock } from '@/lib/billing'
+import { appOrigin, assertBillingAccess, billingClients, checkoutPrice, listSubscriptions, subscriptionManagementUrl, withBillingLock } from '@/lib/billing'
 export async function POST(req: Request) {
   const auth = await authenticate(req)
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -8,6 +8,7 @@ export async function POST(req: Request) {
   try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid request' }, { status: 400 }) }
   if (!body || !['solo', 'pro'].includes(body.plan)) return NextResponse.json({ error: 'Choose Solo or Pro. Agency is coming soon.' }, { status: 400 })
   try {
+    assertBillingAccess(auth.user.id)
     const { stripe, admin } = billingClients(), origin = appOrigin(), selected = checkoutPrice(body.plan)
     const price = await stripe.prices.retrieve(selected.id)
     if (!price.active || price.currency !== 'usd' || price.unit_amount !== selected.amount || price.recurring?.interval !== 'month' || price.recurring.interval_count !== 1 || price.recurring.usage_type !== 'licensed') throw new Error('Plan pricing is not configured correctly.')

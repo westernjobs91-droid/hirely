@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { billingClients, syncCustomer } from '@/lib/billing'
+import { stripeIsLive } from '@/lib/billing-mode'
 export async function POST(req: Request) {
   if (!process.env.STRIPE_WEBHOOK_SECRET) return NextResponse.json({ error: 'Webhook not configured' }, { status: 503 })
   let clients
@@ -8,6 +9,7 @@ export async function POST(req: Request) {
   let event
   try { event = stripe.webhooks.constructEvent(await req.text(), req.headers.get('stripe-signature') || '', process.env.STRIPE_WEBHOOK_SECRET) }
   catch { return NextResponse.json({ error: 'Invalid signature' }, { status: 400 }) }
+  if (event.livemode !== stripeIsLive()) return NextResponse.json({ error: 'Wrong Stripe event mode' }, { status: 400 })
   const supported = ['checkout.session.completed', 'customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted', 'customer.subscription.paused', 'customer.subscription.resumed', 'invoice.paid', 'invoice.payment_failed']
   if (!supported.includes(event.type)) return NextResponse.json({ received: true })
   const object = event.data.object as any

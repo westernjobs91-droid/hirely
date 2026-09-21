@@ -4,8 +4,9 @@ function load(file,deps={},env={}){
  {module,exports:module.exports,require:n=>deps[n]||require(n),process:{env},URL,Date,Response,Request,AbortSignal,fetch:deps.fetch,console});return module.exports
 }
 const plans=load('lib/plans.ts')
-const env={STRIPE_SOLO_MONTHLY_PRICE_ID:'price_solo29',STRIPE_PRO_MONTHLY_PRICE_ID:'price_pro59',NEXT_PUBLIC_APP_URL:'https://app.example.com',STRIPE_WEBHOOK_SECRET:'test',ANTHROPIC_API_KEY:'test'}
-const billing=load('lib/billing.ts',{'./plans':plans},env)
+const env={STRIPE_MODE:'sandbox',STRIPE_SANDBOX_USER_IDS:'owner',STRIPE_SECRET_KEY:'sk_test_fixture',STRIPE_SOLO_MONTHLY_PRICE_ID:'price_solo29',STRIPE_PRO_MONTHLY_PRICE_ID:'price_pro59',NEXT_PUBLIC_APP_URL:'https://app.example.com',STRIPE_WEBHOOK_SECRET:'test',ANTHROPIC_API_KEY:'test'}
+const mode=load('lib/billing-mode.ts',{},env)
+const billing=load('lib/billing.ts',{'./plans':plans,'./billing-mode':mode},env)
 function setup({subscriptions=[],source='stripe',locked=false,writeError=false,unknown=false}={}){
  const calls=[],sync=[]
  const admin={from(table){let action='read';const q={};for(const key of ['select','eq'])q[key]=(...args)=>{calls.push([table,key,...args]);return q};q.delete=()=>{action='delete';calls.push([table,'delete']);return q};q.maybeSingle=async()=>({data:unknown?null:{user_id:'owner',source,customer_id:'cus_owned'},error:null});q.then=(resolve)=>resolve({data:null,error:null});return q},async rpc(name,args){calls.push([name,args]);if(name==='hirely_sync_billing')sync.push(args);return {data:!locked,error:writeError&&name==='hirely_sync_billing'?{message:'failed'}:null}}}
@@ -25,11 +26,12 @@ test('past-due, unpaid, incomplete and paused subscriptions cannot retain paid e
 })
 test('unknown price, multiple active plans, or missing customer never grants access',async()=>{for(const config of [{subscriptions:[sub('active','bad')]},{subscriptions:[sub(),sub()]},{unknown:true}]){const h=setup(config);await assert.rejects(billing.syncCustomer(h.stripe,h.admin,'cus_owned'));assert.equal(h.sync.length,0)}})
 test('concurrent and failed database updates request retries',async()=>{for(const config of [{locked:true},{writeError:true}]){const h=setup({...config,subscriptions:[sub()]});await assert.rejects(billing.syncCustomer(h.stripe,h.admin,'cus_owned'))}})
-function webhook({signature=true,eventType='customer.subscription.updated',fails=false}={}){
- let calls=0;const route=load('app/api/stripe/webhook/route.ts',{'next/server':{NextResponse:Response},'@/lib/billing':{billingClients:()=>({stripe:{webhooks:{constructEvent:()=>{if(!signature)throw Error('invalid');return {type:eventType,data:{object:{customer:'cus_owned',metadata:{plan:'agency'}}}}}}},admin:{}}),syncCustomer:async()=>{calls++;if(fails)throw Error('db down')}}},env)
+function webhook({signature=true,eventType='customer.subscription.updated',fails=false,livemode=false}={}){
+ let calls=0;const route=load('app/api/stripe/webhook/route.ts',{'next/server':{NextResponse:Response},'@/lib/billing-mode':mode,'@/lib/billing':{billingClients:()=>({stripe:{webhooks:{constructEvent:()=>{if(!signature)throw Error('invalid');return {livemode,type:eventType,data:{object:{customer:'cus_owned',metadata:{plan:'agency'}}}}}}},admin:{}}),syncCustomer:async()=>{calls++;if(fails)throw Error('db down')}}},env)
  return {run:()=>route.POST(new Request('https://test/webhook',{method:'POST',body:'payload'})),get calls(){return calls}}
 }
 test('invalid webhook signatures have no side effects',async()=>{const h=webhook({signature:false});assert.equal((await h.run()).status,400);assert.equal(h.calls,0)})
+test('live events cannot grant access in sandbox mode',async()=>{const h=webhook({livemode:true});assert.equal((await h.run()).status,400);assert.equal(h.calls,0)})
 test('webhook storage failure is not acknowledged',async()=>{const h=webhook({fails:true});assert.equal((await h.run()).status,503)})
 test('unsupported events are acknowledged without billing mutation',async()=>{const h=webhook({eventType:'customer.created'});assert.equal((await h.run()).status,200);assert.equal(h.calls,0)})
 function checkout({anonymous=false,plan='solo',amount=2900,existing=false,open=false,managed=true,manual=false}={}){
@@ -57,6 +59,7 @@ test('active legacy subscriptions retain their owned customer portal even with c
 test('portal authenticates ownership before choosing the management destination',async()=>{
  const calls=[]
  const route=load('app/api/stripe/portal/route.ts',{'next/server':{NextResponse:Response},'@/lib/server-auth':{authenticate:async()=>({user:{id:'owner'}})},'@/lib/billing':{
+  assertBillingAccess:mode.assertBillingAccess,
   billingClients:()=>({stripe:{},admin:{from:()=>({select(){return this},eq(field,id){assert.equal(field,'user_id');assert.equal(id,'owner');return this},maybeSingle:async()=>({data:{customer_id:'cus_owned',source:'stripe'},error:null})})}}),
   subscriptionManagementUrl:async(_,customer)=>{calls.push(customer);return'https://app.link.com/'}
  }},env)

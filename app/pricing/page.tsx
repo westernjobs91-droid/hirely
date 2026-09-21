@@ -30,6 +30,7 @@ export default function PricingPage() {
   return <main className="max-w-6xl mx-auto px-6 py-12">
     <button onClick={()=>router.push('/')} className="text-blue-600 mb-8">← Back to dashboard</button>
     <h1 className="text-3xl font-bold">Choose your Hirely plan</h1>
+    {process.env.NEXT_PUBLIC_STRIPE_MODE === 'sandbox' && <p role="status" className="mt-4 rounded-xl bg-amber-50 p-4 text-amber-900">Payments are in test mode. No real payments are collected. Subscriptions created during testing are temporary.</p>}
     <p className="text-slate-500 mt-3">Monthly prices in USD, plus applicable tax. Cancel anytime. Usage resets on the first of each month (UTC).</p>
     <p className="text-sm text-slate-500 mt-2">New subscriptions are sold through Link. Use the email from checkout to manage your subscription and payment method in Link.</p>
     {account && <p className="mt-4">Your plan: {PLANS[account.plan].name}{account.source==='manual'?' · Complimentary access':''}

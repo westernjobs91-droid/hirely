@@ -1,6 +1,6 @@
 # Plan foundation — September 20, 2026
 
-Implemented locally; not deployed. Production remains on commit 449d150 with the previous pricing. Do not push main until the coordinated billing cutover below is ready: main automatically deploys to Vercel.
+September 21 sandbox release supersedes the original deployment prerequisites below: production migration and owner preservation are complete, Vercel sandbox variables are configured, and the owner authorized pushing main with sandbox payments. Test checkout is restricted by default with no designated testers yet. See STRIPE_SANDBOX_SETUP.md for current configuration and live-payment cutover requirements. Main automatically deploys to Vercel.
 
 September 21 update: see STRIPE_SANDBOX_SETUP.md for the created Hirely sandbox, real checkout/renewal test results, Managed Payments management-flow correction, and remaining release checks. The earlier notes below describe the original foundation; its statement that no real sandbox checkout has been tested is superseded by that report. Production migration, backfill, live activation/configuration and deployed webhook delivery verification remain outstanding.
 
