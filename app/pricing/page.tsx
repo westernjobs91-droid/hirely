@@ -30,7 +30,8 @@ export default function PricingPage() {
   return <main className="max-w-6xl mx-auto px-6 py-12">
     <button onClick={()=>router.push('/')} className="text-blue-600 mb-8">← Back to dashboard</button>
     <h1 className="text-3xl font-bold">Choose your Hirely plan</h1>
-    <p className="text-slate-500 mt-3">Monthly prices in USD. Cancel anytime. Usage resets on the first of each month (UTC).</p>
+    <p className="text-slate-500 mt-3">Monthly prices in USD, plus applicable tax. Cancel anytime. Usage resets on the first of each month (UTC).</p>
+    <p className="text-sm text-slate-500 mt-2">New subscriptions are sold through Link. Use the email from checkout to manage your subscription and payment method in Link.</p>
     {account && <p className="mt-4">Your plan: {PLANS[account.plan].name}{account.source==='manual'?' · Complimentary access':''}
       {account.billing_managed && <button disabled={busy} onClick={()=>billing()} className="ml-4 text-blue-600 underline">Manage subscription</button>}</p>}
     {error && <p role="alert" className="mt-4 text-red-600">{error}</p>}

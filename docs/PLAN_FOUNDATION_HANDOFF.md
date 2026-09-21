@@ -2,6 +2,8 @@
 
 Implemented locally; not deployed. Production remains on commit 449d150 with the previous pricing. Do not push main until the coordinated billing cutover below is ready: main automatically deploys to Vercel.
 
+September 21 update: see STRIPE_SANDBOX_SETUP.md for the created Hirely sandbox, real checkout/renewal test results, Managed Payments management-flow correction, and remaining release checks. The earlier notes below describe the original foundation; its statement that no real sandbox checkout has been tested is superseded by that report. Production migration, backfill, live activation/configuration and deployed webhook delivery verification remain outstanding.
+
 ## Agreed launch scope
 
 | Plan | Monthly USD | Active contacts | Email/month | Meet requests/month | Draft generations/month |

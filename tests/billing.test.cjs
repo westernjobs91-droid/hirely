@@ -17,6 +17,12 @@ test('only configured Solo and Pro checkout prices are available',()=>{assert.eq
 test('webhook reconciliation reads current subscription and scopes the update to its owned customer',async()=>{const h=setup({subscriptions:[sub()]});await billing.syncCustomer(h.stripe,h.admin,'cus_owned');assert.equal(h.sync[0].paid_plan,'pro');assert.equal(h.sync[0].uid,'owner');assert.equal(h.sync[0].customer,'cus_owned');assert.equal(h.sync[0].subscription,'sub_current');assert.ok(h.calls.some(c=>c[0]==='hirely_billing_locks'&&c[1]==='delete'))})
 test('repeated and delayed notifications converge to current cancellation, not old paid metadata',async()=>{const h=setup({subscriptions:[sub('canceled')]});await billing.syncCustomer(h.stripe,h.admin,'cus_owned');await billing.syncCustomer(h.stripe,h.admin,'cus_owned');assert.equal(h.sync.length,2);assert.ok(h.sync.every(s=>s.paid_plan==='free'&&s.subscription===null))})
 test('manual grants survive Stripe notifications',async()=>{const h=setup({source:'manual',subscriptions:[sub('canceled')]});await billing.syncCustomer(h.stripe,h.admin,'cus_owned');assert.equal(h.sync.length,0);assert.equal(h.calls.some(c=>c[0]==='stripe-list'),false)})
+test('past-due, unpaid, incomplete and paused subscriptions cannot retain paid entitlements',async()=>{
+ for(const status of ['past_due','unpaid','incomplete','incomplete_expired','paused']){
+  const h=setup({subscriptions:[sub(status)]});await billing.syncCustomer(h.stripe,h.admin,'cus_owned')
+  assert.equal(h.sync[0].paid_plan,'free');assert.equal(h.sync[0].subscription,null)
+ }
+})
 test('unknown price, multiple active plans, or missing customer never grants access',async()=>{for(const config of [{subscriptions:[sub('active','bad')]},{subscriptions:[sub(),sub()]},{unknown:true}]){const h=setup(config);await assert.rejects(billing.syncCustomer(h.stripe,h.admin,'cus_owned'));assert.equal(h.sync.length,0)}})
 test('concurrent and failed database updates request retries',async()=>{for(const config of [{locked:true},{writeError:true}]){const h=setup({...config,subscriptions:[sub()]});await assert.rejects(billing.syncCustomer(h.stripe,h.admin,'cus_owned'))}})
 function webhook({signature=true,eventType='customer.subscription.updated',fails=false}={}){
@@ -38,3 +44,22 @@ test('existing subscriptions go to portal and open checkouts are reused',async()
 test('complimentary owner cannot accidentally purchase another subscription',async()=>{const h=checkout({manual:true});assert.equal((await h.run()).status,503);assert.equal(h.calls.length,0)})
 test('free and exhausted draft requests cannot call AI',async()=>{let fetched=0;const route=load('app/api/generate-drafts/route.ts',{'next/server':{NextResponse:Response},'@/lib/server-auth':{authenticate:async()=>({user:{id:'owner'},db:{rpc:async(name,args)=>{assert.equal(args.feature,'draft');return{data:false,error:null}}}})},fetch:async()=>{fetched++;throw Error('unexpected')}},env);assert.equal((await route.POST(new Request('https://test/drafts',{method:'POST',body:JSON.stringify({firstName:'Jane'})}))).status,402);assert.equal(fetched,0)})
 test('legacy unmanaged checkout is expired before creating a Managed Payments session',async()=>{const h=checkout({open:true,managed:false});assert.equal((await(await h.run()).json()).url,'https://stripe.test/new');assert.deepEqual(h.calls[0],['expired','cs_open']);assert.equal(h.calls[1].managed_payments.enabled,true)})
+test('Managed Payments subscription management uses Link without creating a standard portal',async()=>{
+ const stripe={billingPortal:{sessions:{create:async()=>{throw Error('Standard portal must not manage this payment mandate')}}}}
+ assert.equal(await billing.subscriptionManagementUrl(stripe,'cus_owned',[{status:'active',managed_payments:{enabled:true}}]),'https://app.link.com/')
+ assert.equal(await billing.subscriptionManagementUrl(stripe,'cus_owned',[{status:'canceled',managed_payments:{enabled:true}}]),'https://app.link.com/')
+})
+test('active legacy subscriptions retain their owned customer portal even with canceled managed history',async()=>{
+ const calls=[],stripe={billingPortal:{sessions:{create:async args=>{calls.push(args);return{url:'https://stripe.test/owned'}}}}}
+ assert.equal(await billing.subscriptionManagementUrl(stripe,'cus_owned',[{status:'active',managed_payments:null},{status:'canceled',managed_payments:{enabled:true}}]),'https://stripe.test/owned')
+ assert.equal(calls[0].customer,'cus_owned');assert.equal(calls[0].return_url,'https://app.example.com/pricing')
+})
+test('portal authenticates ownership before choosing the management destination',async()=>{
+ const calls=[]
+ const route=load('app/api/stripe/portal/route.ts',{'next/server':{NextResponse:Response},'@/lib/server-auth':{authenticate:async()=>({user:{id:'owner'}})},'@/lib/billing':{
+  billingClients:()=>({stripe:{},admin:{from:()=>({select(){return this},eq(field,id){assert.equal(field,'user_id');assert.equal(id,'owner');return this},maybeSingle:async()=>({data:{customer_id:'cus_owned',source:'stripe'},error:null})})}}),
+  subscriptionManagementUrl:async(_,customer)=>{calls.push(customer);return'https://app.link.com/'}
+ }},env)
+ const response=await route.POST(new Request('https://test/portal',{method:'POST',body:JSON.stringify({customer:'cus_attacker'})}))
+ assert.equal(response.status,200);assert.equal((await response.json()).url,'https://app.link.com/');assert.deepEqual(calls,['cus_owned'])
+})

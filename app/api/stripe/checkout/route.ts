@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { authenticate } from '@/lib/server-auth'
-import { appOrigin, billingClients, checkoutPrice, listSubscriptions, withBillingLock } from '@/lib/billing'
+import { appOrigin, billingClients, checkoutPrice, listSubscriptions, subscriptionManagementUrl, withBillingLock } from '@/lib/billing'
 export async function POST(req: Request) {
   const auth = await authenticate(req)
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
         if (saved.error) throw new Error('Could not save billing account.')
       }
       const subscriptions = await listSubscriptions(stripe, customer)
-      if (subscriptions.some(s => !['canceled', 'incomplete_expired'].includes(s.status))) return (await stripe.billingPortal.sessions.create({ customer, return_url: origin + '/pricing' })).url
+      if (subscriptions.some(s => !['canceled', 'incomplete_expired'].includes(s.status))) return subscriptionManagementUrl(stripe, customer, subscriptions)
       const open = await stripe.checkout.sessions.list({ customer, status: 'open', limit: 100 })
       if (open.has_more) throw new Error('Open checkouts need review.')
       for (const session of open.data) {

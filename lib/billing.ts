@@ -35,6 +35,13 @@ export async function listSubscriptions(stripe: any, customer: string) {
   if (result.has_more) throw new Error('Billing history needs review.')
   return result.data as any[]
 }
+export async function subscriptionManagementUrl(stripe: any, customer: string, subscriptions?: any[]) {
+  const history = subscriptions || await listSubscriptions(stripe, customer)
+  const current = history.filter(s => !['canceled', 'incomplete_expired'].includes(s.status))
+  // Managed Payments owns the payment mandate. Its card and order management live in Link.
+  if ((current.length ? current : history).some(s => s.managed_payments?.enabled)) return 'https://app.link.com/'
+  return (await stripe.billingPortal.sessions.create({ customer, return_url: appOrigin() + '/pricing' })).url
+}
 export async function syncCustomer(stripe: any, admin: any, customer: string) {
   const { data: account, error } = await admin.from('hirely_billing_accounts').select('*').eq('customer_id', customer).maybeSingle()
   if (error) throw new Error('Billing storage unavailable.')

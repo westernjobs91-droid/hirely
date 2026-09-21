@@ -6,3 +6,4 @@ node_modules/
 dist/
 *.tsbuildinfo
 .env.stripe-test.local
+supabase/.temp/
