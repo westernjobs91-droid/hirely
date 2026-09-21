@@ -95,20 +95,20 @@ export default function SignupPage() {
         <div>
           <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3 py-1.5 mb-6">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
-            <span className="text-white text-xs font-medium">Free during beta - no credit card needed</span>
+            <span className="text-white text-xs font-medium">Start on Free - no credit card needed</span>
           </div>
           <h1 className="text-white text-4xl font-bold leading-tight tracking-tight mb-4">
             Your recruiter<br />superpower awaits.
           </h1>
           <p className="text-blue-200 text-lg leading-relaxed mb-10">
-            Join recruiters who place more candidates and never miss a follow-up again.
+            Capture contacts, organize follow-ups, and prepare outreach from one workspace.
           </p>
           <div className="grid grid-cols-2 gap-4">
             {[
-              { num: '40%', label: 'More placements' },
-              { num: '3hrs', label: 'Saved per week' },
-              { num: '2x', label: 'Reply rate' },
-              { num: '0', label: 'Missed follow-ups' },
+              { num: '50', label: 'Active contacts on Free' },
+              { num: '5', label: 'Email credits each month' },
+              { num: '1', label: 'Recruiting workspace' },
+              { num: '$0', label: 'Free plan price' },
             ].map((stat, i) => (
               <div key={i} className="bg-white/10 border border-white/20 rounded-xl p-4">
                 <p className="text-white text-2xl font-bold tracking-tight">{stat.num}</p>
@@ -118,16 +118,7 @@ export default function SignupPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex -space-x-2">
-            {['#2563EB','#7C3AED','#059669','#D97706'].map((c,i) => (
-              <div key={i} className="w-8 h-8 rounded-full border-2 border-blue-800 flex items-center justify-center text-[10px] font-bold text-white" style={{ background: c }}>
-                {['JR','AS','MK','TC'][i]}
-              </div>
-            ))}
-          </div>
-          <p className="text-blue-200 text-xs"><span className="text-white font-semibold">47 recruiters</span> already on the waitlist</p>
-        </div>
+        <p className="text-blue-100 text-sm">LinkedIn capture · Pipeline · Follow-ups · Notes · Trash</p>
       </div>
 
       {/* Right panel */}
@@ -148,7 +139,7 @@ export default function SignupPage() {
 
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-slate-900 tracking-tight mb-1">Create your account</h2>
-            <p className="text-slate-500 text-sm">Free during beta. No credit card needed.</p>
+            <p className="text-slate-500 text-sm">Start with Free. No credit card needed.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Contact } from '@/types'
+import PlanUsage from './PlanUsage'
 
 interface AIDraftsViewProps {
   contacts: Contact[]
@@ -35,10 +36,12 @@ export default function AIDraftsView({ contacts, onSelect }: AIDraftsViewProps) 
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 sm:p-6 space-y-6">
+
+      <PlanUsage />
 
       {/* Summary strip */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Drafts ready', value: withDrafts.length, color: 'bg-blue-50 text-blue-700', dot: 'bg-blue-500' },
           { label: 'Ready to generate', value: withEmail.length, color: 'bg-amber-50 text-amber-700', dot: 'bg-amber-500' },

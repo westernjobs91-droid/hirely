@@ -27,31 +27,34 @@ export default function PricingPage() {
       window.location.href = data.url
     } catch(e) {setError(e instanceof Error ? e.message : 'Billing unavailable.');setBusy(false)}
   }
-  return <main className="max-w-6xl mx-auto px-6 py-12">
-    <button onClick={()=>router.push('/')} className="text-blue-600 mb-8">← Back to dashboard</button>
-    <h1 className="text-3xl font-bold">Choose your Hirely plan</h1>
-    {process.env.NEXT_PUBLIC_STRIPE_MODE === 'sandbox' && <p role="status" className="mt-4 rounded-xl bg-amber-50 p-4 text-amber-900">Payments are in test mode. No real payments are collected. Subscriptions created during testing are temporary.</p>}
-    <p className="text-slate-500 mt-3">Monthly prices in USD, plus applicable tax. Cancel anytime. Usage resets on the first of each month (UTC).</p>
-    <p className="text-sm text-slate-500 mt-2">New subscriptions are sold through Link. Use the email from checkout to manage your subscription and payment method in Link.</p>
-    {account && <p className="mt-4">Your plan: {PLANS[account.plan].name}{account.source==='manual'?' · Complimentary access':''}
-      {account.billing_managed && <button disabled={busy} onClick={()=>billing()} className="ml-4 text-blue-600 underline">Manage subscription</button>}</p>}
-    {error && <p role="alert" className="mt-4 text-red-600">{error}</p>}
-    <div className="grid md:grid-cols-3 gap-6 my-8">{(Object.keys(PLANS) as Plan[]).map(id=>{
-      const plan=PLANS[id]
-      return <section key={id} className="rounded-2xl border p-6">
-        <h2 className="text-xl font-bold">{plan.name}</h2><p className="text-3xl font-bold my-4">${plan.monthlyUsd}<span className="text-sm font-normal"> /month</span></p>
-        <ul className="space-y-3 text-sm">
-          <li>{plan.contacts ?? 'Unlimited'} active contacts</li><li>{plan.email} email credits/month</li>
-          <li>{plan.meet ? plan.meet+' Meet summary requests/month' : 'Meeting notes; AI summaries on paid plans'}</li>
-          <li>{plan.drafts ? plan.drafts+' AI draft generations/month (3 drafts each)' : 'AI drafts on paid plans'}</li>
-          <li>LinkedIn capture, pipeline, follow-ups, notes and Trash</li>
-          {id!=='free' && <li>Outlook capture</li>}
-        </ul>
-        {id!=='free' && <button disabled={busy||!account||account.plan===id||account.source==='manual'} onClick={()=>billing(id)} className="mt-6 rounded-xl bg-blue-600 px-4 py-3 text-white disabled:opacity-50">
-          {account?.plan===id ? 'Current plan' : 'Choose '+plan.name}</button>}
-      </section>
-    })}</div>
-    <p className="text-sm text-slate-600">Email searches use one credit when an address is returned; no-result and failed searches use zero. Completed email verifications use one credit. Meet summaries and draft generations use one request credit when AI processing starts.</p>
-    <section className="mt-8 rounded-2xl border p-6"><h2 className="font-bold">Agency · Coming soon</h2><p className="mt-2 text-slate-500">Shared workspaces, team permissions and pooled allowances are in development.</p></section>
+  return <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 sm:py-12">
+    <div className="mx-auto max-w-6xl">
+      <button onClick={()=>router.push('/')} className="mb-8 text-sm font-semibold text-blue-600 hover:text-blue-700">← Back to dashboard</button>
+      <div className="max-w-3xl"><p className="text-xs font-bold uppercase tracking-widest text-blue-600">Plan &amp; billing</p><h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Choose the plan that fits your pipeline</h1>
+      <p className="mt-3 text-slate-600">Monthly prices in USD, plus applicable tax. Cancel anytime. Usage resets on the first of each month (UTC).</p></div>
+      {process.env.NEXT_PUBLIC_STRIPE_MODE === 'sandbox' && <p role="status" className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><strong>Test mode:</strong> no real payments are collected and test subscriptions are temporary.</p>}
+      {account && <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"><span>Your plan: <strong>{PLANS[account.plan].name}</strong>{account.source==='manual'?' · Complimentary access':''}</span>
+        {account.billing_managed && <button disabled={busy} onClick={()=>billing()} className="font-semibold text-blue-600 underline disabled:opacity-50">Manage subscription</button>}</div>}
+      {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      <div className="my-8 grid gap-5 md:grid-cols-3">{(Object.keys(PLANS) as Plan[]).map(id=>{
+        const plan=PLANS[id], highlighted=id==='solo'
+        return <section key={id} className={`relative flex flex-col rounded-2xl border bg-white p-6 shadow-sm ${highlighted?'border-blue-500 ring-2 ring-blue-100':'border-slate-200'}`}>
+          {highlighted && <span className="absolute -top-3 left-5 rounded-full bg-blue-600 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white">Best for solo recruiters</span>}
+          <h2 className="text-xl font-bold text-slate-900">{plan.name}</h2><p className="my-4 text-4xl font-black tracking-tight text-slate-900">${plan.monthlyUsd}<span className="text-sm font-normal text-slate-500"> /month</span></p>
+          <ul className="flex-1 space-y-3 text-sm text-slate-700">
+            <li>✓ {plan.contacts ?? 'Unlimited'} active contacts</li><li>✓ {plan.email} result-based email credits/month</li>
+            <li>✓ {plan.meet ? plan.meet+' Meet summary requests/month' : 'Meeting notes; summaries on paid plans'}</li>
+            <li>✓ {plan.drafts ? plan.drafts+' AI draft generations/month' : 'AI drafts on paid plans'}</li>
+            <li>✓ LinkedIn capture, pipeline, follow-ups, notes and Trash</li>
+            {id!=='free' && <li>✓ Outlook capture</li>}
+          </ul>
+          <button disabled={id==='free'||busy||!account||account.plan===id||account.source==='manual'} onClick={()=>billing(id)} className={`mt-7 w-full rounded-xl px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${highlighted?'bg-blue-600 text-white hover:bg-blue-700':'bg-slate-900 text-white hover:bg-slate-800'}`}>
+            {account?.plan===id ? 'Current plan' : id==='free' ? 'Free forever' : 'Choose '+plan.name}</button>
+        </section>
+      })}</div>
+      <div className="grid gap-5 md:grid-cols-2"><section className="rounded-2xl border border-slate-200 bg-white p-6"><h2 className="font-bold text-slate-900">How usage works</h2><p className="mt-2 text-sm leading-6 text-slate-600">Email searches use one credit only when an address is returned. Failed and no-result searches use zero. Meet summaries and draft generations use one request credit when AI processing starts.</p></section>
+      <section className="rounded-2xl border border-slate-200 bg-white p-6"><h2 className="font-bold text-slate-900">Agency · Coming soon</h2><p className="mt-2 text-sm leading-6 text-slate-600">Shared workspaces, team permissions, and pooled allowances are in development.</p></section></div>
+      <p className="mt-6 text-xs text-slate-500">New paid subscriptions are sold through Link. Use the checkout email to manage your subscription and payment method.</p>
+    </div>
   </main>
 }

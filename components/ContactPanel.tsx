@@ -83,7 +83,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
 
   if (!contact) {
     return (
-      <div className="w-96 min-w-[384px] max-w-full border-l border-slate-100 bg-white flex flex-col">
+      <div className="fixed inset-0 z-40 w-full min-w-0 border-l border-slate-100 bg-white flex flex-col md:static md:z-auto md:w-96 md:min-w-[384px]">
         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-3">
           <div className="w-16 h-16 bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl flex items-center justify-center border border-slate-200">
             <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1}>
@@ -237,7 +237,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
   ]
 
   return (
-    <div className="w-96 min-w-[384px] max-w-full border-l border-slate-100 bg-white flex flex-col h-full overflow-hidden">
+    <aside aria-label={`Contact details for ${contact.firstName} ${contact.lastName}`} className="fixed inset-0 z-40 w-full min-w-0 border-l border-slate-100 bg-white flex flex-col h-full overflow-hidden md:static md:z-auto md:w-96 md:min-w-[384px]">
 
       {/* Profile header */}
       <div className="flex-shrink-0">
@@ -278,7 +278,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
               </a>
             ) : (
               <button onClick={() => handleFindEmail()} disabled={findingEmail}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white rounded-xl text-[11px] font-semibold transition-colors shadow-sm">
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-xl text-[11px] font-semibold transition-colors shadow-sm">
                 {findingEmail ? (
                   <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
@@ -608,6 +608,6 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
           </div>
         )}
       </div>
-    </div>
+    </aside>
   )
 }

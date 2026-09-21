@@ -14,6 +14,8 @@ interface SidebarProps {
   onLogout: () => void
   searchQuery: string
   onSearchChange: (query: string) => void
+  mobileOpen?: boolean
+  onMobileClose?: () => void
 }
 
 interface CreditInfo {
@@ -23,11 +25,11 @@ interface CreditInfo {
 }
 
 const mainNav = [
-  { id: 'meet' as NavItem, label: 'Hirely Meet', path: 'M15 10l5-3v10l-5-3M4 6h9a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2z' },
   { id: 'dashboard' as NavItem, label: 'Dashboard', path: 'M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h6a1 1 0 001-1v-6a1 1 0 00-1-1h-6z' },
   { id: 'contacts' as NavItem, label: 'Contacts', path: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', badge: 'contacts' },
   { id: 'followups' as NavItem, label: 'Follow-ups', path: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', badge: 'overdue' },
   { id: 'ai-drafts' as NavItem, label: 'AI Drafts', path: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
+  { id: 'meet' as NavItem, label: 'Hirely Meet', path: 'M15 10l5-3v10l-5-3M4 6h9a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2z' },
 ]
 
 const insightNav = [
@@ -35,7 +37,7 @@ const insightNav = [
   { id: 'enrichment' as NavItem, label: 'Email finder', path: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
 ]
 
-export default function Sidebar({ activeNav, onNavChange, contactCount, overdueCount, userName, userEmail, onLogout, searchQuery, onSearchChange }: SidebarProps) {
+export default function Sidebar({ activeNav, onNavChange, contactCount, overdueCount, userName, userEmail, onLogout, searchQuery, onSearchChange, mobileOpen = false, onMobileClose }: SidebarProps) {
   const initials = userName ? userName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : 'U'
   const [credits, setCredits] = useState<CreditInfo | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -55,6 +57,13 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
   }, [])
 
   useEffect(() => {
+    if (!mobileOpen) return
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') onMobileClose?.() }
+    window.addEventListener('keydown', close)
+    return () => window.removeEventListener('keydown', close)
+  }, [mobileOpen, onMobileClose])
+
+  useEffect(() => {
     const focusSearch = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault()
@@ -69,9 +78,12 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
   const creditPct = credits ? Math.min((credits.used / Math.max(credits.limit,1)) * 100, 100) : 0
   const creditColor = creditPct >= 90 ? '#EF4444' : creditPct >= 70 ? '#F59E0B' : '#2563EB'
   const remaining = credits ? Math.max(credits.limit - credits.used, 0) : null
+  const selectNav = (nav: NavItem) => { onNavChange(nav); onMobileClose?.() }
 
   return (
-    <aside className="w-52 min-w-[208px] bg-white border-r border-slate-100 flex flex-col h-full">
+    <>
+    {mobileOpen && <button aria-label="Close navigation" onClick={onMobileClose} className="fixed inset-0 z-40 bg-slate-950/35 md:hidden" />}
+    <aside aria-label="Primary navigation" className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-100 flex flex-col h-full transition-transform duration-200 md:static md:z-auto md:w-52 md:min-w-[208px] md:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
 
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 py-4 border-b border-slate-100">
@@ -85,6 +97,9 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
           </svg>
         </div>
         <span className="text-base font-semibold text-slate-900 tracking-tight">Hirely</span>
+        <button type="button" aria-label="Close navigation" onClick={onMobileClose} className="ml-auto rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 md:hidden">
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
       </div>
 
       {userEmail.toLowerCase()==='growwithjey@gmail.com'&&<a href="/admin/companies" className="mx-3 mt-3 rounded-xl bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500">Company Data <span className="text-[10px] opacity-70">Admin</span></a>}
@@ -99,7 +114,7 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
             value={searchQuery}
             onChange={e => {
               onSearchChange(e.target.value)
-              if (e.target.value && activeNav !== 'contacts') onNavChange('contacts')
+              if (e.target.value && activeNav !== 'contacts') selectNav('contacts')
             }}
             placeholder="Search contacts..."
             aria-label="Search contacts"
@@ -113,7 +128,7 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
       <nav className="flex-1 px-2 py-2 overflow-y-auto">
         <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest px-3 mb-1.5">Main</p>
         {mainNav.map(item => (
-          <button key={item.id} onClick={() => onNavChange(item.id)} aria-current={activeNav === item.id ? 'page' : undefined}
+          <button key={item.id} onClick={() => selectNav(item.id)} aria-current={activeNav === item.id ? 'page' : undefined}
             className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12.5px] mb-0.5 transition-all text-left relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${activeNav === item.id ? 'bg-blue-50 text-blue-600 font-medium' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
             {activeNav === item.id && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-blue-600 rounded-r-full" />}
             <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -127,7 +142,7 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
 
         <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest px-3 mb-1.5 mt-4">Insights</p>
         {insightNav.map(item => (
-          <button key={item.id} onClick={() => onNavChange(item.id)} aria-current={activeNav === item.id ? 'page' : undefined}
+          <button key={item.id} onClick={() => selectNav(item.id)} aria-current={activeNav === item.id ? 'page' : undefined}
             className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12.5px] mb-0.5 transition-all text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${activeNav === item.id ? 'bg-blue-50 text-blue-600 font-medium' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
             <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d={item.path} />
@@ -177,11 +192,11 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
 
       {/* Bottom */}
       <div className="border-t border-slate-100 p-2">
-        <button onClick={() => onNavChange('trash')} aria-current={activeNav === 'trash' ? 'page' : undefined}
+        <button onClick={() => selectNav('trash')} aria-current={activeNav === 'trash' ? 'page' : undefined}
           className={`w-full px-3 py-2 rounded-lg text-left text-[12.5px] mb-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${activeNav === 'trash' ? 'bg-blue-50 text-blue-600 font-medium' : 'text-slate-500 hover:bg-slate-50'}`}>
           Trash
         </button>
-        <button onClick={() => onNavChange('settings')} aria-current={activeNav === 'settings' ? 'page' : undefined}
+        <button onClick={() => selectNav('settings')} aria-current={activeNav === 'settings' ? 'page' : undefined}
           className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12.5px] hover:bg-slate-50 transition-all mb-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${activeNav === 'settings' ? 'bg-blue-50 text-blue-600 font-medium' : 'text-slate-500 hover:text-slate-900'}`}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -189,6 +204,10 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
           </svg>
           Integrations
         </button>
+        <a href="/pricing" className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12.5px] text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all mb-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a5 5 0 00-10 0v2m-2 0h14l-1 12H6L5 9z" /></svg>
+          Plan &amp; billing
+        </a>
 
         {/* User + Logout */}
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors group">
@@ -209,5 +228,6 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
         </div>
       </div>
     </aside>
+    </>
   )
 }

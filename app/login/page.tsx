@@ -59,14 +59,14 @@ export default function LoginPage() {
             Place more.<br />Follow up smarter.
           </h1>
           <p className="text-blue-200 text-lg leading-relaxed mb-10">
-            The CRM built for recruiters. One click from your inbox: contact saved, LinkedIn enriched, AI follow-ups ready.
+            Keep recruiter contacts, follow-ups, email searches, and AI drafts in one focused workspace.
           </p>
           <div className="space-y-4">
             {[
-              { icon: '⚡', text: 'One-click contact capture from Outlook' },
-              { icon: '🤖', text: 'AI writes follow-ups based on your original email' },
-              { icon: '🔗', text: 'LinkedIn data enriched automatically via Hunter.io' },
-              { icon: '📊', text: 'Never lose a lead again' },
+              { icon: '⚡', text: 'Capture contacts from LinkedIn and Outlook' },
+              { icon: '🤖', text: 'Prepare follow-up drafts from your original email' },
+              { icon: '🔎', text: 'Search for a work email when you need one' },
+              { icon: '📊', text: 'Track follow-ups, notes, and pipeline status' },
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-base flex-shrink-0">{item.icon}</div>
@@ -76,17 +76,8 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="bg-white/10 rounded-2xl p-5 border border-white/20">
-          <p className="text-white text-sm leading-relaxed italic mb-3">
-            &ldquo;Hirely saved me hours every week. I never miss a follow-up anymore and my placement rate is up 40%.&rdquo;
-          </p>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-xs font-bold">TR</div>
-            <div>
-              <p className="text-white text-xs font-medium">Taranbir K.</p>
-              <p className="text-blue-300 text-xs">Senior Recruiter, Toronto</p>
-            </div>
-          </div>
+        <div className="bg-white/10 rounded-2xl p-5 border border-white/20 text-blue-100 text-sm leading-relaxed">
+          Start on Free with 50 active contacts and 5 result-based email credits each month. Upgrade when your pipeline grows.
         </div>
       </div>
 
@@ -121,7 +112,7 @@ export default function LoginPage() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-semibold text-slate-600 tracking-wide">Password</label>
-                <a href="#" className="text-xs text-blue-600 hover:text-blue-700 font-medium">Forgot password?</a>
+                <Link href="/forgot-password" className="text-xs text-blue-600 hover:text-blue-700 font-medium">Forgot password?</Link>
               </div>
               <div className="relative">
                 <input type={showPass ? 'text' : 'password'} value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder="Enter your password"

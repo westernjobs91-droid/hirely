@@ -42,6 +42,7 @@ export default function Dashboard() {
   const [toast, setToast] = useState<string | null>(null)
   const [filter, setFilter] = useState('All')
   const [searchQuery, setSearchQuery] = useState('')
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   useEffect(() => {
     const init = async () => {
@@ -289,13 +290,17 @@ export default function Dashboard() {
     <div className="flex h-screen overflow-hidden bg-slate-50">
       <Sidebar activeNav={activeNav} onNavChange={setActiveNav} contactCount={contacts.length}
         overdueCount={followUpCount} userName={user?.name || ''} userEmail={user?.email || ''} onLogout={handleLogout}
-        searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+        searchQuery={searchQuery} onSearchChange={setSearchQuery} mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         {/* Top bar */}
-        <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-slate-100 flex-shrink-0">
-          <div>
+        <div className="flex items-center justify-between gap-3 px-3 sm:px-6 py-3 bg-white border-b border-slate-100 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <button type="button" aria-label="Open navigation" onClick={() => setMobileNavOpen(true)} className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 md:hidden">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
+            <div className="min-w-0">
             <h1 className="text-sm font-bold text-slate-900 tracking-tight">
               {activeNav === 'dashboard' && 'Dashboard'}
               {activeNav === 'contacts' && 'All Contacts'}
@@ -312,17 +317,18 @@ export default function Dashboard() {
               {activeNav === 'contacts' && `${allContactsFiltered.length} of ${contacts.length} contacts`}
               {activeNav === 'followups' && `${followupsFiltered.length} needing attention`}
             </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {(activeNav === 'dashboard' || activeNav === 'contacts') && (
               <>
-                <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                <button onClick={() => setShowImport(true)} className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                   Import
                 </button>
                 <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 px-3.5 py-1.5 text-white rounded-lg text-xs font-semibold shadow-sm transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2" style={{ background: 'linear-gradient(135deg,#2563EB,#1D4ED8)' }}>
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                  Add contact
+                  <span className="hidden sm:inline">Add contact</span><span className="sm:hidden">Add</span>
                 </button>
               </>
             )}
@@ -333,12 +339,12 @@ export default function Dashboard() {
 
           {/* ── DASHBOARD VIEW ── */}
           {activeNav === 'dashboard' && (
-            <div className="p-6 flex flex-col gap-5">
+            <div className="p-3 sm:p-6 flex flex-col gap-5">
 
               {/* Greeting + health strip */}
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl px-5 py-4 text-white relative overflow-hidden">
                 <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 50%, white 0%, transparent 60%)' }} />
-                <div className="relative flex items-center justify-between">
+                <div className="relative flex items-start sm:items-center justify-between gap-3">
                   <div>
                     <h2 className="text-xl font-bold tracking-tight">{getGreeting(user?.name || 'there')} 👋</h2>
                     <p className="text-blue-100 text-sm mt-1">
@@ -349,7 +355,7 @@ export default function Dashboard() {
                         : followUpCount > 0 ? `${followUpCount} contacts need your attention today.` : 'All caught up! Keep building your pipeline.'}
                     </p>
                   </div>
-                  <div className="text-right flex-shrink-0 ml-6">
+                  <div className="text-right flex-shrink-0 sm:ml-6">
                     <div className="text-2xl font-black">{followUpCount}</div>
                     <div className="text-blue-100 text-xs font-medium mt-0.5">Follow-ups due</div>
                     <div className={`text-xs font-semibold mt-1 px-2 py-0.5 rounded-full inline-block ${overdueCount > 0 ? 'bg-red-500/20 text-red-100' : 'bg-emerald-500/20 text-emerald-100'}`}>
@@ -574,7 +580,7 @@ export default function Dashboard() {
           )}
 
           {activeNav === 'contacts' && (
-            <div className="px-6 py-4">
+            <div className="px-3 sm:px-6 py-4">
               <ContactListView contacts={allContactsFiltered} selectedId={selected?.id} onSelect={setSelected}
                 onDelete={handleDelete} onMarkDone={handleMarkDone} onFindEmail={handleFindEmailForContact}
                 emptyMessage={searchQuery ? 'No contacts match your search.' : 'No contacts yet - add one to get started.'} />
@@ -582,7 +588,7 @@ export default function Dashboard() {
           )}
 
           {activeNav === 'followups' && (
-            <div className="px-6 py-4">
+            <div className="px-3 sm:px-6 py-4">
               <ContactListView contacts={followupsFiltered} selectedId={selected?.id} onSelect={setSelected}
                 onDelete={handleDelete} onMarkDone={handleMarkDone} onFindEmail={handleFindEmailForContact}
                 emptyMessage="Nothing due - you're all caught up! 🎉" />

@@ -2,14 +2,14 @@
 
 export default function IntegrationsView() {
   return (
-    <div className="px-5 py-4 space-y-5">
+    <div className="px-3 sm:px-5 py-4 space-y-5">
 
       <div>
         <h2 className="text-base font-bold text-slate-800 mb-0.5">Integrations</h2>
         <p className="text-[11.5px] text-slate-400 mb-4">Connect your tools to capture contacts and automate follow-ups.</p>
 
         <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Capture tools</p>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
           {/* Chrome Extension */}
           <div className="bg-white border border-slate-100 rounded-2xl p-5" style={{ boxShadow: '0 1px 4px rgba(0,0,0,.04)' }}>
@@ -21,7 +21,7 @@ export default function IntegrationsView() {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-[13px] font-bold text-slate-900">Chrome Extension</p>
+                  <p className="text-[13px] font-bold text-slate-900">Chrome Extension <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] text-amber-800">Beta install</span></p>
                   <p className="text-[10px] text-slate-400">LinkedIn contact capture</p>
                 </div>
               </div>
@@ -68,13 +68,13 @@ export default function IntegrationsView() {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-[13px] font-bold text-slate-900">Outlook Add-in</p>
+                  <p className="text-[13px] font-bold text-slate-900">Outlook Add-in <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] text-amber-800">Beta install</span></p>
                   <p className="text-[10px] text-slate-400">Email contact capture</p>
                 </div>
               </div>
             </div>
             <p className="text-[11.5px] text-slate-500 leading-relaxed mb-4">
-              Save contacts directly from your Outlook inbox. Opens on any email and captures the sender with one click.
+              Save contacts directly from your Outlook inbox. Opens on any email and captures the sender with one click. Available on paid plans.
             </p>
             <div className="space-y-2">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">How to install</p>
@@ -110,7 +110,7 @@ export default function IntegrationsView() {
       </div>
 
       {/* Help */}
-      <div className="bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 flex items-center justify-between">
+      <div className="bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <p className="text-[12px] font-semibold text-slate-700">Need help setting up?</p>
           <p className="text-[11px] text-slate-400 mt-0.5">Email us and we will get you set up within 24 hours.</p>

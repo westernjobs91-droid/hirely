@@ -67,6 +67,27 @@ test('Cmd/Ctrl+K focuses and selects contact search', async () => {
   await React.act(async () => page.root.unmount())
 })
 
+test('mobile navigation opens, closes, and exposes billing', async () => {
+  const page = dom()
+  const Sidebar = loadComponent('components/Sidebar.tsx', { '@/lib/supabase': { supabase }, '@/types': {} })
+  let open = false
+  const render = async () => React.act(async () => page.root.render(React.createElement(Sidebar, {
+    activeNav: 'dashboard', onNavChange() {}, contactCount: 0, overdueCount: 0,
+    userName: 'Test User', userEmail: 'test@example.com', onLogout() {},
+    searchQuery: '', onSearchChange() {}, mobileOpen: open,
+    onMobileClose: () => { open = false },
+  })))
+  await render()
+  assert.match(page.document.querySelector('aside').className, /-translate-x-full/)
+  assert.equal(page.document.querySelector('a[href="/pricing"]').textContent.trim(), 'Plan & billing')
+  open = true
+  await render()
+  assert.match(page.document.querySelector('aside').className, /translate-x-0/)
+  await React.act(async () => page.document.querySelector('button[aria-label="Close navigation"]').dispatchEvent(new page.window.Event('click', { bubbles: true })))
+  assert.equal(open, false)
+  await React.act(async () => page.root.unmount())
+})
+
 test('Import modal routes available sources and disables unfinished imports', async () => {
   const page = dom()
   const ImportModal = loadComponent('components/ImportModal.tsx')
