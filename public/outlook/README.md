@@ -8,7 +8,8 @@ Adds a "Save to Hirely" button to the ribbon when reading an email. Click it, an
   - `https://hirely-ten-rho.vercel.app/outlook/manifest.xml`
   - `https://hirely-ten-rho.vercel.app/outlook/taskpane.html`
 - `manifest.xml` is the file Outlook reads to know the add-in exists — it points at `taskpane.html` and tells Outlook to show a button in the ribbon when reading a message.
-- `taskpane.html` is a self-contained page (like the Chrome extension's panel) that uses Microsoft's Office.js API to read the currently-open email's sender name, email address, and body text, then lets you review/edit and save straight to Supabase — same direct-write approach as the Chrome extension, so your existing RLS policy handles ownership automatically.
+- `taskpane.html` is a self-contained page (like the Chrome extension's panel) that uses Microsoft's Office.js API to read the currently-open email's sender or first recipient name and email address, then lets you review/edit and save through Hirely's authenticated API.
+- The add-in does not scan the mailbox or save the message body.
 - Unlike LinkedIn, an email doesn't tell you the sender's company or job title, so those fields start blank — fill them in if you know them, or leave them and fix later from the dashboard's **Edit** button.
 - Duplicate check is by email address instead of LinkedIn URL (since that's the reliable unique signal here).
 - No automatic enrichment call, same reasoning as the Chrome extension — you already have their email in this case anyway, so there's nothing to enrich.
@@ -28,11 +29,11 @@ Adds a "Save to Hirely" button to the ribbon when reading an email. Click it, an
    **Outlook on the web:**
    - Open Outlook at outlook.office.com
    - Click the gear icon → **View all Outlook settings** → **Mail** → **Customize actions** → **Add-ins** (or: click the "..." on an open email → **Get Add-ins** → **My add-ins** → **Add a custom add-in** → **Add from file**)
-   - Upload `manifest.xml`
+   - Download `manifest.xml`, choose **Add from file**, and upload it. Microsoft no longer offers **Add from URL** for Outlook add-in sideloading.
 
    **Outlook desktop (Windows/Mac):**
    - Open any email → **Get Add-ins** (in the ribbon) → **My add-ins** → **Add a custom add-in** → **Add from file**
-   - Upload `manifest.xml`
+   - Download `manifest.xml`, choose **Add from file**, and upload it.
 
 4. **Test it.**
    - Open any email in Outlook

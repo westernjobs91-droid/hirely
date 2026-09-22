@@ -234,19 +234,13 @@
         const firstName = parts[0] || emailAddress.split("@")[0] || "";
         const lastName = parts.slice(1).join(" ") || "";
 
-        item.body.getAsync(Office.CoercionType.Text, (result) => {
-          let bodyText = "";
-          if (result.status === Office.AsyncResultStatus.Succeeded) {
-            bodyText = (result.value || "").trim().slice(0, 2000);
-          }
-          resolve({
-            firstName,
-            lastName,
-            email: emailAddress,
-            subject: item.subject || "",
-            originalEmail: bodyText,
-            isSentByMe
-          });
+        resolve({
+          firstName,
+          lastName,
+          email: emailAddress,
+          subject: item.subject || "",
+          originalEmail: "",
+          isSentByMe
         });
       });
     }
@@ -324,7 +318,7 @@
         <button class="btn" id="save-btn">Save to Hirely</button>
         <button class="btn-secondary" id="logout-btn">Log out</button>
         <div class="status" id="save-status"></div>
-        <p class="footer-note">Company/title aren't in the email — add them here, or fill in later from the dashboard.</p>
+        <p class="footer-note">Hirely reads this person’s name and email only. Company and title can be added here or later in the dashboard.</p>
       `;
 
       document.getElementById("logout-btn").addEventListener("click", () => {
