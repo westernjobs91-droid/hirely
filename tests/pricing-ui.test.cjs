@@ -10,8 +10,12 @@ test('pricing page keeps canonical plans and result-based billing copy',()=>{
 test('pricing page exposes polished responsive plan and account states',()=>{
   assert.match(source,/lg:grid-cols-3/)
   assert.match(source,/Most popular/)
-  assert.match(source,/Loading plan…/)
+  assert.match(source,/Checking your account…/)
   assert.match(source,/Current plan/)
+  assert.match(source,/Included with your Pro access/)
+  assert.match(source,/Free plan included/)
   assert.match(source,/Manage subscription/)
   assert.match(source,/Test mode is active/)
+  assert.doesNotMatch(source,/absolute right-5 top-5/)
+  assert.doesNotMatch(source,/disabled:cursor-not-allowed/)
 })

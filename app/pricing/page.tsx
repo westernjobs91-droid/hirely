@@ -7,13 +7,13 @@ import { Entitlements, PLANS, Plan } from '@/lib/plans'
 
 const PLAN_COPY: Record<Plan, { description: string; eyebrow: string; tone: string }> = {
   free: { eyebrow: 'Start simple', description: 'Capture contacts and organize your first recruiting pipeline.', tone: 'from-slate-700 to-slate-900' },
-  solo: { eyebrow: 'For independent recruiters', description: 'Everything an independent recruiter needs to source and follow up.', tone: 'from-blue-600 to-blue-700' },
+  solo: { eyebrow: 'Independent recruiter', description: 'Everything an independent recruiter needs to source and follow up.', tone: 'from-blue-600 to-blue-700' },
   pro: { eyebrow: 'For growing pipelines', description: 'Higher monthly allowances for recruiters working at greater volume.', tone: 'from-violet-600 to-indigo-700' },
 }
 
 function Check({ muted = false }: { muted?: boolean }) {
   return <span className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full ${muted ? 'bg-slate-100 text-slate-400' : 'bg-emerald-50 text-emerald-600'}`}>
-    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m5 13 4 4L19 7" /></svg>
+    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d={muted?'M8 12h8':'m5 13 4 4L19 7'} /></svg>
   </span>
 }
 
@@ -52,10 +52,6 @@ export default function PricingPage() {
   }
 
   function buttonLabel(id: Plan) {
-    if (loadingAccount) return 'Loading plan…'
-    if (account?.plan === id) return 'Current plan'
-    if (id === 'free') return 'Free forever'
-    if (account?.source === 'manual') return 'Managed complimentary access'
     if (busy) return 'Opening checkout…'
     return `Choose ${PLANS[id].name}`
   }
@@ -93,7 +89,7 @@ export default function PricingPage() {
 
       {account && <section className="mb-7 flex flex-col gap-4 rounded-2xl border border-blue-200 bg-blue-50/70 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
         <div><p className="text-xs font-bold uppercase tracking-widest text-blue-600">Your account</p><p className="mt-1 text-sm text-slate-700">You’re on <strong className="text-slate-950">{PLANS[account.plan].name}</strong>{account.source==='manual'?' with complimentary access':''}.</p></div>
-        <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs font-medium text-slate-600"><span>Email {account.email_used}/{account.email_limit}</span><span>Meet {account.meet_used}/{account.meet_limit}</span><span>Drafts {account.draft_used}/{account.draft_limit}</span></div>
+        <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs font-medium text-slate-600"><span>Email <strong>{account.email_used}/{account.email_limit}</strong> used</span><span>Meet <strong>{account.meet_used}/{account.meet_limit}</strong> used</span><span>Drafts <strong>{account.draft_used}/{account.draft_limit}</strong> used</span></div>
         {account.billing_managed && <button disabled={busy} onClick={()=>billing()} className="min-h-10 rounded-xl border border-blue-200 bg-white px-4 text-sm font-semibold text-blue-700 shadow-sm hover:bg-blue-50 disabled:opacity-50">Manage subscription</button>}
       </section>}
 
@@ -101,12 +97,14 @@ export default function PricingPage() {
 
       <div className="grid items-stretch gap-5 lg:grid-cols-3">{(Object.keys(PLANS) as Plan[]).map(id=>{
         const plan=PLANS[id], copy=PLAN_COPY[id], highlighted=id==='solo', isCurrent=account?.plan===id
-        const disabled=id==='free'||busy||loadingAccount||!account||isCurrent||account.source==='manual'
+        const canPurchase=id!=='free'&&!loadingAccount&&!!account&&!isCurrent&&account.source!=='manual'
         return <section key={id} className={`relative flex min-w-0 flex-col overflow-hidden rounded-3xl border bg-white shadow-[0_16px_45px_rgba(15,23,42,0.07)] ${highlighted?'border-blue-400 ring-4 ring-blue-100/70':'border-slate-200'}`}>
           <div className={`h-1.5 bg-gradient-to-r ${copy.tone}`} />
-          {highlighted && <span className="absolute right-5 top-5 rounded-full bg-blue-600 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm">Most popular</span>}
           <div className="flex flex-1 flex-col p-6 sm:p-7">
-            <p className={`text-xs font-bold uppercase tracking-[0.14em] ${highlighted?'text-blue-600':id==='pro'?'text-violet-600':'text-slate-500'}`}>{copy.eyebrow}</p>
+            <div className="flex min-h-7 flex-wrap items-center justify-between gap-2">
+              <p className={`text-xs font-bold uppercase tracking-[0.14em] ${highlighted?'text-blue-600':id==='pro'?'text-violet-600':'text-slate-500'}`}>{copy.eyebrow}</p>
+              {highlighted && <span className="flex-shrink-0 rounded-full bg-blue-600 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm">Most popular</span>}
+            </div>
             <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-950">{plan.name}</h2>
             <p className="mt-2 min-h-12 text-sm leading-6 text-slate-600">{copy.description}</p>
             <div className="mt-5 flex items-end gap-1"><span className="text-5xl font-black tracking-[-0.04em] text-slate-950">${plan.monthlyUsd}</span><span className="pb-1.5 text-sm font-medium text-slate-500">USD / month</span></div>
@@ -120,8 +118,14 @@ export default function PricingPage() {
               <PlanFeature>LinkedIn capture, pipeline, follow-ups, notes and Trash</PlanFeature>
               {id!=='free' && <PlanFeature>Outlook contact capture</PlanFeature>}
             </ul>
-            <button disabled={disabled} onClick={()=>billing(id)} className={`mt-7 min-h-12 w-full rounded-xl px-4 text-sm font-bold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${highlighted?'bg-blue-600 text-white hover:bg-blue-700':'bg-slate-900 text-white hover:bg-slate-800'} ${isCurrent?'ring-2 ring-emerald-200':''}`}>{buttonLabel(id)}</button>
-            {isCurrent && <p className="mt-2 text-center text-xs font-semibold text-emerald-600">Active on your account</p>}
+            <div className="mt-7">
+              {loadingAccount ? <div role="status" className="flex min-h-12 w-full items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-500">Checking your account…</div>
+              : isCurrent ? <div className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-bold text-emerald-700"><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="m5 13 4 4L19 7"/></svg>Current plan</div>
+              : id==='free' ? <div className="flex min-h-12 w-full items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-600">Free plan included</div>
+              : account?.source==='manual' ? <div className="flex min-h-12 w-full items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-4 text-center text-sm font-semibold text-blue-700">Included with your Pro access</div>
+              : !account ? <div className="flex min-h-12 w-full items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700">Plan unavailable</div>
+              : <button disabled={!canPurchase||busy} onClick={()=>billing(id)} className={`min-h-12 w-full cursor-pointer rounded-xl px-4 text-sm font-bold shadow-sm transition disabled:cursor-wait disabled:opacity-60 ${highlighted?'bg-blue-600 text-white hover:bg-blue-700':'bg-slate-900 text-white hover:bg-slate-800'}`}>{buttonLabel(id)}</button>}
+            </div>
           </div>
         </section>
       })}</div>
