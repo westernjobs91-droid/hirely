@@ -4,14 +4,14 @@ import { useMemo, useState } from 'react'
 import ContactPhoto from './ContactPhoto'
 import EmailStatusBadge from './EmailStatusBadge'
 import { followUpDay } from '@/lib/follow-up'
-import { Contact } from '@/types'
+import { Contact, PipelineColumn } from '@/types'
 
 interface ContactListViewProps {
   contacts: Contact[]
   selectedId?: string
   onSelect: (contact: Contact) => void
   onDelete: (id: string) => void
-  onMarkDone?: (id: string) => void | Promise<void>
+  onMove?: (id: string, target: PipelineColumn) => void | Promise<boolean>
   onFindEmail?: (contact: Contact) => Promise<boolean>
   emptyMessage: string
 }
@@ -33,7 +33,7 @@ function daysSince(date?: string) {
   return Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 86400000))
 }
 
-export default function ContactListView({ contacts, selectedId, onSelect, onDelete, onMarkDone, onFindEmail, emptyMessage }: ContactListViewProps) {
+export default function ContactListView({ contacts, selectedId, onSelect, onDelete, onMove, onFindEmail, emptyMessage }: ContactListViewProps) {
   const [view, setView] = useState<SavedView>('all')
   const [company, setCompany] = useState('all')
   const [emailStatus, setEmailStatus] = useState('all')
@@ -104,11 +104,11 @@ export default function ContactListView({ contacts, selectedId, onSelect, onDele
   }
 
   async function markSelectedDone() {
-    if (!onMarkDone || bulkBusy) return
+    if (!onMove || bulkBusy) return
     const active = selectedContacts.filter(contact => contact.column !== 'done')
     setBulkBusy(true)
     try {
-      for (const contact of active) await onMarkDone(contact.id)
+      for (const contact of active) await onMove(contact.id,'done')
       setSelected(new Set())
     } finally { setBulkBusy(false) }
   }
@@ -186,8 +186,8 @@ export default function ContactListView({ contacts, selectedId, onSelect, onDele
                   <p className="text-[12px] text-slate-600 truncate font-medium">{contact.company || '-'}</p>
                   {contact.email ? <div className="flex items-center gap-1.5 min-w-0"><svg className="w-3 h-3 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg><p className="text-[11.5px] text-slate-600 truncate">{contact.email}</p></div> : <button disabled={!onFindEmail || !!finding} onClick={e => { e.stopPropagation(); findEmail(contact) }} className="w-fit rounded-lg bg-blue-50 px-2.5 py-1.5 text-[10.5px] font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50">{finding === contact.id ? 'Searching…' : 'Find email · 1 credit'}</button>}
                   <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9.5px] font-bold w-fit ${style.bg} ${style.text}`}><div className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />{contact.statusLabel || 'New'}</div>
-                  {onMarkDone && contact.column !== 'done' ? <button onClick={e => { e.stopPropagation(); onMarkDone(contact.id) }} className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-6 h-6 rounded-full bg-emerald-50 hover:bg-emerald-500 border border-emerald-200 hover:border-emerald-500 flex items-center justify-center group/done" title="Mark as done"><svg className="w-3 h-3 text-emerald-400 group-hover/done:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg></button> : <span />}
-                  <details className="relative" onClick={e => e.stopPropagation()}><summary aria-label="Contact actions" title="Contact actions" className="list-none cursor-pointer w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center [&::-webkit-details-marker]:hidden"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></summary><div className="absolute right-0 top-8 z-20 w-36 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl"><button onClick={() => onDelete(contact.id)} className="w-full rounded-lg px-3 py-2 text-left text-[11px] font-semibold text-red-600 hover:bg-red-50">Move to Trash</button></div></details>
+                  {onMove && contact.column !== 'done' ? <button onClick={e => { e.stopPropagation(); onMove(contact.id,'done') }} className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-6 h-6 rounded-full bg-emerald-50 hover:bg-emerald-500 border border-emerald-200 hover:border-emerald-500 flex items-center justify-center group/done" title="Move to Done"><svg className="w-3 h-3 text-emerald-400 group-hover/done:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg></button> : <span />}
+                  <details className="relative" onClick={e => e.stopPropagation()}><summary aria-label="Contact actions" title="Contact actions" className="list-none cursor-pointer w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center [&::-webkit-details-marker]:hidden"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></summary><div className="absolute right-0 top-8 z-20 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">{onMove && contact.column!=='today' && <button onClick={() => onMove(contact.id,'today')} className="w-full rounded-lg px-3 py-2 text-left text-[11px] font-semibold text-red-700 hover:bg-red-50">Move to Follow up today</button>}{onMove && contact.column!=='upcoming' && <button onClick={() => onMove(contact.id,'upcoming')} className="w-full rounded-lg px-3 py-2 text-left text-[11px] font-semibold text-amber-700 hover:bg-amber-50">Move to Coming up</button>}{onMove && contact.column!=='done' && <button onClick={() => onMove(contact.id,'done')} className="w-full rounded-lg px-3 py-2 text-left text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50">Move to Done</button>}<div className="my-1 border-t border-slate-100"/><button onClick={() => onDelete(contact.id)} className="w-full rounded-lg px-3 py-2 text-left text-[11px] font-semibold text-red-600 hover:bg-red-50">Move to Trash</button></div></details>
                 </div>
               )
             })}

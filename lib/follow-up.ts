@@ -1,4 +1,4 @@
-import type { Contact } from '@/types'
+import type { Contact, PipelineColumn } from '@/types'
 export function localDay(now=new Date()):string {
  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
 }
@@ -35,9 +35,18 @@ export function matchesPipelineFilter(c:Contact,filter:string,today=localDay()):
  return true
 }
 
-export function schedulingPatch(current:Contact,updates:Partial<Contact>):Partial<Contact> {
+export function schedulingPatch(current:Contact,updates:Partial<Contact>,today=localDay()):Partial<Contact> {
  if(updates.sentDate===undefined&&updates.column===undefined)return {...updates}
  if(updates.sentDate!==undefined&&updates.sentDate!==''&&!validDay(updates.sentDate))throw new Error('Choose a valid follow-up date.')
- const next=normalizeFollowUp({...current,...updates,...(updates.sentDate!==undefined?{column:updates.column||'upcoming'}:{})})
+ const next=normalizeFollowUp({...current,...updates,...(updates.sentDate!==undefined?{column:updates.column||'upcoming'}:{})},today)
  return {...updates,column:next.column,status:next.status,statusLabel:next.statusLabel,sentDate:next.sentDate}
+}
+
+export function pipelineMovePatch(current:Contact,target:PipelineColumn,today=localDay()):Partial<Contact> {
+ if(target==='today')return schedulingPatch(current,{column:'today',sentDate:today},today)
+ if(target==='upcoming'){
+  const existing=validDay(current.sentDate)&&current.sentDate>today?current.sentDate:''
+  return schedulingPatch(current,{column:'upcoming',sentDate:existing||addDays(today,7)},today)
+ }
+ return schedulingPatch(current,{column:'done'},today)
 }

@@ -2,14 +2,14 @@
 import { followUpDay } from '@/lib/follow-up'
 import ContactPhoto from './ContactPhoto'
 
-import { Contact } from '@/types'
+import { Contact, PipelineColumn } from '@/types'
 
 interface ContactCardProps {
   contact: Contact
   isSelected: boolean
   onClick: () => void
   onDelete?: (id: string) => void
-  onMarkDone?: (id: string) => void
+  onMove?: (id: string, target: PipelineColumn) => void | Promise<boolean>
 }
 
 const statusStyles: Record<string, string> = {
@@ -39,7 +39,7 @@ function urgencyColor(dateStr?: string): string {
   return 'text-slate-400'
 }
 
-export default function ContactCard({ contact, isSelected, onClick, onDelete, onMarkDone }: ContactCardProps) {
+export default function ContactCard({ contact, isSelected, onClick, onDelete, onMove }: ContactCardProps) {
   const initials = `${contact.firstName[0] || ''}${contact.lastName[0] || ''}`.toUpperCase() || '?'
   const ago = daysAgo(contact.createdAt)
   const due=followUpDay(contact)
@@ -72,7 +72,11 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
                 <summary aria-label="Contact actions" title="Contact actions" className="list-none cursor-pointer w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center [&::-webkit-details-marker]:hidden">
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
                 </summary>
-                <div className="absolute right-0 top-8 z-20 w-36 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                <div className="absolute right-0 top-8 z-20 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                  {onMove && contact.column !== 'today' && <button onClick={() => onMove(contact.id,'today')} className="w-full rounded-lg px-3 py-2 text-left text-[11px] font-semibold text-red-700 hover:bg-red-50">Move to Follow up today</button>}
+                  {onMove && contact.column !== 'upcoming' && <button onClick={() => onMove(contact.id,'upcoming')} className="w-full rounded-lg px-3 py-2 text-left text-[11px] font-semibold text-amber-700 hover:bg-amber-50">Move to Coming up</button>}
+                  {onMove && contact.column !== 'done' && <button onClick={() => onMove(contact.id,'done')} className="w-full rounded-lg px-3 py-2 text-left text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50">Move to Done</button>}
+                  <div className="my-1 border-t border-slate-100" />
                   <button onClick={() => onDelete(contact.id)} className="w-full rounded-lg px-3 py-2 text-left text-[11px] font-semibold text-red-600 hover:bg-red-50">Move to Trash</button>
                 </div>
               </details>
@@ -109,11 +113,11 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
           {contact.statusLabel || 'New'}
         </span>
         <div className="flex items-center gap-2">
-          {onMarkDone && contact.column !== 'done' && (
+          {onMove && contact.column !== 'done' && (
             <button
-              onClick={e => { e.stopPropagation(); onMarkDone(contact.id) }}
+              onClick={e => { e.stopPropagation(); onMove(contact.id,'done') }}
               className="opacity-60 group-hover:opacity-100 focus:opacity-100 transition-opacity text-[9px] font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-0.5"
-              title="Mark as done"
+              title="Move to Done"
             >
               <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />

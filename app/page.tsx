@@ -17,8 +17,8 @@ import Toast from '@/components/Toast'
 import TrashView from '@/components/TrashView'
 import { setContactTrashed } from '@/lib/contact-trash'
 import AIDraftsView from '@/components/AIDraftsView'
-import { normalizeFollowUp, matchesPipelineFilter, localDay, followUpDay, schedulingPatch } from '@/lib/follow-up'
-import { Contact, NavItem, AIDraft } from '@/types'
+import { normalizeFollowUp, matchesPipelineFilter, localDay, followUpDay, schedulingPatch, pipelineMovePatch } from '@/lib/follow-up'
+import { Contact, NavItem, AIDraft, PipelineColumn } from '@/types'
 
 const filters = ['All', 'This week', 'Overdue', 'Replied']
 
@@ -155,15 +155,6 @@ export default function Dashboard() {
     setToast('Contact moved to Trash. You can restore it from the sidebar.')
   }, [selected, user])
 
-  const handleMarkDone = useCallback(async (id: string) => {
-    if(!user)return
-    const current=contacts.find(c=>c.id===id);if(!current)return
-    const done=normalizeFollowUp({...current,column:'done'})
-    const {data: saved,error}=await supabase.from('contacts').update({column_name:'done',status:done.status,status_label:'Done'}).eq('id',id).eq('user_id',user.id).is('deleted_at',null).select('id').maybeSingle()
-    if(error || !saved){setToast('Could not mark contact as done. Refresh and try again.');return}
-    setContacts(prev=>prev.map(c=>c.id===id?done:c));setSelected(prev=>prev?.id===id?done:prev)
-  }, [contacts,user])
-
   const handleSend = useCallback((draft: AIDraft, c: Contact) => {
     if (!c.email || c.emailStatus === 'invalid') { setToast('Add a usable email before preparing a draft.'); return }
     window.location.href = 'mailto:' + encodeURIComponent(c.email) + '?subject=' + encodeURIComponent('Following up') + '&body=' + encodeURIComponent(draft.body)
@@ -204,6 +195,19 @@ export default function Dashboard() {
     setSelected(prev => (prev && prev.id === id ? { ...prev, ...updates } : prev))
     return true
   }, [contacts,user])
+
+  const handleMoveContact = useCallback(async (id: string, target: PipelineColumn) => {
+    const current=contacts.find(contact=>contact.id===id)
+    if(!current)return false
+    const labels:Record<PipelineColumn,string>={today:'Follow up today',upcoming:'Coming up',done:'Done'}
+    const patch=pipelineMovePatch(current,target)
+    const saved=await handleUpdateContact(id,{
+      ...patch,
+      activity:[...(current.activity||[]),JSON.stringify({type:'action',label:`Moved to ${labels[target]}`,date:new Date().toISOString()})]
+    })
+    if(saved)setToast(`${current.firstName} moved to ${labels[target]}.`)
+    return saved
+  },[contacts,handleUpdateContact])
 
   const handleFindEmailForContact = useCallback(async (contact: Contact) => {
     if (!contact.firstName || !contact.company) { setToast('Add a contact name and company before searching.'); return false }
@@ -501,7 +505,7 @@ export default function Dashboard() {
                         ) : (
                           col.contacts.map(c => (
                             <ContactCard key={c.id} contact={c} isSelected={selected?.id === c.id}
-                              onClick={() => setSelected(c)} onDelete={handleDelete} onMarkDone={handleMarkDone} />
+                              onClick={() => setSelected(c)} onDelete={handleDelete} onMove={handleMoveContact} />
                           ))
                         )}
                       </div>
@@ -582,7 +586,7 @@ export default function Dashboard() {
           {activeNav === 'contacts' && (
             <div className="px-3 sm:px-6 py-4">
               <ContactListView contacts={allContactsFiltered} selectedId={selected?.id} onSelect={setSelected}
-                onDelete={handleDelete} onMarkDone={handleMarkDone} onFindEmail={handleFindEmailForContact}
+                onDelete={handleDelete} onMove={handleMoveContact} onFindEmail={handleFindEmailForContact}
                 emptyMessage={searchQuery ? 'No contacts match your search.' : 'No contacts yet - add one to get started.'} />
             </div>
           )}
@@ -590,7 +594,7 @@ export default function Dashboard() {
           {activeNav === 'followups' && (
             <div className="px-3 sm:px-6 py-4">
               <ContactListView contacts={followupsFiltered} selectedId={selected?.id} onSelect={setSelected}
-                onDelete={handleDelete} onMarkDone={handleMarkDone} onFindEmail={handleFindEmailForContact}
+                onDelete={handleDelete} onMove={handleMoveContact} onFindEmail={handleFindEmailForContact}
                 emptyMessage="Nothing due - you're all caught up! 🎉" />
             </div>
           )}
@@ -608,7 +612,7 @@ export default function Dashboard() {
       </div>
 
       {(activeNav === 'dashboard' || activeNav === 'contacts' || activeNav === 'followups' || activeNav === 'enrichment') && selected && (
-        <ContactPanel contact={selected} onClose={() => setSelected(null)} onSendDraft={handleSend} onUpdateContact={handleUpdateContact} />
+        <ContactPanel contact={selected} onClose={() => setSelected(null)} onSendDraft={handleSend} onUpdateContact={handleUpdateContact} onMoveContact={handleMoveContact} />
       )}
       {showAdd && <AddContactModal onClose={() => setShowAdd(false)} onAdd={handleAdd} />}
       {showImport && <ImportModal onClose={() => setShowImport(false)} onOpenIntegrations={() => setActiveNav('settings')} />}

@@ -88,6 +88,26 @@ test('mobile navigation opens, closes, and exposes billing', async () => {
   await React.act(async () => page.root.unmount())
 })
 
+test('Done contacts can move back to Today or Coming up from the card menu', async () => {
+  const page = dom()
+  const ContactCard = loadComponent('components/ContactCard.tsx', {
+    '@/lib/follow-up': { followUpDay: contact => contact.sentDate || '' },
+    './ContactPhoto': { __esModule: true, default: () => React.createElement('span', null, 'Photo') },
+    '@/types': {},
+  })
+  const moves = []
+  const contact = { id:'done-1', firstName:'Maya', lastName:'Carter', email:'maya@example.com', company:'Northstar', jobTitle:'HR Director', avatarColor:'#2563EB', status:'no-response', statusLabel:'Done', column:'done', sentDate:'', createdAt:'2026-09-20' }
+  await React.act(async () => page.root.render(React.createElement(ContactCard, { contact, isSelected:false, onClick() {}, onDelete() {}, onMove:(id,target)=>moves.push([id,target]) })))
+  const labels = Array.from(page.document.querySelectorAll('button')).map(button => button.textContent.trim())
+  assert.ok(labels.includes('Move to Follow up today'))
+  assert.ok(labels.includes('Move to Coming up'))
+  assert.ok(!labels.includes('Move to Done'))
+  const upcoming = Array.from(page.document.querySelectorAll('button')).find(button => button.textContent.trim()==='Move to Coming up')
+  await React.act(async () => upcoming.dispatchEvent(new page.window.Event('click', { bubbles:true })))
+  assert.deepEqual(moves, [['done-1','upcoming']])
+  await React.act(async () => page.root.unmount())
+})
+
 test('Import modal routes available sources and disables unfinished imports', async () => {
   const page = dom()
   const ImportModal = loadComponent('components/ImportModal.tsx')

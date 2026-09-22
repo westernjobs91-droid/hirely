@@ -4,13 +4,14 @@ import ContactPhoto from './ContactPhoto'
 import { localDay, validDay } from '@/lib/follow-up'
 import { useState, useEffect } from 'react'
 import EmailStatusBadge from './EmailStatusBadge'
-import { Contact, AIDraft } from '@/types'
+import { Contact, AIDraft, PipelineColumn } from '@/types'
 
 interface ContactPanelProps {
   contact: Contact | null
   onClose: () => void
   onSendDraft: (draft: AIDraft, contact: Contact) => void
   onUpdateContact: (id: string, updates: Partial<Contact>) => Promise<boolean>
+  onMoveContact: (id: string, target: PipelineColumn) => Promise<boolean>
 }
 
 type Tab = 'info' | 'drafts' | 'activity' | 'notes'
@@ -50,7 +51,7 @@ function InfoRow({ icon, label, value, href, isEmail }: {
   )
 }
 
-export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateContact }: ContactPanelProps) {
+export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateContact, onMoveContact }: ContactPanelProps) {
   const [activeTab, setActiveTab] = useState<Tab>('info')
   const [sentDrafts, setSentDrafts] = useState<Set<string>>(new Set())
   const [notes, setNotes] = useState('')
@@ -67,6 +68,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
   const [savingFollowUp, setSavingFollowUp] = useState(false)
   const [followUpError,setFollowUpError]=useState('')
   const [followUpSaved, setFollowUpSaved] = useState(false)
+  const [movingStage, setMovingStage] = useState<PipelineColumn | null>(null)
 
   useEffect(() => {
     setFindEmailError(null)
@@ -79,6 +81,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
     setFollowUpError('')
     setFollowUpDate(contact?.sentDate || '')
     setFollowUpSaved(false)
+    setMovingStage(null)
   }, [contact?.id])
 
   if (!contact) {
@@ -220,13 +223,11 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
     finally{setSavingFollowUp(false)}
   }
 
-  const handleMoveToDone = async () => {
-    if (!contact) return
-    await onUpdateContact(contact.id, {
-      column: 'done' as Contact['column'],
-      statusLabel: 'Done'
-    })
-    await logActivity('Marked as done')
+  const handleMoveStage = async (target: PipelineColumn) => {
+    if (!contact || target===contact.column || movingStage) return
+    setMovingStage(target)
+    try { await onMoveContact(contact.id,target) }
+    finally { setMovingStage(null) }
   }
 
   const tabs: { id: Tab; label: string }[] = [
@@ -301,15 +302,17 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
             </button>
           </div>
 
-          {/* Mark as done: always visible */}
-          {contact.column !== 'done' && (
-            <button
-              onClick={handleMoveToDone}
-              className="w-full mt-2 py-1.5 rounded-xl border border-slate-200 text-[11px] font-semibold text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-all"
-            >
-              Mark as done ✓
-            </button>
-          )}
+          <div className="mt-3">
+            <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-500">Pipeline stage</p>
+            <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1" aria-label="Move contact to pipeline stage">
+              {([
+                ['today','Follow up today','text-red-700'],
+                ['upcoming','Coming up','text-amber-700'],
+                ['done','Done','text-emerald-700'],
+              ] as [PipelineColumn,string,string][]).map(([stage,label,color])=><button key={stage} type="button" disabled={contact.column===stage||movingStage!==null} onClick={()=>handleMoveStage(stage)} aria-pressed={contact.column===stage} className={`rounded-lg px-1.5 py-2 text-[10px] font-semibold transition ${contact.column===stage?`bg-white ${color} shadow-sm`:'text-slate-500 hover:bg-white hover:text-slate-800'} disabled:cursor-default`}>{movingStage===stage?'Moving…':label}</button>)}
+            </div>
+            <p className="mt-1.5 text-[9.5px] leading-4 text-slate-500">Coming up keeps a future date or schedules 7 days from today. You can change the date below.</p>
+          </div>
 
           {!contact.email && <p role="status" className="text-[11px] text-slate-600 bg-slate-50 rounded-lg px-2.5 py-2 mt-2">1 Hirely credit when an email is returned. No result or failed search uses no credits.</p>}
           {findEmailError && <p className="text-[10px] text-red-600 bg-red-50 border border-red-100 rounded-lg px-2.5 py-1.5 mt-2">{findEmailError}</p>}
