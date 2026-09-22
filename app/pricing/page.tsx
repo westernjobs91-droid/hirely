@@ -7,7 +7,7 @@ import { Entitlements, PLANS, Plan } from '@/lib/plans'
 
 const PLAN_COPY: Record<Plan, { description: string; eyebrow: string; tone: string }> = {
   free: { eyebrow: 'Start simple', description: 'Capture contacts and organize your first recruiting pipeline.', tone: 'from-slate-700 to-slate-900' },
-  solo: { eyebrow: 'Most popular', description: 'Everything an independent recruiter needs to source and follow up.', tone: 'from-blue-600 to-blue-700' },
+  solo: { eyebrow: 'For independent recruiters', description: 'Everything an independent recruiter needs to source and follow up.', tone: 'from-blue-600 to-blue-700' },
   pro: { eyebrow: 'For growing pipelines', description: 'Higher monthly allowances for recruiters working at greater volume.', tone: 'from-violet-600 to-indigo-700' },
 }
 
