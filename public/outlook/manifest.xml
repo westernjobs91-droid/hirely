@@ -7,14 +7,14 @@
   xsi:type="MailApp">
 
   <Id>a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d</Id>
-  <Version>1.0.0.0</Version>
+  <Version>1.0.1.0</Version>
   <ProviderName>Hirely</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Hirely" />
   <Description DefaultValue="Save the sender of this email straight into your Hirely CRM pipeline." />
-  <IconUrl DefaultValue="https://app.hirelypro.com/outlook/icons/icon-32.png" />
-  <HighResolutionIconUrl DefaultValue="https://app.hirelypro.com/outlook/icons/icon-80.png" />
-  <SupportUrl DefaultValue="https://hirelypro.com" />
+  <IconUrl DefaultValue="https://app.hirelypro.com/outlook/icons/icon-64.png" />
+  <HighResolutionIconUrl DefaultValue="https://app.hirelypro.com/outlook/icons/icon-128.png" />
+  <SupportUrl DefaultValue="https://app.hirelypro.com/support" />
 
   <AppDomains>
     <AppDomain>https://app.hirelypro.com</AppDomain>

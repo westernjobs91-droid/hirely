@@ -5,7 +5,7 @@ export const metadata: Metadata = { title: 'Privacy Policy | Hirely', descriptio
 
 export default function PrivacyPage() {
   return (
-    <PublicInfoLayout title="Privacy Policy" updated="September 14, 2026">
+    <PublicInfoLayout title="Privacy Policy" updated="September 22, 2026">
       <section>
         <h2>What Hirely collects</h2>
         <p>Hirely processes the information you add to the CRM, including contact names, job titles, companies, work contact details, LinkedIn profile URLs, profile photo URLs, notes, follow-up activity, meeting notes, and email drafts. We also process your account email, authentication information, subscription and usage records, and basic technical logs needed to operate and secure the service.</p>
@@ -14,6 +14,10 @@ export default function PrivacyPage() {
         <h2>Chrome extension data</h2>
         <p>The Hirely extension runs only on LinkedIn pages. When its panel is open, it reads visible profile or company information so you can review it and checks the profile URL against your Hirely account. Profile information is saved to Hirely only when you choose to save it. A confirmed email search sends the person&apos;s name and company or domain to Hirely and may send that search to our email-data provider.</p>
         <p className="mt-3">The extension stores an authentication session and panel preferences in Chrome local storage. Your password is sent securely to our authentication provider for sign-in and is not stored by the extension.</p>
+      </section>
+      <section>
+        <h2>Outlook add-in data</h2>
+        <p>When you open the Hirely Outlook add-in on a message, it reads the open message&apos;s sender or first recipient name and email address so you can review and save that person. The current add-in does not scan your mailbox, read or save the message body, or continuously synchronize email. Hirely saves the reviewed contact only when you choose to save it.</p>
       </section>
       <section>
         <h2>How information is used</h2>
