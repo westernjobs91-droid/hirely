@@ -19,14 +19,14 @@ export default function IntegrationsView() {
 
   const outlookIncluded = account?.outlook === true
 
-  return <div className="mx-auto max-w-[1440px] space-y-5 px-3 py-4 sm:px-6 sm:py-6">
+  return <div className="mx-auto max-w-[1440px] space-y-5 overflow-x-hidden px-3 py-4 sm:px-6 sm:py-6">
     <section className="overflow-hidden rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-violet-50 shadow-sm">
       <div className="flex flex-col gap-5 p-5 sm:p-7 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-start gap-4">
+        <div className="flex min-w-0 items-start gap-3 sm:gap-4">
           <div className="flex h-12 w-12 flex-none items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200">
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13.8 10.2a4 4 0 0 0-5.6 0l-4 4a4 4 0 0 0 5.6 5.6l1.1-1.1m-.7-4.9a4 4 0 0 0 5.6 0l4-4a4 4 0 0 0-5.6-5.6l-1.1 1.1" /></svg>
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">Capture anywhere</p>
             <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Bring new contacts into Hirely</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Save people while you work in LinkedIn or Outlook, then manage every follow-up from one pipeline.</p>
@@ -34,7 +34,7 @@ export default function IntegrationsView() {
         </div>
         <div className={`rounded-2xl border px-4 py-3 sm:min-w-64 ${outlookIncluded ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
           <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Your integration access</p>
-          {account ? <><div className="mt-1 flex items-center justify-between gap-3"><p className="text-sm font-bold text-slate-950">{PLANS[account.plan].name} plan</p><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${outlookIncluded ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{outlookIncluded ? 'Outlook included' : 'LinkedIn included'}</span></div>{!outlookIncluded && <a href="/pricing" className="mt-2 inline-block text-xs font-semibold text-blue-600 hover:underline">Compare paid plans →</a>}</> : <div className="mt-2 h-5 w-40 animate-pulse rounded bg-slate-200" />}
+          {account ? <><div className="mt-1 flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold text-slate-950">{PLANS[account.plan].name} plan</p><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${outlookIncluded ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{outlookIncluded ? 'Outlook included' : 'LinkedIn included'}</span></div>{!outlookIncluded && <a href="/pricing" className="mt-2 inline-block text-xs font-semibold text-blue-600 hover:underline">Compare paid plans →</a>}</> : <div className="mt-2 h-5 w-40 animate-pulse rounded bg-slate-200" />}
         </div>
       </div>
     </section>
@@ -46,7 +46,7 @@ export default function IntegrationsView() {
         ['3', 'Save to your pipeline', 'Add company or title if known, then save the contact.'],
       ].map(([number, title, detail]) => <div key={number} className="flex gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-slate-950 text-xs font-bold text-white">{number}</span>
-        <div><p className="text-sm font-bold text-slate-900">{title}</p><p className="mt-1 text-xs leading-5 text-slate-500">{detail}</p></div>
+        <div className="min-w-0"><p className="text-sm font-bold text-slate-900">{title}</p><p className="mt-1 text-xs leading-5 text-slate-500">{detail}</p></div>
       </div>)}
     </section>
 
@@ -54,7 +54,7 @@ export default function IntegrationsView() {
       <article className="flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="h-1.5 bg-gradient-to-r from-blue-500 to-blue-700" />
         <div className="flex flex-1 flex-col p-5 sm:p-6">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50"><svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13.8 10.2a4 4 0 0 0-5.6 0l-4 4a4 4 0 0 0 5.6 5.6l1.1-1.1m-.7-4.9a4 4 0 0 0 5.6 0l4-4a4 4 0 0 0-5.6-5.6l-1.1 1.1" /></svg></div><div><h3 className="text-base font-black text-slate-950">LinkedIn extension</h3><p className="text-xs text-slate-500">One-click profile capture</p></div></div>
             <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-700">All plans</span>
           </div>
@@ -67,7 +67,7 @@ export default function IntegrationsView() {
       <article className="flex flex-col overflow-hidden rounded-3xl border border-violet-200 bg-white shadow-sm ring-4 ring-violet-50">
         <div className="h-1.5 bg-gradient-to-r from-violet-500 to-indigo-700" />
         <div className="flex flex-1 flex-col p-5 sm:p-6">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-violet-100 bg-violet-50"><svg className="h-5 w-5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="m3 8 7.9 5.3a2 2 0 0 0 2.2 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2Z" /></svg></div><div><h3 className="text-base font-black text-slate-950">Outlook add-in</h3><p className="text-xs text-slate-500">Sender and recipient capture</p></div></div>
             <span className="rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-bold text-violet-700">Solo + Pro</span>
           </div>

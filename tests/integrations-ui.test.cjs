@@ -12,6 +12,8 @@ test('integrations page explains current plan access and the Outlook workflow', 
   assert.match(view, /Add from file/)
   assert.doesNotMatch(view, /Add from URL/)
   assert.match(view, /download="hirely-outlook-manifest\.xml"/)
+  assert.match(view, /overflow-x-hidden/)
+  assert.match(view, /flex flex-wrap items-center justify-between/)
 })
 
 test('Outlook capture avoids reading or saving message bodies', () => {
