@@ -20,6 +20,10 @@ export default function PrivacyPage() {
         <p>When you open the Hirely Outlook add-in on a message, it reads the open message&apos;s sender or first recipient name and email address so you can review and save that person. The current add-in does not scan your mailbox, read or save the message body, or continuously synchronize email. Hirely saves the reviewed contact only when you choose to save it.</p>
       </section>
       <section>
+        <h2>Gmail extension data</h2>
+        <p>When you open the Hirely panel on Gmail, the extension reads the visible sender or recipient name and email address from the message you opened so you can review and save that person. It does not use the Gmail API, scan your inbox, read or save the message body, or continuously synchronize email. Hirely saves the reviewed contact only when you choose to save it.</p>
+      </section>
+      <section>
         <h2>How information is used</h2>
         <ul>
           <li>Provide contact capture, CRM, email-finding, follow-up, analytics, and meeting features you request.</li>

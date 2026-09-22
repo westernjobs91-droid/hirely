@@ -7,6 +7,7 @@ interface ImportModalProps {
 
 const sources = [
   { icon: 'M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z', color: '#0A66C2', label: 'From LinkedIn', sub: 'Open extension setup', isBrand: true, available: true },
+  { icon: 'M22 6.2v11.6A2.2 2.2 0 0119.8 20H4.2A2.2 2.2 0 012 17.8V6.2l10 7.1 10-7.1zM20.6 4.5L12 10.6 3.4 4.5A2.2 2.2 0 014.2 4h15.6c.3 0 .6.1.8.5z', color: '#EA4335', label: 'From Gmail', sub: 'Open Chrome extension setup', isBrand: true, available: true },
   { icon: 'M0 3.449L9.75 9.949v13.6H0zM10.949 9.949L20.699 3.449V23.55H10.949z M0 2.6L10.949 9 21.9 2.6 10.949 0z', color: '#0078D4', label: 'From Outlook', sub: 'Open add-in setup', isBrand: true, available: true },
   { icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', color: '#16A34A', label: 'CSV / Excel', sub: 'Coming soon', isBrand: false, available: false },
   { icon: 'M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14', color: '#7C3AED', label: 'API / Zapier', sub: 'Coming soon', isBrand: false, available: false },
@@ -63,7 +64,7 @@ export default function ImportModal({ onClose, onOpenIntegrations }: ImportModal
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-gray-400 text-center">LinkedIn and Outlook setup is available now. Additional import methods are coming soon.</p>
+          <p className="text-[11px] text-gray-400 text-center">LinkedIn, Gmail, and Outlook setup is available now. Additional import methods are coming soon.</p>
         </div>
 
         <div className="flex justify-end px-5 py-3.5 border-t border-gray-100">

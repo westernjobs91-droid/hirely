@@ -72,11 +72,12 @@ Exit: replies update the correct Hirely contact and follow-up state reliably, in
 
 ## Phase 4 — Gmail lightweight workflow
 
-- Extend the Chrome extension to recognize an open Gmail message.
-- Read only the visible sender/recipient, display name, email address, and subject needed for the user-requested action.
-- Require review before saving a contact.
-- Start outreach with a Gmail compose link or local compose helper; do not scan the inbox.
-- Use clear Gmail-specific unavailable/error states and duplicate checks.
+- [x] Extend the Chrome extension to recognize an open Gmail message.
+- [x] Read only the visible sender/recipient name and email address needed for contact capture.
+- [x] Require review before saving a contact.
+- [x] Add Gmail-specific unavailable/error states and duplicate checks.
+- [ ] Test the packaged extension against received and sent messages in live Gmail.
+- [ ] Add a local compose helper after capture validation; do not scan the inbox.
 
 Exit: Gmail users can capture the person in the open message without granting Hirely broad Gmail API access.
 

@@ -170,6 +170,73 @@ async function saveContact(payload) {
   return contact;
 }
 
+async function findExistingByEmail(session, email) {
+  const normalized = String(email || "").trim().toLowerCase();
+  if (!normalized) return null;
+  const res = await fetch(
+    `${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?select=id,first_name,last_name,deleted_at&user_id=eq.${session.user.id}&email=ilike.${encodeURIComponent(normalized)}&limit=1`,
+    { headers: { apikey: HIRELY_CONFIG.SUPABASE_ANON_KEY, Authorization: `Bearer ${session.access_token}` } }
+  );
+  if (!res.ok) throw new Error("Could not check saved contacts. Please retry before saving.");
+  const data = await res.json().catch(() => []);
+  return Array.isArray(data) && data.length ? data[0] : null;
+}
+
+async function saveGmailContact(payload) {
+  const session = await refreshIfNeeded(await getSession());
+  if (!session) throw new Error("NOT_LOGGED_IN");
+  const email = String(payload.email || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("A valid email address is required.");
+  const firstName = String(payload.firstName || "").trim().slice(0, 100);
+  const lastName = String(payload.lastName || "").trim().slice(0, 100);
+  if (!firstName) throw new Error("A first name is required.");
+
+  const existing = await findExistingByEmail(session, email);
+  if (existing) {
+    const err = new Error(existing.deleted_at ? "CONTACT_IN_TRASH" : "ALREADY_EXISTS");
+    err.contact = existing;
+    throw err;
+  }
+
+  const body = {
+    user_id: session.user.id,
+    first_name: firstName,
+    last_name: lastName,
+    email,
+    email_status: "unverified",
+    email_source: "gmail_extension",
+    email_evidence: "Captured from the open Gmail message and reviewed by the user.",
+    phone: null,
+    company: String(payload.company || "").trim().slice(0, 200) || null,
+    job_title: String(payload.jobTitle || "").trim().slice(0, 200) || null,
+    linkedin_url: null,
+    avatar_color: pickColor(firstName),
+    photo_url: null,
+    status: "active",
+    column_name: "upcoming",
+    status_label: "New",
+    sent_date: null,
+    original_email: null,
+    enriched: false,
+    notes: "",
+    activity: [{ type: "created", source: "Gmail Extension", date: new Date().toISOString() }]
+  };
+
+  const res = await fetch(`${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts`, {
+    method: "POST",
+    headers: {
+      apikey: HIRELY_CONFIG.SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation"
+    },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || "Failed to save contact to Hirely.");
+  return Array.isArray(data) ? data[0] : data;
+}
+
 
 
 
@@ -273,6 +340,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         sendResponse({ ok: true });
       } else if (msg.type === "HIRELY_SAVE_CONTACT") {
         const contact = await saveContact(msg.payload);
+        sendResponse({ ok: true, contact });
+      } else if (msg.type === "HIRELY_SAVE_GMAIL_CONTACT") {
+        const contact = await saveGmailContact(msg.payload || {});
         sendResponse({ ok: true, contact });
       } else if (msg.type === "HIRELY_CHECK_CONTACT") {
         const contact = await checkContact(msg.url);

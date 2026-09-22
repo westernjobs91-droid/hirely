@@ -63,7 +63,7 @@ export default function LoginPage() {
           </p>
           <div className="space-y-4">
             {[
-              { icon: '⚡', text: 'Capture contacts from LinkedIn and Outlook' },
+              { icon: '⚡', text: 'Capture contacts from LinkedIn, Gmail, and Outlook' },
               { icon: '🤖', text: 'Prepare follow-up drafts from your original email' },
               { icon: '🔎', text: 'Search for a work email when you need one' },
               { icon: '📊', text: 'Track follow-ups, notes, and pipeline status' },

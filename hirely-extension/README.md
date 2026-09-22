@@ -1,5 +1,6 @@
-# Hirely LinkedIn extension 1.3.0
-The extension reads the visible LinkedIn profile, lets the recruiter review the fields, and saves the contact to Supabase under their account.
+# Hirely contact-capture extension 1.4.0
+The extension reads the visible LinkedIn profile or the sender/recipient header of an open Gmail message, lets the recruiter review the fields, and saves the contact to Supabase under their account.
+Gmail capture does not use the Gmail API, scan the inbox, read the message body, or request Google OAuth scopes.
 Opening a profile does not call Hunter. Predict Email uses the shared backend resolver, which checks saved data and company patterns without a paid provider call.
 Optional paid finding and verification are available in the dashboard Email finder. Predictions stay marked unverified.
 Company details are read from the company cache. Add missing company domains and patterns through the admin page.
