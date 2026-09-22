@@ -109,6 +109,17 @@ test('Done contacts can move back to Today or Coming up from the visible stage b
   await React.act(async () => page.root.unmount())
 })
 
+test('dashboard and contacts provide dedicated mobile layouts', () => {
+  const dashboard = fs.readFileSync('app/page.tsx','utf8')
+  const contacts = fs.readFileSync('components/ContactListView.tsx','utf8')
+  const panel = fs.readFileSync('components/ContactPanel.tsx','utf8')
+  assert.match(dashboard, /snap-x snap-mandatory/)
+  assert.match(dashboard, /h-dvh/)
+  assert.match(contacts, /md:hidden[^>]*aria-label="Contacts"/)
+  assert.match(contacts, /hidden bg-white[^>]*md:block/)
+  assert.match(panel, /h-dvh/)
+})
+
 test('Import modal routes available sources and disables unfinished imports', async () => {
   const page = dom()
   const ImportModal = loadComponent('components/ImportModal.tsx')

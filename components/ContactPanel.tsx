@@ -238,7 +238,7 @@ export default function ContactPanel({ contact, onClose, onSendDraft, onUpdateCo
   ]
 
   return (
-    <aside aria-label={`Contact details for ${contact.firstName} ${contact.lastName}`} className="fixed inset-0 z-40 w-full min-w-0 border-l border-slate-100 bg-white flex flex-col h-full overflow-hidden md:static md:z-auto md:w-96 md:min-w-[384px]">
+    <aside aria-label={`Contact details for ${contact.firstName} ${contact.lastName}`} className="fixed inset-0 z-40 flex h-dvh w-full min-w-0 flex-col overflow-hidden border-l border-slate-100 bg-white md:static md:z-auto md:h-full md:w-96 md:min-w-[384px]">
 
       {/* Profile header */}
       <div className="flex-shrink-0">

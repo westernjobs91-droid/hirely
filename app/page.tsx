@@ -291,12 +291,12 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="flex h-screen h-dvh min-h-0 overflow-hidden bg-slate-50">
       <Sidebar activeNav={activeNav} onNavChange={setActiveNav} contactCount={contacts.length}
         overdueCount={followUpCount} userName={user?.name || ''} userEmail={user?.email || ''} onLogout={handleLogout}
         searchQuery={searchQuery} onSearchChange={setSearchQuery} mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
 
         {/* Top bar */}
         <div className="flex items-center justify-between gap-3 px-3 sm:px-6 py-3 bg-white border-b border-slate-100 flex-shrink-0">
@@ -339,7 +339,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain">
 
           {/* ── DASHBOARD VIEW ── */}
           {activeNav === 'dashboard' && (
@@ -370,7 +370,7 @@ export default function Dashboard() {
               </div>
 
               {/* Stat cards */}
-              <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
                 {[
                   {
                     label: 'Total contacts',
@@ -443,7 +443,7 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 lg:grid lg:grid-cols-3 lg:gap-4 lg:overflow-visible lg:pb-0">
                   {[
                     {
                       title: 'Follow up today',
@@ -479,7 +479,7 @@ export default function Dashboard() {
                       emptySub: 'Closed contacts appear here'
                     },
                   ].map((col) => (
-                    <div key={col.title} className="bg-white border border-slate-100 rounded-2xl overflow-hidden flex flex-col shadow-sm">
+                    <div key={col.title} className="w-[calc(100vw-2.5rem)] min-w-[calc(100vw-2.5rem)] snap-start bg-white border border-slate-100 rounded-2xl overflow-hidden flex flex-col shadow-sm lg:w-auto lg:min-w-0">
                       {/* Column header */}
                       <div className={`flex items-center justify-between px-4 py-3 ${col.headerBg} border-b border-slate-100`}>
                         <div className="flex items-center gap-2">
@@ -490,7 +490,7 @@ export default function Dashboard() {
                       </div>
 
                       {/* Cards */}
-                      <div className="p-3 flex flex-col gap-2 overflow-y-auto" style={{ minHeight: 280, maxHeight: 400 }}>
+                      <div className="p-3 flex min-h-[280px] max-h-[65dvh] flex-col gap-2 overflow-y-auto overscroll-contain lg:max-h-[400px]">
                         {col.contacts.length === 0 ? (
                           <div className="flex-1 flex flex-col items-center justify-center text-center py-10">
                             <div className={`w-10 h-10 rounded-full ${col.headerBg} flex items-center justify-center mb-3`}>

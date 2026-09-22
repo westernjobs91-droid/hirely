@@ -83,7 +83,7 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
   return (
     <>
     {mobileOpen && <button aria-label="Close navigation" onClick={onMobileClose} className="fixed inset-0 z-40 bg-slate-950/35 md:hidden" />}
-    <aside aria-label="Primary navigation" className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-100 flex flex-col h-full transition-transform duration-200 md:static md:z-auto md:w-52 md:min-w-[208px] md:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+    <aside aria-label="Primary navigation" className={`fixed inset-y-0 left-0 z-50 w-[min(18rem,86vw)] bg-white border-r border-slate-100 flex h-dvh flex-col transition-transform duration-200 md:static md:z-auto md:h-full md:w-52 md:min-w-[208px] md:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
 
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 py-4 border-b border-slate-100">
