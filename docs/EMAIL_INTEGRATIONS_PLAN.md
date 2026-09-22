@@ -28,7 +28,7 @@ No email-finder credit is used for mailbox capture or connected sending. Existin
 - [x] Update privacy, support, and terms language so it matches current behavior.
 - [ ] Replace beta-only installation copy after the AppSource listing is approved.
 - [ ] Prepare the AppSource listing description, screenshots, icons, test instructions, privacy URL, support URL, and terms URL.
-- [ ] Validate the production manifest and its HTTPS endpoints.
+- [x] Validate the production manifest and its HTTPS endpoints.
 
 Exit: every public claim matches the behavior reviewers and customers can test.
 
@@ -111,4 +111,3 @@ Exit: proceed only when expected subscription revenue covers compliance, support
 - Store metadata required for CRM state, not entire mailboxes or attachments.
 - Put mailbox counts behind plan entitlements and add per-account rate limits.
 - Keep full Gmail synchronization behind a separate launch decision.
-

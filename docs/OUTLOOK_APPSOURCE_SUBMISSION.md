@@ -71,8 +71,8 @@ Use invented test contacts and messages. Do not show real customer, candidate, o
 - [x] Store icon references use 64×64 and 128×128 PNG assets.
 - [x] Outlook task-pane HTML is embeddable; the rest of Hirely retains `X-Frame-Options: DENY`.
 - [x] Public privacy, support, and terms pages describe the released behavior.
-- [ ] Deploy the updated manifest, icon, header, and public pages.
-- [ ] Run `npx --yes office-addin-manifest validate -p public/outlook/manifest.xml` after deployment.
+- [x] Deploy the updated manifest, icon, header, and public pages.
+- [x] Run `npx --yes office-addin-manifest validate -p public/outlook/manifest.xml` after deployment.
 - [ ] Confirm all manifest URLs return HTTP 200 without redirects.
 - [ ] Confirm icon responses permit production caching.
 - [ ] Complete the platform/account test matrix.
@@ -81,4 +81,3 @@ Use invented test contacts and messages. Do not show real customer, candidate, o
 - [ ] Submit through the verified Partner Center publisher account.
 
 Allow up to four weeks for first review and correction cycles. An initial rejection for a correctable listing or test issue should be handled as a release task, not by broadening add-in permissions.
-
