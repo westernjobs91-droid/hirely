@@ -15,7 +15,7 @@ interface Props {
 function ContactIdentity({ contact, onSelect }: { contact: Contact; onSelect: (contact: Contact) => void }) {
   const initials = `${contact.firstName[0] || ''}${contact.lastName[0] || ''}`
   return (
-    <button onClick={() => onSelect(contact)} className="group flex min-w-0 items-center gap-3 text-left">
+    <button onClick={() => onSelect(contact)} className="group flex w-full min-w-0 items-center gap-3 overflow-hidden text-left">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl text-xs font-bold text-white" style={{ background: contact.avatarColor || '#2563eb' }}>
         <ContactPhoto url={contact.photoUrl} initials={initials} name={`${contact.firstName} ${contact.lastName}`} />
       </span>
@@ -89,7 +89,7 @@ export default function EnrichmentView({ contacts, onSelect, onUpdateContact }: 
       onClick={() => run(contact, contact.email ? 'verify' : 'find')}
       className={`${fullWidth ? 'w-full' : ''} whitespace-nowrap rounded-xl px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition disabled:cursor-wait disabled:opacity-50 ${contact.email ? 'bg-violet-600 hover:bg-violet-700' : 'bg-blue-600 hover:bg-blue-700'}`}
     >
-      {busy === String(contact.id) ? 'Searching…' : contact.email ? 'Verify · 1 credit' : 'Find email · 1 credit'}
+      {busy === String(contact.id) ? 'Searching…' : contact.email ? 'Verify · 1 credit' : fullWidth ? 'Find email · 1 credit' : 'Find · 1 credit'}
     </button>
   )
 
