@@ -118,6 +118,10 @@ test('dashboard and contacts provide dedicated mobile layouts', () => {
   assert.match(contacts, /md:hidden[^>]*aria-label="Contacts"/)
   assert.match(contacts, /hidden bg-white[^>]*md:block/)
   assert.match(panel, /h-dvh/)
+  assert.match(dashboard, /More contact actions/)
+  assert.match(dashboard, /grid-cols-2 lg:grid-cols-4/)
+  assert.doesNotMatch(dashboard, /className="order-[12]"/)
+  assert.match(contacts, /Not scheduled/)
 })
 
 test('Import modal routes available sources and disables unfinished imports', async () => {

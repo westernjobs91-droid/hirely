@@ -326,6 +326,21 @@ export default function Dashboard() {
           <div className="flex items-center gap-2">
             {(activeNav === 'dashboard' || activeNav === 'contacts') && (
               <>
+                <details className="relative sm:hidden" onClick={event => event.stopPropagation()}>
+                  <summary aria-label="More contact actions" title="More actions" className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
+                  </summary>
+                  <div className="absolute right-0 top-11 z-30 w-48 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                    <button type="button" onClick={() => setMobileNavOpen(true)} className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                      <svg className="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/></svg>
+                      Search contacts
+                    </button>
+                    <button type="button" onClick={() => setShowImport(true)} className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                      <svg className="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-8-4-4m0 0L8 8m4-4v12"/></svg>
+                      Import contacts
+                    </button>
+                  </div>
+                </details>
                 <button onClick={() => setShowImport(true)} className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                   Import
@@ -370,7 +385,7 @@ export default function Dashboard() {
               </div>
 
               {/* Stat cards */}
-              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 {[
                   {
                     label: 'Total contacts',
@@ -427,7 +442,7 @@ export default function Dashboard() {
               </div>
 
               {/* Pipeline */}
-              <div className="order-2">
+              <div>
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                   <div className="flex items-center gap-2">
                     <h2 className="text-sm font-bold text-slate-900">Recruiter Pipeline</h2>
@@ -554,7 +569,7 @@ export default function Dashboard() {
                 if (actions.length === 0) return null
 
                 return (
-                  <div className="order-1">
+                  <div>
                     <div className="flex items-center gap-2 mb-3">
                       <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                       <h3 className="text-xs font-bold text-slate-700 uppercase tracking-widest">Suggested actions</h3>
@@ -562,8 +577,8 @@ export default function Dashboard() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {actions.slice(0, 4).map((a, i) => (
                         <button key={i} onClick={a.action}
-                          className={`flex items-start gap-3 p-3.5 rounded-2xl border ${a.bg} ${a.border} hover:shadow-md hover:-translate-y-0.5 transition-all text-left group`}>
-                          <div className={`w-8 h-8 rounded-xl bg-white/70 flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                          className="group flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 text-left transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
+                          <div className={`w-8 h-8 rounded-xl ${a.bg} flex items-center justify-center flex-shrink-0`}>
                             <svg className={`w-4 h-4 ${a.color}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d={a.icon} />
                             </svg>

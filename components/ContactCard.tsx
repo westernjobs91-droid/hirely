@@ -44,6 +44,7 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
   const ago = daysAgo(contact.createdAt)
   const due=followUpDay(contact)
   const urgency=contact.status==='overdue'&&contact.column!=='done'?'text-red-500 font-semibold':'text-slate-400'
+  const statusLabel=contact.statusLabel==='No follow-up scheduled'?'Not scheduled':contact.statusLabel||'New'
 
   return (
     <div
@@ -69,7 +70,7 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
             </p>
             {onDelete && (
               <details className="relative flex-shrink-0 -mt-1" onClick={e => e.stopPropagation()}>
-                <summary aria-label="Contact actions" title="Contact actions" className="list-none cursor-pointer w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center [&::-webkit-details-marker]:hidden">
+                <summary aria-label="Contact actions" title="Contact actions" className="list-none cursor-pointer w-9 h-9 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center [&::-webkit-details-marker]:hidden">
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
                 </summary>
                 <div className="absolute right-0 top-8 z-20 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
@@ -98,10 +99,10 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
             </div>
           ) : (
             <div className="flex items-center gap-1 mt-1.5">
-              <svg className="w-2.5 h-2.5 text-slate-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <svg className="w-2.5 h-2.5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              <p className="text-[10px] text-slate-300 italic">No email</p>
+              <p className="text-[10px] text-slate-500 italic">No email</p>
             </div>
           )}
         </div>
@@ -111,8 +112,8 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
       <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-50">
         {onMove ? (
           <details className="relative" onClick={e => e.stopPropagation()}>
-            <summary aria-label={`Change stage from ${contact.statusLabel || 'New'}`} title="Change pipeline stage" className={`list-none cursor-pointer text-[10.5px] px-2 py-1 rounded-full font-semibold inline-flex items-center gap-1 hover:ring-2 hover:ring-blue-100 [&::-webkit-details-marker]:hidden ${statusStyles[contact.status] || 'bg-slate-100 text-slate-500'}`}>
-              {contact.statusLabel || 'New'}
+            <summary aria-label={`Change stage from ${statusLabel}`} title="Change pipeline stage" className={`list-none min-h-8 cursor-pointer text-[10.5px] px-2 py-1 rounded-full font-semibold inline-flex items-center gap-1 hover:ring-2 hover:ring-blue-100 [&::-webkit-details-marker]:hidden ${statusStyles[contact.status] || 'bg-slate-100 text-slate-500'}`}>
+              {statusLabel}
               <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" /></svg>
             </summary>
             <div className="absolute bottom-full left-0 z-30 mb-1 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
@@ -123,14 +124,14 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
           </details>
         ) : (
           <span className={`text-[10.5px] px-1.5 py-0.5 rounded-full font-semibold ${statusStyles[contact.status] || 'bg-slate-100 text-slate-500'}`}>
-            {contact.statusLabel || 'New'}
+            {statusLabel}
           </span>
         )}
         <div className="flex items-center gap-2">
           {onMove && contact.column !== 'done' && (
             <button
               onClick={e => { e.stopPropagation(); onMove(contact.id,'done') }}
-              className="opacity-60 group-hover:opacity-100 focus:opacity-100 transition-opacity text-[9px] font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-0.5"
+              className="min-h-8 px-1 opacity-70 group-hover:opacity-100 focus:opacity-100 transition-opacity text-[9px] font-semibold text-emerald-600 hover:text-emerald-700 flex items-center gap-0.5"
               title="Move to Done"
             >
               <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
