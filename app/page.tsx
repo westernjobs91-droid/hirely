@@ -602,7 +602,7 @@ export default function Dashboard() {
             <div className="px-3 sm:px-6 py-4">
               <ContactListView contacts={allContactsFiltered} selectedId={selected?.id} onSelect={setSelected}
                 onDelete={handleDelete} onMove={handleMoveContact} onFindEmail={handleFindEmailForContact}
-                emptyMessage={searchQuery ? 'No contacts match your search.' : 'No contacts yet - add one to get started.'} />
+                emptyMessage={searchQuery ? 'No contacts match your search.' : 'No contacts yet - add one to get started.'} mode="contacts" />
             </div>
           )}
 
@@ -610,7 +610,7 @@ export default function Dashboard() {
             <div className="px-3 sm:px-6 py-4">
               <ContactListView contacts={followupsFiltered} selectedId={selected?.id} onSelect={setSelected}
                 onDelete={handleDelete} onMove={handleMoveContact} onFindEmail={handleFindEmailForContact}
-                emptyMessage="Nothing due - you're all caught up! 🎉" />
+                emptyMessage="Nothing due - you're all caught up! 🎉" mode="followups" />
             </div>
           )}
 

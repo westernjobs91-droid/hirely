@@ -1,0 +1,33 @@
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
+
+const root = path.join(__dirname, '..')
+const read = file => fs.readFileSync(path.join(root, file), 'utf8')
+const meet = read('components/MeetView.tsx')
+const drafts = read('components/AIDraftsView.tsx')
+const contacts = read('components/ContactListView.tsx')
+const usage = read('components/PlanUsage.tsx')
+const dashboard = read('app/page.tsx')
+
+test('Meet and AI Drafts share compact responsive usage and summary layouts', () => {
+  assert.match(usage, /grid-cols-3/)
+  assert.match(usage, /Monthly usage/)
+  assert.match(meet, /Meeting notes that lead to action/)
+  assert.match(meet, /grid grid-cols-3 gap-2/)
+  assert.match(drafts, /Personalized outreach drafts/)
+  assert.match(drafts, /grid grid-cols-3 gap-2/)
+  assert.match(drafts, /Open contact →/)
+  assert.doesNotMatch(drafts, /shadow-sm opacity-60/)
+})
+
+test('Contacts and Follow-ups use fitted desktop columns and distinct saved views', () => {
+  assert.match(contacts, /mode\?: 'contacts' \| 'followups'/)
+  assert.match(contacts, /id: 'overdue'/)
+  assert.match(contacts, /min-w-\[760px\]/)
+  assert.doesNotMatch(contacts, /min-w-\[900px\]/)
+  assert.match(contacts, /bg-emerald-50 text-emerald-700/)
+  assert.match(dashboard, /mode="contacts"/)
+  assert.match(dashboard, /mode="followups"/)
+})
