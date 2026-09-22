@@ -22,6 +22,13 @@ test('Gmail parser avoids selecting the signed-in recruiter when an external rec
   assert.deepEqual(JSON.parse(JSON.stringify(engine.chooseContact(document, 'me@agency.com'))), { firstName: 'Alex', lastName: 'Morgan', email: 'alex@client.com' })
 })
 
+test('Gmail refresh identity changes for a new route or visible contact', () => {
+  const first = { firstName: 'Alex', lastName: 'Morgan', email: 'alex@client.com' }
+  const second = { firstName: 'Sam', lastName: 'Lee', email: 'sam@client.com' }
+  assert.notEqual(engine.snapshotKey('/mail/u/0/#inbox/a', first), engine.snapshotKey('/mail/u/0/#inbox/b', first))
+  assert.notEqual(engine.snapshotKey('/mail/u/0/#inbox/a', first), engine.snapshotKey('/mail/u/0/#inbox/a', second))
+})
+
 test('Gmail capture uses a separate script and never requests Gmail API or message bodies', () => {
   const script = manifest.content_scripts.find(item => item.matches.includes('https://mail.google.com/*'))
   assert.deepEqual(script.js, ['gmail-engine.js', 'gmail.js'])
@@ -30,4 +37,11 @@ test('Gmail capture uses a separate script and never requests Gmail API or messa
   assert.doesNotMatch(gmail, /message-body|innerHTML\s*\)|textContent\s*\)/)
   assert.match(background, /original_email: null/)
   assert.match(background, /Gmail Extension/)
+})
+
+test('an open Gmail panel refreshes when the route or visible contact changes', () => {
+  assert.match(gmail, /function captureSnapshot\(\)/)
+  assert.match(gmail, /next\.key !== displayedKey && next\.key !== requestedKey/)
+  assert.match(gmail, /new MutationObserver/)
+  assert.match(gmail, /window\.addEventListener\("hashchange", scheduleRefresh\)/)
 })

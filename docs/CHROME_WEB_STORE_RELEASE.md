@@ -2,7 +2,7 @@
 
 ## Package
 
-Run `npm run package:extension`. Upload the generated `dist/hirely-extension-1.4.1.zip`. The package contains only the runtime files and icons; source backups and macOS metadata are excluded.
+Run `npm run package:extension`. Upload the generated `dist/hirely-extension-1.4.2.zip`. The package contains only the runtime files and icons; source backups and macOS metadata are excluded.
 
 ## Store listing
 

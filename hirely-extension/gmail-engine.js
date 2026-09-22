@@ -13,6 +13,11 @@
     return EMAIL.test(normalizeEmail(value));
   }
 
+  function snapshotKey(route, contact) {
+    const identity = contact ? `${normalizeEmail(contact.email)}|${String(contact.firstName || "").trim()}|${String(contact.lastName || "").trim()}` : "no-contact";
+    return `${String(route || "")}|${identity}`;
+  }
+
   function splitName(value, email) {
     let name = String(value || "").replace(/[<>]/g, "").trim();
     if (!name || validEmail(name)) name = normalizeEmail(email).split("@")[0].replace(/[._-]+/g, " ");
@@ -61,5 +66,5 @@
     return null;
   }
 
-  root.HirelyGmailEngine = { normalizeEmail, validEmail, splitName, chooseContact };
+  root.HirelyGmailEngine = { normalizeEmail, validEmail, snapshotKey, splitName, chooseContact };
 })(typeof globalThis !== "undefined" ? globalThis : this);

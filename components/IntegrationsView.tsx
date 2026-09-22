@@ -60,7 +60,7 @@ export default function IntegrationsView() {
           </div>
           <p className="mt-5 text-sm leading-6 text-slate-600">Capture the profile you are viewing, including name, title, company, LinkedIn URL and profile photo.</p>
           <ul className="mt-4 space-y-2 text-xs text-slate-600"><li className="flex gap-2"><Check />Review details before saving</li><li className="flex gap-2"><Check />Duplicate and trash checks</li><li className="flex gap-2"><Check />No email credit used during capture</li></ul>
-          <div className="mt-auto pt-6"><a href="/downloads/hirely-extension-1.4.1.zip" download className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-4-4 4m0 0-4-4m4 4V4" /></svg>Download Chrome extension</a><p className="mt-2 text-center text-[10px] leading-4 text-slate-400">Beta install through Chrome’s Extensions page.</p></div>
+          <div className="mt-auto pt-6"><a href="/downloads/hirely-extension-1.4.2.zip" download className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-4-4 4m0 0-4-4m4 4V4" /></svg>Download Chrome extension</a><p className="mt-2 text-center text-[10px] leading-4 text-slate-400">Beta install through Chrome’s Extensions page.</p></div>
         </div>
       </article>
 
@@ -74,7 +74,7 @@ export default function IntegrationsView() {
           <p className="mt-5 text-sm leading-6 text-slate-600">Open an individual Gmail message, review the visible sender or recipient and save the person to your Hirely pipeline.</p>
           <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4"><p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">No mailbox connection</p><p className="mt-1 text-xs leading-5 text-slate-600">Hirely does not scan your inbox, read message bodies or request Gmail API access.</p></div>
           <ul className="mt-4 space-y-2 text-xs text-slate-600"><li className="flex gap-2"><Check />Review before saving</li><li className="flex gap-2"><Check />Duplicate and Trash checks</li><li className="flex gap-2"><Check />No email credit used</li></ul>
-          <div className="mt-auto pt-6"><a href="/downloads/hirely-extension-1.4.1.zip" download className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-slate-800">Download Chrome extension</a><p className="mt-2 text-center text-[10px] leading-4 text-slate-400">LinkedIn and Gmail in one extension.</p></div>
+          <div className="mt-auto pt-6"><a href="/downloads/hirely-extension-1.4.2.zip" download className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-slate-800">Download Chrome extension</a><p className="mt-2 text-center text-[10px] leading-4 text-slate-400">LinkedIn and Gmail in one extension.</p></div>
         </div>
       </article>
 

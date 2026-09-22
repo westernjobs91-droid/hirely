@@ -6,6 +6,10 @@
   const engine = globalThis.HirelyGmailEngine;
   const ROOT_ID = "hirely-gmail-root";
   const STYLE_ID = "hirely-gmail-style";
+  let displayedKey = "";
+  let requestedKey = "";
+  let renderGeneration = 0;
+  let refreshTimer = null;
 
   function send(message) {
     return new Promise(resolve => chrome.runtime.sendMessage(message, response => {
@@ -23,6 +27,12 @@
     const label = account && account.getAttribute("aria-label") || "";
     const match = label.match(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/);
     return match ? match[0] : "";
+  }
+
+  function captureSnapshot() {
+    const contact = engine && engine.chooseContact(document, ownEmail());
+    const route = `${location.pathname}${location.hash}`;
+    return { contact, key: engine.snapshotKey(route, contact) };
   }
 
   function injectStyle() {
@@ -71,14 +81,23 @@
   }
 
   async function render(root) {
+    const generation = ++renderGeneration;
     const body = root.querySelector(".hg-body");
+    const initial = captureSnapshot();
+    requestedKey = initial.key;
+    body.innerHTML = `<p class="hg-kicker">Gmail capture</p><p class="hg-copy">Loading the open email…</p>`;
     const sessionResult = await send({ type: "HIRELY_GET_SESSION" });
+    if (generation !== renderGeneration || !root.isConnected || !root.classList.contains("hg-open")) return;
+    const snapshot = captureSnapshot();
+    if (snapshot.key !== requestedKey) return render(root);
+    displayedKey = snapshot.key;
+    requestedKey = "";
     if (!sessionResult.ok || !sessionResult.session) {
       body.innerHTML = `<p class="hg-kicker">Gmail capture</p><p class="hg-copy">Sign in to Hirely from the extension toolbar, then reopen this panel.</p><a class="hg-link" href="https://app.hirelypro.com/login" target="_blank" rel="noopener">Open Hirely sign in →</a>`;
       return;
     }
 
-    const found = engine && engine.chooseContact(document, ownEmail());
+    const found = snapshot.contact;
     if (!found) {
       body.innerHTML = `<p class="hg-kicker">Open-message capture</p><p class="hg-copy">Open an individual email first. Hirely reads only the visible message header and never the message body.</p><div class="hg-status show info">No open sender or recipient was found.</div>`;
       return;
@@ -108,7 +127,23 @@
     });
   }
 
+  function scheduleRefresh() {
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => {
+      refreshTimer = null;
+      const root = document.getElementById(ROOT_ID);
+      if (!root || !root.classList.contains("hg-open")) return;
+      const next = captureSnapshot();
+      if (next.key !== displayedKey && next.key !== requestedKey) render(root);
+    }, 120);
+  }
+
   createRoot();
-  const observer = new MutationObserver(() => { if (!document.getElementById(ROOT_ID) && document.body) createRoot(); });
+  const observer = new MutationObserver(() => {
+    if (!document.getElementById(ROOT_ID) && document.body) createRoot();
+    scheduleRefresh();
+  });
   observer.observe(document.documentElement, { childList: true, subtree: true });
+  window.addEventListener("popstate", scheduleRefresh);
+  window.addEventListener("hashchange", scheduleRefresh);
 })();

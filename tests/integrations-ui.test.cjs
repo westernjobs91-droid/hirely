@@ -15,7 +15,7 @@ test('integrations page explains current plan access and the Outlook workflow', 
   assert.doesNotMatch(view, /Add from URL/)
   assert.match(view, /download="hirely-outlook-manifest\.xml"/)
   assert.match(view, /Gmail capture/)
-  assert.match(view, /hirely-extension-1\.4\.1\.zip/)
+  assert.match(view, /hirely-extension-1\.4\.2\.zip/)
   assert.match(view, /overflow-x-hidden/)
   assert.match(view, /flex flex-wrap items-center justify-between/)
 })
