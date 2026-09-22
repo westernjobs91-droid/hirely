@@ -109,9 +109,23 @@ export default function ContactCard({ contact, isSelected, onClick, onDelete, on
 
       {/* Footer */}
       <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-50">
-        <span className={`text-[10.5px] px-1.5 py-0.5 rounded-full font-semibold ${statusStyles[contact.status] || 'bg-slate-100 text-slate-500'}`}>
-          {contact.statusLabel || 'New'}
-        </span>
+        {onMove ? (
+          <details className="relative" onClick={e => e.stopPropagation()}>
+            <summary aria-label={`Change stage from ${contact.statusLabel || 'New'}`} title="Change pipeline stage" className={`list-none cursor-pointer text-[10.5px] px-2 py-1 rounded-full font-semibold inline-flex items-center gap-1 hover:ring-2 hover:ring-blue-100 [&::-webkit-details-marker]:hidden ${statusStyles[contact.status] || 'bg-slate-100 text-slate-500'}`}>
+              {contact.statusLabel || 'New'}
+              <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" /></svg>
+            </summary>
+            <div className="absolute bottom-full left-0 z-30 mb-1 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+              {contact.column !== 'today' && <button onClick={() => onMove(contact.id,'today')} className="w-full rounded-lg px-3 py-2 text-left text-[11px] font-semibold text-red-700 hover:bg-red-50">Move to Follow up today</button>}
+              {contact.column !== 'upcoming' && <button onClick={() => onMove(contact.id,'upcoming')} className="w-full rounded-lg px-3 py-2 text-left text-[11px] font-semibold text-amber-700 hover:bg-amber-50">Move to Coming up</button>}
+              {contact.column !== 'done' && <button onClick={() => onMove(contact.id,'done')} className="w-full rounded-lg px-3 py-2 text-left text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50">Move to Done</button>}
+            </div>
+          </details>
+        ) : (
+          <span className={`text-[10.5px] px-1.5 py-0.5 rounded-full font-semibold ${statusStyles[contact.status] || 'bg-slate-100 text-slate-500'}`}>
+            {contact.statusLabel || 'New'}
+          </span>
+        )}
         <div className="flex items-center gap-2">
           {onMove && contact.column !== 'done' && (
             <button

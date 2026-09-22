@@ -88,7 +88,7 @@ test('mobile navigation opens, closes, and exposes billing', async () => {
   await React.act(async () => page.root.unmount())
 })
 
-test('Done contacts can move back to Today or Coming up from the card menu', async () => {
+test('Done contacts can move back to Today or Coming up from the visible stage badge', async () => {
   const page = dom()
   const ContactCard = loadComponent('components/ContactCard.tsx', {
     '@/lib/follow-up': { followUpDay: contact => contact.sentDate || '' },
@@ -102,6 +102,7 @@ test('Done contacts can move back to Today or Coming up from the card menu', asy
   assert.ok(labels.includes('Move to Follow up today'))
   assert.ok(labels.includes('Move to Coming up'))
   assert.ok(!labels.includes('Move to Done'))
+  assert.ok(page.document.querySelector('[aria-label="Change stage from Done"]'))
   const upcoming = Array.from(page.document.querySelectorAll('button')).find(button => button.textContent.trim()==='Move to Coming up')
   await React.act(async () => upcoming.dispatchEvent(new page.window.Event('click', { bubbles:true })))
   assert.deepEqual(moves, [['done-1','upcoming']])
