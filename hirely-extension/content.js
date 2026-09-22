@@ -565,6 +565,7 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
       if (profileIdentity() === navigationIdentity) return;
       navigationIdentity = null;
     }
+    state.identity = profileIdentity() || state.identity || '';
     syncDraft(state);
     for (const field of ['name','firstName','lastName','headline','photo']) {
       if (field === 'name' && (state.dirty.has('firstName') || state.dirty.has('lastName'))) continue;
@@ -1126,20 +1127,39 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
   });
 
   let lastUrl=canonicalUrl(window.location.href),renderTimer=null, lastIdentity=profileIdentity();
-  setInterval(()=>{
+  function showNavigationLoading(){
+    const body=panel.querySelector('.hirely-body');
+    if(body) body.innerHTML='<div class="hirely-loading">Loading new profile...</div>';
+  }
+  function scheduleNavigationRender(delay=80){
+    if(renderTimer) clearTimeout(renderTimer);
+    renderTimer=setTimeout(()=>{renderTimer=null;if(panel.classList.contains('open'))render();},delay);
+  }
+  function checkNavigation(){
     const cur=canonicalUrl(window.location.href);
-    if(cur===lastUrl) { lastIdentity=profileIdentity(); return; }
-    navigationIdentity = lastIdentity;
-    lastUrl=cur;
-    hirelyScrapeGen++;
-    activeProfile?.observer?.disconnect();
-    activeProfile=null;
-    // Keep the panel open on search and feed pages between profiles.
-    if(panel.classList.contains("open")){
-      if(renderTimer) clearTimeout(renderTimer);
-      renderTimer=setTimeout(()=>{renderTimer=null;render();},400);
+    const identity=profileIdentity();
+    const routeChanged=cur!==lastUrl;
+    const identityChanged=!routeChanged && PROFILE_RE.test(location.href) && !!activeProfile?.identity && !!identity && identity!==activeProfile.identity;
+    if(routeChanged || identityChanged){
+      navigationIdentity = routeChanged ? lastIdentity : activeProfile.identity;
+      lastUrl=cur;
+      hirelyScrapeGen++;
+      activeProfile?.observer?.disconnect();
+      activeProfile=null;
+      // Clear the previous person's data immediately while LinkedIn finishes
+      // rendering the next SPA route, then rebuild the still-open panel.
+      if(panel.classList.contains('open')){
+        showNavigationLoading();
+        scheduleNavigationRender();
+      }
     }
-  },250);
+    if(identity) lastIdentity=identity;
+  }
+  setInterval(checkNavigation,250);
+  window.addEventListener('popstate',checkNavigation);
+  window.addEventListener('hashchange',checkNavigation);
+  const navigationObserver=new MutationObserver(checkNavigation);
+  navigationObserver.observe(document.body,{childList:true,subtree:true});
 
   }
 

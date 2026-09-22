@@ -22,7 +22,7 @@ test('failed extraction clears automatic values, preserves manual drafts and dis
  const d=doc('<div id="panel"><div class="hirely-profile-name"></div><div class="hirely-profile-sub"></div><div class="hirely-profile-company"></div><p class="hirely-role-note"></p><div class="hirely-role-options"></div><input id="hfi"><input id="hli"><input id="hti"><input id="hci"><button id="hsb"></button></div>');
  const state={url:'https://www.linkedin.com/in/jane',tab:'save',dirty:new Set(['company']),data:{firstName:'Stale',lastName:'Person',title:'Old job',company:'Manually entered',name:'Stale Person'}};
  const panel=d.querySelector('#panel');
- const c={HirelyEngine:engine,document:d,panel,root:{},fieldMap:{hfi:'firstName',hli:'lastName',hti:'title',hci:'company'},liveProfile:()=>true,canonicalUrl:x=>x,navigationIdentity:null};vm.createContext(c);
+ const c={HirelyEngine:engine,document:d,panel,root:{},fieldMap:{hfi:'firstName',hli:'lastName',hti:'title',hci:'company'},liveProfile:()=>true,canonicalUrl:x=>x,profileIdentity:()=>'',navigationIdentity:null};vm.createContext(c);
  vm.runInContext(code.slice(code.indexOf('  function syncDraft(state)'),code.indexOf('  function experienceScrollTarget()'))+code.slice(code.indexOf('  function renderRoleOptions(state)'),code.indexOf('  function enhanceCapture(')),c);
  c.applyScrapeToForm({...engine.emptyResult(),url:state.url,extractionStatus:'error',reviewReason:'Retry or enter manually'},state);
  assert.equal(state.data.firstName,'');assert.equal(state.data.company,'Manually entered');assert.equal(panel.querySelector('#hsb').disabled,true);assert.match(panel.querySelector('.hirely-role-note').textContent,/Retry/);

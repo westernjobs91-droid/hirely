@@ -15,10 +15,17 @@ test('saving an existing photo scopes the update to the account',async()=>{const
 test('photo update cannot falsely succeed without an owned contact',async()=>{const h=setup({photoRows:[]});const r=await h.run({type:'HIRELY_SAVE_PHOTO',contactId:7,photo:'https://media.licdn.com/test.jpg'});assert.equal(r.ok,false);assert.match(r.error,/Contact not found/)});
 test('non-HTTPS photo is rejected before any write',async()=>{const h=setup();const r=await h.run({type:'HIRELY_SAVE_PHOTO',contactId:7,photo:'javascript:alert(1)'});assert.equal(r.ok,false);assert.equal(h.requests.length,0)});
 test('open panel survives profile to search to profile navigation',()=>{
- const code=fs.readFileSync('hirely-extension/content.js','utf8');const start=code.indexOf('  let lastUrl=canonicalUrl(window.location.href)');const end=code.indexOf('\n  },250);',start)+11;
- const callbacks=[],renders=[];let closed=false;const ctx={window:{location:{href:'https://www.linkedin.com/in/one'}},canonicalUrl:v=>v,profileIdentity:()=>'',navigationIdentity:null,hirelyScrapeGen:0,activeProfile:null,panel:{classList:{contains:()=>true}},render:()=>renders.push(1),closeHirely:()=>{closed=true},setInterval:f=>callbacks.push(f),setTimeout:f=>{f();return 1},clearTimeout(){}};
+ const code=fs.readFileSync('hirely-extension/content.js','utf8');const start=code.indexOf('  let lastUrl=canonicalUrl(window.location.href)');const end=code.indexOf('\n  window.addEventListener',start);
+ const callbacks=[],renders=[];let closed=false;const route={href:'https://www.linkedin.com/in/one'};const ctx={window:{location:route},location:route,PROFILE_RE:/linkedin\.com\/in\//,canonicalUrl:v=>v,profileIdentity:()=>'',navigationIdentity:null,hirelyScrapeGen:0,activeProfile:null,panel:{classList:{contains:()=>true},querySelector:()=>null},render:()=>renders.push(1),closeHirely:()=>{closed=true},setInterval:f=>callbacks.push(f),setTimeout:f=>{f();return 1},clearTimeout(){}};
  vm.createContext(ctx);vm.runInContext(code.slice(start,end),ctx);
  ctx.window.location.href='https://www.linkedin.com/search/results/people/';callbacks[0]();ctx.window.location.href='https://www.linkedin.com/in/two';callbacks[0]();assert.equal(closed,false);assert.equal(renders.length,2);assert.equal(ctx.hirelyScrapeGen,2);
+});
+
+test('open panel refreshes when LinkedIn replaces a profile without changing the route',()=>{
+ const code=fs.readFileSync('hirely-extension/content.js','utf8');const start=code.indexOf('  let lastUrl=canonicalUrl(window.location.href)');const end=code.indexOf('\n  window.addEventListener',start);
+ const callbacks=[],renders=[];let identity='Person One',disconnected=false;const route={href:'https://www.linkedin.com/in/profile'};const ctx={window:{location:route},location:route,PROFILE_RE:/linkedin\.com\/in\//,canonicalUrl:v=>v,profileIdentity:()=>identity,navigationIdentity:null,hirelyScrapeGen:0,activeProfile:{identity:'Person One',observer:{disconnect:()=>{disconnected=true}}},panel:{classList:{contains:()=>true},querySelector:()=>null},render:()=>renders.push(1),setInterval:f=>callbacks.push(f),setTimeout:f=>{f();return 1},clearTimeout(){}};
+ vm.createContext(ctx);vm.runInContext(code.slice(start,end),ctx);
+ identity='Person Two';callbacks[0]();assert.equal(disconnected,true);assert.equal(renders.length,1);assert.equal(ctx.hirelyScrapeGen,1);assert.equal(ctx.navigationIdentity,'Person One');
 });
 
 test('paid extension search requires an explicit paid choice',async()=>{const h=setup();const r=await h.run({type:'HIRELY_FIND_EMAIL',action:'find',firstName:'Jane',company:'Example'});assert.equal(r.ok,false);assert.equal(h.requests.length,0)});
