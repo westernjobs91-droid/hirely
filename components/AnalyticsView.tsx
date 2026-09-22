@@ -24,24 +24,24 @@ function StatCard({ label, value, sub, color, icon }: {
   label: string; value: string | number; sub: string; color: string; icon: React.ReactNode
 }) {
   return (
-    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-      <div className="flex items-start justify-between mb-4">
+    <div className="min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
+      <div className="mb-3 flex items-start justify-between sm:mb-4">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: color + '18' }}>
           <div style={{ color }}>{icon}</div>
         </div>
         <div className="w-1 h-10 rounded-full" style={{ backgroundColor: color, opacity: 0.25 }} />
       </div>
-      <div className="text-3xl font-black text-slate-900 tracking-tight">{value}</div>
-      <div className="text-[11px] font-semibold text-slate-500 mt-1">{label}</div>
-      <div className="text-[10px] text-slate-400 mt-0.5">{sub}</div>
+      <div className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">{value}</div>
+      <div className="mt-1 text-xs font-semibold text-slate-600">{label}</div>
+      <div className="mt-1 text-[10px] leading-4 text-slate-400">{sub}</div>
     </div>
   )
 }
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-      <h3 className="text-sm font-bold text-slate-900 mb-4">{title}</h3>
+    <div className="h-full min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
+      <h3 className="mb-4 text-sm font-bold text-slate-900">{title}</h3>
       {children}
     </div>
   )
@@ -143,13 +143,14 @@ export default function AnalyticsView({ contacts }: AnalyticsViewProps) {
 
   if (total === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 gap-3">
+      <div className="m-4 flex flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-slate-200 bg-white px-6 py-20 text-center shadow-sm sm:m-6">
         <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center">
           <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
         </div>
-        <p className="text-sm font-medium text-slate-500">Add contacts to see analytics</p>
+        <p className="text-base font-bold text-slate-800">Your analytics will appear here</p>
+        <p className="max-w-sm text-sm leading-6 text-slate-500">Add contacts to your pipeline to see activity, enrichment, companies and outreach progress.</p>
       </div>
     )
   }
@@ -157,10 +158,15 @@ export default function AnalyticsView({ contacts }: AnalyticsViewProps) {
   const barColors = [COLORS.blue, COLORS.violet, COLORS.cyan, COLORS.emerald, COLORS.amber, COLORS.red, COLORS.slate]
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="mx-auto max-w-[1440px] space-y-5 p-4 sm:p-6 lg:p-8">
+
+      <div className="rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-4 sm:px-5">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">Pipeline performance</p>
+        <p className="mt-1 text-sm leading-6 text-slate-600">A clear view of contact growth, email coverage and outreach progress.</p>
+      </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 xl:gap-4">
         <StatCard label="Total contacts" value={total} sub="in your pipeline" color={COLORS.blue}
           icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
         />
@@ -176,8 +182,8 @@ export default function AnalyticsView({ contacts }: AnalyticsViewProps) {
       </div>
 
       {/* Row 2: Weekly bar + Pipeline donut */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="col-span-2">
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2">
           <SectionCard title="Contacts added - last 6 weeks">
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={weeklyData} barSize={28} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
@@ -211,8 +217,8 @@ export default function AnalyticsView({ contacts }: AnalyticsViewProps) {
       </div>
 
       {/* Row 3: Top companies + Enrichment donut */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="col-span-2">
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2">
           <SectionCard title="Top companies">
             <div className="space-y-3">
               {topCompanies.length === 0 ? (
@@ -254,7 +260,7 @@ export default function AnalyticsView({ contacts }: AnalyticsViewProps) {
       </div>
 
       {/* Row 4: Funnel + Job titles + Monthly */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 
         <SectionCard title="Outreach funnel">
           <div className="space-y-2">
@@ -315,8 +321,9 @@ export default function AnalyticsView({ contacts }: AnalyticsViewProps) {
           )}
         </SectionCard>
 
+        <div className="min-w-0 md:col-span-2 xl:col-span-1">
         <SectionCard title="Monthly contacts added">
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={200} minWidth={0}>
             <BarChart data={monthlyData} barSize={22} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
               <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: '#94A3B8' }} axisLine={false} tickLine={false} allowDecimals={false} />
@@ -329,6 +336,7 @@ export default function AnalyticsView({ contacts }: AnalyticsViewProps) {
             </BarChart>
           </ResponsiveContainer>
         </SectionCard>
+        </div>
 
       </div>
     </div>
