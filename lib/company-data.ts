@@ -32,7 +32,7 @@ export async function recordCompanySearch(event:{company:string;domain:string;ap
 
 type ProviderSource = { uri?: unknown }
 export async function recordProviderPatternEvidence(input:{
- company:string;domain:string;firstName:string;lastName:string;email:string;sources:ProviderSource[]
+ company:string;domain:string;firstName:string;lastName:string;email:string;sources:ProviderSource[];provider?:'hunter'|'exa'
 }){
  try{
   const db=companyService();if(!db)return
@@ -41,17 +41,19 @@ export async function recordProviderPatternEvidence(input:{
   if(!domain||email.split('@')[1]!==domain)return
   const pattern=identifyEmailPattern(input.firstName,input.lastName,email,domain)
   if(!pattern)return
-  const source=input.sources.map(s=>typeof s?.uri==='string'?s.uri:'').find(uri=>{
+  const officialSource=input.sources.map(s=>typeof s?.uri==='string'?s.uri:'').find(uri=>{
    const sourceDomain=normalizeDomain(uri)
    return sourceDomain===domain||sourceDomain.endsWith('.'+domain)
   })
+  const source=officialSource||(input.provider==='hunter'?'https://hunter.io':'')
   if(!source)return
+  const sourceType=officialSource?'official_website':'provider_candidate'
   const alias=companyKey(input.company||domain)
   let {data:company}=await db.from('company_directory').select('*').eq('domain',domain).maybeSingle()
   if(!company){
    const created=await db.from('company_directory').insert({
     name:(input.company||domain).slice(0,250),domain,aliases:alias?[alias]:[],country:'',industry:'',
-    website:new URL(source).origin,domain_confirmed:false,pattern,status:'needs_evidence',updated_at:new Date().toISOString(),
+    website:officialSource?new URL(source).origin:'https://'+domain,domain_confirmed:false,pattern,status:'needs_evidence',updated_at:new Date().toISOString(),
    }).select('*').single()
    if(created.error){const retry=await db.from('company_directory').select('*').eq('domain',domain).maybeSingle();company=retry.data}
    else company=created.data
@@ -62,10 +64,32 @@ export async function recordProviderPatternEvidence(input:{
    await db.from('company_directory').update(patch).eq('id',company.id)
   }
   if(!company?.id)return
+  const {data:existing}=await db.from('company_pattern_evidence').select('source_type').eq('company_id',company.id).eq('email',email).maybeSingle()
+  if(existing?.source_type&&existing.source_type!=='provider_candidate')return
+  if(existing?.source_type==='provider_candidate'&&sourceType==='provider_candidate')return
   await db.from('company_pattern_evidence').upsert({
    company_id:company.id,first_name:input.firstName.slice(0,100),last_name:input.lastName.slice(0,100),email,
-   source_url:source.slice(0,2000),source_type:'official_website',observed_at:new Date().toISOString(),
+   source_url:source.slice(0,2000),source_type:sourceType,observed_at:new Date().toISOString(),
    reuse_confirmed:false,excluded:false,
-  },{onConflict:'company_id,email',ignoreDuplicates:true})
+  },{onConflict:'company_id,email'})
  }catch{console.warn('Provider pattern evidence could not be queued for review')}
+}
+
+export async function backfillProviderPatternCandidates(limit=1000){
+ const db=companyService();if(!db)return {processed:0,error:'Company Data is unavailable.'}
+ const {data,error}=await db.from('email_resolutions').select('identity_key,email,source,created_at').eq('source','hunter_finder').order('created_at',{ascending:false}).limit(Math.min(1000,Math.max(1,limit)))
+ if(error)return {processed:0,error:'Could not read saved provider results.'}
+ let processed=0
+ for(const row of data||[]){
+  try{
+   const identity=JSON.parse(row.identity_key)
+   if(!Array.isArray(identity))continue
+   const [firstName,lastName,company,requestedDomain]=identity.map(value=>typeof value==='string'?value:'')
+   const domain=normalizeDomain(requestedDomain||String(row.email||'').split('@')[1]||'')
+   if(!firstName||!lastName||!domain)continue
+   await recordProviderPatternEvidence({company,domain,firstName,lastName,email:String(row.email||''),sources:[],provider:'hunter'})
+   processed++
+  }catch{}
+ }
+ return {processed,error:null}
 }

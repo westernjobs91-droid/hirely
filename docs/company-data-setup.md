@@ -5,13 +5,16 @@
 1. Apply `supabase/migrations/20260916_company_data.sql` in Supabase SQL Editor.
 2. Ensure the deployment server has `SUPABASE_SERVICE_ROLE_KEY` (never NEXT_PUBLIC). Existing Supabase public URL and anon key remain required.
 3. Optionally set `HIRELY_ADMIN_EMAILS` to a comma-separated admin list. The existing owner account `growwithjey@gmail.com` is the default. Other allowed admins can open `/admin/companies` directly; the sidebar shortcut is shown to the owner account.
-4. Deploy, sign in and open Company Data. Click **Import my CRM companies**. This copies company names from the administrator's own CRM only, with zero search demand. It does not copy employee names, email addresses or other customers' CRM data. Re-importing preserves counters. Each run scans at most 10,000 contacts.
+4. Apply `supabase/migrations/202609230003_provider_pattern_candidates.sql` before deploying the provider-candidate release.
+5. Deploy, sign in and open Company Data. Click **Import my CRM companies**. This copies company names from the administrator's own CRM only, with zero search demand. It does not copy employee names, email addresses or other customers' CRM data. Re-importing preserves counters. Each run scans at most 10,000 contacts.
 
 ## First 100 companies
 
 Start with the request queue (top 100 by actual search demand). Confirm each company's official website/domain, country and industry. Prioritize confirmed Canadian food processing, manufacturing, logistics and warehousing employers. The queue does not guess country from `.ca` or assume CRM contacts are Canadian.
 
 Save the company. Add two distinct named employee email examples from official company pages or licensed data with reuse rights. Record the actual observation date and source URL. Check the reuse attestation only after confirming it. Provider results and private customer contacts are never automatically promoted into shared evidence.
+
+Hunter results are automatically queued as **Provider candidate — not reusable yet** when Hirely can identify a supported naming pattern. They cannot qualify for approval or be confirmed directly. After the migration and deployment, use **Backfill Hunter candidates** once to process existing saved Hunter results; it makes no Hunter or Exa calls. Promote a candidate only by independently documenting an official source or provider reuse rights through the existing evidence form.
 
 Select a candidate pattern and approve. The server rejects unsupported patterns, conflicting qualifying evidence, wrong domains, stale/future evidence and duplicate-person examples. Excluding evidence is an explicit admin action. Domain edits, evidence edits and exclusions invalidate approval. Pause a pattern to stop new predictions. Approval expires no later than the earliest qualifying evidence's 90-day expiry; evidence is checked again at lookup time.
 

@@ -47,19 +47,20 @@ Do not expose `HUNTER_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, or the provider-lim
 
 ## Growing the shared pattern database
 
-When Hunter returns a named address with a source URL on the same company domain, Hirely:
+When Hunter Finder returns a named address, Hirely:
 
 - identifies the observed naming pattern;
 - adds the company or updates its aliases;
-- stores the example in Company Data as **Awaiting reuse review**;
+- stores an official same-domain source as **Awaiting reuse review**;
+- otherwise stores it as a **Provider candidate — not reusable yet**;
 - never automatically approves the company pattern.
 
-An administrator must open `/admin/companies`, confirm the official domain and evidence reuse, and approve only after two distinct recent examples agree. Approved patterns remain predictions rather than mailbox verification.
+Provider candidates are useful leads, but they cannot be approved directly and never participate in pattern prediction. An administrator must confirm the official domain and either find official evidence or confirm provider reuse rights and re-add the address as licensed data. Approval still requires two distinct, recent matching examples. Approved patterns remain predictions rather than mailbox verification. The **Backfill Hunter candidates** action processes existing saved Hunter results without making provider calls.
 
 ## Deployment checklist
 
 1. Back up the intended Supabase project.
-2. Apply the provider-budget migration.
+2. Apply the provider-budget migrations and `supabase/migrations/202609230003_provider_pattern_candidates.sql`.
 3. Set `SUPABASE_SERVICE_ROLE_KEY` in the deployment environment.
 4. Set `HUNTER_MONTHLY_CREDIT_LIMIT` to the actual plan allowance.
 5. Set `HUNTER_BILLING_CYCLE_DAY` to the renewal day shown by Hunter.

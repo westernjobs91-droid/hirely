@@ -60,15 +60,20 @@ async function resolveEmailInternal(request:Request,event:{company:string;domain
     return NextResponse.json(result)
   }
   const stored = contact?.email
-  if (action === 'find' && stored && contact.email_status !== 'invalid') return finish(stored, contact.email_status || 'unverified', contact.email_source || 'saved', contact.email_checked_at, contact.email_evidence || '')
+  if (action === 'find' && stored && contact.email_status !== 'invalid') {
+    if(contact.email_source==='hunter_finder')await recordProviderPatternEvidence({company,domain:normalizeDomain(stored.split('@')[1]||''),firstName:first,lastName:last,email:stored,sources:[],provider:'hunter'})
+    return finish(stored, contact.email_status || 'unverified', contact.email_source || 'saved', contact.email_checked_at, contact.email_evidence || '')
+  }
   if (stored && contact.email_status === 'valid' && isFresh(contact.email_checked_at)) return finish(stored, 'valid', contact.email_source || 'saved', contact.email_checked_at, contact.email_evidence || '')
   if (contact && action === 'find') {
     const { data: legacy } = await db.from('email_cache').select('email,created_at').eq('contact_id',contact.id).maybeSingle()
     if (legacy?.email && isFresh(legacy.created_at)) return finish(legacy.email,'unverified','legacy_cache',null,'Previously found address; verification status unavailable.')
   }
   const { data: cached } = await db.from('email_resolutions').select('*').eq('user_id', user.id).eq('identity_key', identity).maybeSingle()
-  if (cached && isFresh(cached.created_at, 30) && ((action === 'find' && cached.status !== 'invalid') || (cached.status === 'valid' && isFresh(cached.checked_at) && (action !== 'verify' || !stored || cached.email === stored))))
+  if (cached && isFresh(cached.created_at, 30) && ((action === 'find' && cached.status !== 'invalid') || (cached.status === 'valid' && isFresh(cached.checked_at) && (action !== 'verify' || !stored || cached.email === stored)))){
+    if(action==='find'&&cached.source==='hunter_finder')await recordProviderPatternEvidence({company,domain:normalizeDomain(String(cached.email||'').split('@')[1]||''),firstName:first,lastName:last,email:cached.email,sources:[],provider:'hunter'})
     return finish(cached.email, cached.status, cached.source, cached.checked_at, cached.evidence, cached.provider_score)
+  }
 
   let candidate = stored || '', evidence = ''
   if(!candidate){
@@ -90,7 +95,7 @@ async function resolveEmailInternal(request:Request,event:{company:string;domain
             status:'unverified',source:'exa_public_source',checked_at:null,evidence:details,provider_score:null,created_at:new Date().toISOString(),
           },{onConflict:'user_id,identity_key'})
           cacheSaved=!cacheError
-          await recordProviderPatternEvidence({company,domain:discovered.domain,firstName:first,lastName:last,email:discovered.email,sources:[{uri:discovered.sourceUrl}]})
+          await recordProviderPatternEvidence({company,domain:discovered.domain,firstName:first,lastName:last,email:discovered.email,sources:[{uri:discovered.sourceUrl}],provider:'exa'})
           return finish(discovered.email,'unverified','exa_public_source',null,details,null)
         }
       }catch{console.warn('Exa email search failed; falling back to Hunter')}
@@ -134,7 +139,7 @@ async function resolveEmailInternal(request:Request,event:{company:string;domain
     cacheSaved = !cacheError
     if(action === 'find'){
       const resolvedDomain=normalizeDomain(data?.domain||domain||email.split('@')[1]||'')
-      if(resolvedDomain){event.domain=resolvedDomain;await recordProviderPatternEvidence({company,domain:resolvedDomain,firstName:first,lastName:last,email,sources:Array.isArray(data?.sources)?data.sources:[]})}
+      if(resolvedDomain){event.domain=resolvedDomain;await recordProviderPatternEvidence({company,domain:resolvedDomain,firstName:first,lastName:last,email,sources:Array.isArray(data?.sources)?data.sources:[],provider:'hunter'})}
     }
     return finish(email, status, source, checkedAt, details, score)
   } catch { return NextResponse.json({ error: 'Email search timed out or failed. No credit used; no automatic retry was made.', creditsUsed: 0 }, { status: 502 }) }

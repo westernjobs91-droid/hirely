@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { authenticate } from '@/lib/server-auth'
-import { companyService } from '@/lib/company-data'
+import { backfillProviderPatternCandidates, companyService } from '@/lib/company-data'
 import { COMPANY_PATTERNS,companyKey,approvalError,publicSource } from '@/lib/company-pattern-review'
 import { normalizeDomain } from '@/lib/email-patterns'
 export const dynamic='force-dynamic'
@@ -45,6 +45,10 @@ export async function POST(request:Request){
   }
   return NextResponse.json({message:'CRM company names added to the queue. Existing entries and demand counts preserved.',processed:count})
  }
+ if(b.action==='backfill-provider-candidates'){
+  const result=await backfillProviderPatternCandidates()
+  return result.error?fail(result.error,503):NextResponse.json({message:`Processed ${result.processed} historical Hunter results as unapproved pattern candidates.`,processed:result.processed})
+ }
  if(b.action==='save'){
   const name=typeof b.name==='string'?b.name.trim().slice(0,250):'',domain=normalizeDomain(b.domain||'')
   if(!name||!domain||!publicSource(b.website||'')||normalizeDomain(b.website)!==domain)return fail('Enter a company name, domain and matching official website URL.')
@@ -76,6 +80,7 @@ export async function POST(request:Request){
  if(b.action==='confirm-reuse'){
   const {data:evidence,error}=await db.from('company_pattern_evidence').select('*').eq('id',b.evidenceId).eq('company_id',b.id).single()
   if(error||!evidence)return fail('Evidence not found.',404)
+  if(evidence.source_type==='provider_candidate')return fail('Provider candidates cannot be approved directly. Confirm your provider reuse rights, then add this address as Licensed data with reuse rights.')
   if(!publicSource(evidence.source_url)||evidence.source_type==='official_website'&&normalizeDomain(evidence.source_url)!==company.domain)return fail('Review the source URL and company domain before confirming reuse.')
   const paused=await db.from('company_directory').update({status:'needs_evidence',expires_at:null,updated_at:new Date().toISOString()}).eq('id',b.id)
   if(paused.error)return fail('Could not invalidate approval.',503)
