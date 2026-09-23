@@ -41,7 +41,10 @@ export async function recordProviderPatternEvidence(input:{
   if(!domain||email.split('@')[1]!==domain)return
   const pattern=identifyEmailPattern(input.firstName,input.lastName,email,domain)
   if(!pattern)return
-  const source=input.sources.map(s=>typeof s?.uri==='string'?s.uri:'').find(uri=>normalizeDomain(uri)===domain)
+  const source=input.sources.map(s=>typeof s?.uri==='string'?s.uri:'').find(uri=>{
+   const sourceDomain=normalizeDomain(uri)
+   return sourceDomain===domain||sourceDomain.endsWith('.'+domain)
+  })
   if(!source)return
   const alias=companyKey(input.company||domain)
   let {data:company}=await db.from('company_directory').select('*').eq('domain',domain).maybeSingle()

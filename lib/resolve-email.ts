@@ -4,6 +4,7 @@ import { authenticate } from './server-auth'
 import { getEntitlements } from './plans'
 import { isFresh, normalizeDomain, normalizeName, predictEmail, providerStatus, EmailStatus } from './email-patterns'
 import { releaseProviderCredit, reserveProviderCredit } from './provider-budget'
+import { exaEmailSearchConfigured, findPublishedEmailWithExa } from './exa-email'
 
 export async function resolveEmail(request: Request) {
   const event={company:'',domain:'',apiCalled:false,result:false,track:false}
@@ -76,6 +77,25 @@ async function resolveEmailInternal(request:Request,event:{company:string;domain
   }
   if (action === 'find' && candidate && !stored) return finish(candidate, 'predicted', 'company_pattern', null, evidence)
   if (action === 'verify' && !candidate) return NextResponse.json({ error: 'Find or enter an email first.' }, { status: 400 })
+  if(action==='find'&&!stored&&exaEmailSearchConfigured()){
+    const exaReservation=await reserveProviderCredit('exa')
+    if(exaReservation==='reserved'){
+      event.apiCalled=true
+      try{
+        const discovered=await findPublishedEmailWithExa({firstName:first,lastName:last,company,domain})
+        if(discovered){
+          event.domain=discovered.domain
+          const details='Published with this person\'s name on the company website; mailbox not independently verified.'
+          const {error:cacheError}=await db.from('email_resolutions').upsert({user_id:user.id,identity_key:identity,email:discovered.email,
+            status:'unverified',source:'exa_public_source',checked_at:null,evidence:details,provider_score:null,created_at:new Date().toISOString(),
+          },{onConflict:'user_id,identity_key'})
+          cacheSaved=!cacheError
+          await recordProviderPatternEvidence({company,domain:discovered.domain,firstName:first,lastName:last,email:discovered.email,sources:[{uri:discovered.sourceUrl}]})
+          return finish(discovered.email,'unverified','exa_public_source',null,details,null)
+        }
+      }catch{console.warn('Exa email search failed; falling back to Hunter')}
+    }
+  }
   const key = process.env.HUNTER_API_KEY
   if (!key) return NextResponse.json({ error: 'Email search is temporarily unavailable. No credit used.' }, { status: 503 })
   // Check before calling the provider, but only consume a credit in finish().
