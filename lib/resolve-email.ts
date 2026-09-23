@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
-import { approvedCompanyPattern, recordCompanySearch } from './company-data'
+import { approvedCompanyPattern, recordCompanySearch, recordProviderPatternEvidence } from './company-data'
 import { authenticate } from './server-auth'
 import { getEntitlements } from './plans'
 import { isFresh, normalizeDomain, normalizeName, predictEmail, providerStatus, EmailStatus } from './email-patterns'
+import { releaseProviderCredit, reserveProviderCredit } from './provider-budget'
 
 export async function resolveEmail(request: Request) {
   const event={company:'',domain:'',apiCalled:false,result:false,track:false}
@@ -83,6 +84,10 @@ async function resolveEmailInternal(request:Request,event:{company:string;domain
   try { entitlement = await getEntitlements(db) }
   catch { return NextResponse.json({ error: 'Credit controls unavailable. No credit used.', creditsUsed: 0 }, { status: 503 }) }
   if (entitlement.email_used >= entitlement.email_limit) return NextResponse.json({ error: 'Monthly email credit limit reached.', creditsUsed: 0 }, { status: 402 })
+  const providerReservation = await reserveProviderCredit('hunter')
+  if (providerReservation === 'unavailable') return NextResponse.json({ error: 'Provider spending controls are unavailable. No credit used.', creditsUsed: 0 }, { status: 503 })
+  if (providerReservation === 'exhausted') return NextResponse.json({ error: 'Email search budget reached for this month. No credit used.', creditsUsed: 0 }, { status: 503 })
+  let providerCreditConsumed = false
   try {
     const params = new URLSearchParams({ api_key: key })
     if (action === 'verify') params.set('email', candidate)
@@ -97,6 +102,7 @@ async function resolveEmailInternal(request:Request,event:{company:string;domain
     const { data } = await response.json()
     const email = action === 'verify' ? candidate : data?.email
     if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ ok: false, enriched: false, creditsUsed: 0, message: 'No email found. No credit used.' })
+    providerCreditConsumed = true
     const status = providerStatus(action === 'verify' ? data?.status : data?.verification?.status)
     const checkedAt = action === 'verify' ? new Date().toISOString() : data?.verification?.date || null
     const source = action === 'verify' ? 'hunter_verifier' : 'hunter_finder'
@@ -106,6 +112,11 @@ async function resolveEmailInternal(request:Request,event:{company:string;domain
       checked_at: checkedAt, evidence: details, provider_score: score, created_at: new Date().toISOString(),
     }, { onConflict: 'user_id,identity_key' })
     cacheSaved = !cacheError
+    if(action === 'find'){
+      const resolvedDomain=normalizeDomain(data?.domain||domain||email.split('@')[1]||'')
+      if(resolvedDomain){event.domain=resolvedDomain;await recordProviderPatternEvidence({company,domain:resolvedDomain,firstName:first,lastName:last,email,sources:Array.isArray(data?.sources)?data.sources:[]})}
+    }
     return finish(email, status, source, checkedAt, details, score)
   } catch { return NextResponse.json({ error: 'Email search timed out or failed. No credit used; no automatic retry was made.', creditsUsed: 0 }, { status: 502 }) }
+  finally { if(!providerCreditConsumed) await releaseProviderCredit('hunter').catch(()=>{}) }
 }

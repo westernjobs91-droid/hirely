@@ -1,5 +1,5 @@
-import { normalizeDomain, normalizeName, predictEmail, isFresh } from './email-patterns'
-export const COMPANY_PATTERNS=['{first}.{last}','{first}{last}','{f}{last}','{first}_{last}','{first}','{last}{first}','{first}{l}','{last}.{first}']
+import { normalizeDomain, normalizeName, predictEmail, isFresh, SUPPORTED_EMAIL_PATTERNS } from './email-patterns'
+export const COMPANY_PATTERNS=[...SUPPORTED_EMAIL_PATTERNS]
 export const companyKey=(name:string)=>name.trim().toLowerCase().replace(/\s+/g,' ').slice(0,250)
 export function publicSource(value:string):boolean {try{const u=new URL(value);return ['http:','https:'].includes(u.protocol)&&!!normalizeDomain(u.hostname)&&!u.username&&!u.password}catch{return false}}
 export function approvalError(company:any,evidence:any[]):string|null {

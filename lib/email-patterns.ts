@@ -1,4 +1,5 @@
 export type EmailStatus = 'unverified' | 'predicted' | 'valid' | 'invalid' | 'accept_all' | 'unknown'
+export const SUPPORTED_EMAIL_PATTERNS = ['{first}.{last}','{first}{last}','{f}{last}','{first}_{last}','{first}','{last}{first}','{first}{l}','{last}.{first}'] as const
 export function normalizeDomain(value: string): string {
   try {
     const url = new URL(value.includes('://') ? value : 'https://' + value)
@@ -15,6 +16,13 @@ export function predictEmail(first: string, last: string, domain: string, patter
   const local = pattern.replaceAll('{first}', f).replaceAll('{last}', l).replaceAll('{f}', f[0]).replaceAll('{l}', l[0] || '')
   if (!/^[a-z][a-z0-9._-]{0,63}$/.test(local) || local.includes('..') || /[._-]$/.test(local)) return null
   return local + '@' + d
+}
+export function identifyEmailPattern(first: string, last: string, email: string, domain: string): string | null {
+  const candidate = email.trim().toLowerCase()
+  for (const pattern of SUPPORTED_EMAIL_PATTERNS) {
+    if (predictEmail(first, last, domain, pattern) === candidate) return pattern
+  }
+  return null
 }
 export function isFresh(date: string | null | undefined, days = 90): boolean {
   const age = Date.now() - Date.parse(date || '')

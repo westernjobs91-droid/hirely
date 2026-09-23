@@ -73,6 +73,15 @@ export async function POST(request:Request){
   const result=await db.from('company_pattern_evidence').update({excluded:b.excluded===true}).eq('id',b.evidenceId).eq('company_id',b.id)
   return result.error?fail('Could not update evidence.',503):NextResponse.json({message:'Evidence updated. Approval cleared.'})
  }
+ if(b.action==='confirm-reuse'){
+  const {data:evidence,error}=await db.from('company_pattern_evidence').select('*').eq('id',b.evidenceId).eq('company_id',b.id).single()
+  if(error||!evidence)return fail('Evidence not found.',404)
+  if(!publicSource(evidence.source_url)||evidence.source_type==='official_website'&&normalizeDomain(evidence.source_url)!==company.domain)return fail('Review the source URL and company domain before confirming reuse.')
+  const paused=await db.from('company_directory').update({status:'needs_evidence',expires_at:null,updated_at:new Date().toISOString()}).eq('id',b.id)
+  if(paused.error)return fail('Could not invalidate approval.',503)
+  const result=await db.from('company_pattern_evidence').update({reuse_confirmed:b.confirmed===true}).eq('id',b.evidenceId).eq('company_id',b.id)
+  return result.error?fail('Could not update reuse review.',503):NextResponse.json({message:b.confirmed?'Evidence confirmed for shared pattern review.':'Evidence marked as awaiting reuse review.'})
+ }
  if(b.action==='approve'){
   const {data:evidence,error}=await db.from('company_pattern_evidence').select('*').eq('company_id',b.id)
   if(error)return fail('Could not read evidence.',503)
