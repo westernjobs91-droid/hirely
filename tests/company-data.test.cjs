@@ -15,6 +15,9 @@ test('a company may use separate official website and employee email domains',()
  const official=evidence.map(e=>({...e,source_url:'https://example-company.com/team'}))
  assert.equal(review.approvalError(separate,official),null)
 })
+test('company aliases normalize visually identical Unicode hyphens',()=>{
+ assert.equal(review.companyKey('Flex‑N‑Gate'),review.companyKey('Flex-N-Gate'))
+})
 function adminHarness(user){let serviceCalls=0;const db={from(){throw new Error('Unexpected storage access')}};const route=load('app/api/admin/company-data/route.ts',{'next/server':{NextResponse:{json:(b,i)=>Response.json(b,i)}},'@/lib/server-auth':{authenticate:async()=>user?{user,db}:null},'@/lib/company-data':{companyService:()=>{serviceCalls++;return db}},'@/lib/company-pattern-review':review,'@/lib/email-patterns':patterns,'@/lib/apollo-research':{apolloResearchConfigured:()=>false,researchWorkEmailWithApollo:async()=>null},'@/lib/provider-budget':{reserveProviderCredit:async()=>'unavailable',releaseProviderCredit:async()=>{}}});return{route,get serviceCalls(){return serviceCalls}}}
 test('anonymous callers cannot access company administration',async()=>{const h=adminHarness(null);assert.equal((await h.route.GET(new Request('http://test/api'))).status,401);assert.equal(h.serviceCalls,0)});
 test('ordinary customers cannot use admin service-role access',async()=>{const h=adminHarness({id:'customer',email:'customer@example.com'});assert.equal((await h.route.POST(new Request('http://test/api',{method:'POST',body:'{"action":"seed"}'}))).status,403);assert.equal(h.serviceCalls,0)});

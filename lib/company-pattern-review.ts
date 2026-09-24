@@ -1,6 +1,6 @@
 import { normalizeDomain, normalizeName, predictEmail, isFresh, SUPPORTED_EMAIL_PATTERNS } from './email-patterns'
 export const COMPANY_PATTERNS=[...SUPPORTED_EMAIL_PATTERNS]
-export const companyKey=(name:string)=>name.trim().toLowerCase().replace(/\s+/g,' ').slice(0,250)
+export const companyKey=(name:string)=>name.normalize('NFKC').trim().toLowerCase().replace(/[‐‑‒–—―﹘﹣－]/g,'-').replace(/\s+/g,' ').slice(0,250)
 export function publicSource(value:string):boolean {try{const u=new URL(value);return ['http:','https:'].includes(u.protocol)&&!!normalizeDomain(u.hostname)&&!u.username&&!u.password}catch{return false}}
 export function approvalError(company:any,evidence:any[]):string|null {
  if(!company.domain_confirmed||!company.domain||!publicSource(company.website))return 'Confirm the official company website and email domain first.'

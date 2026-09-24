@@ -29,7 +29,7 @@ export async function GET(request:Request){
  const [d,q,stats]=await Promise.all([directory.range(page*50,page*50+49),db!.from('company_requests').select('*').order('requests',{ascending:false}).limit(100),db!.rpc('company_data_stats')])
  if(d.error||q.error||stats.error)return fail('Company Data storage unavailable. Apply the company data migration.',503)
  const requestedDomains=Array.from(new Set<string>((q.data||[]).map((item:any)=>normalizeDomain(item.requested_domain||'')).filter(Boolean)))
- const requestedAliases=Array.from(new Set<string>((q.data||[]).map((item:any)=>companyKey(item.company_name||'')).filter(Boolean)))
+ const requestedAliases=Array.from(new Set<string>((q.data||[]).flatMap((item:any)=>{const alias=companyKey(item.company_name||'');return alias?[alias,alias.replace(/-/g,'‑')]:[]})))
  const [domainMatches,aliasMatches]=await Promise.all([
   requestedDomains.length?db!.from('company_directory').select('*').eq('domain_confirmed',true).in('domain',requestedDomains):{data:[],error:null},
   requestedAliases.length?db!.from('company_directory').select('*').eq('domain_confirmed',true).overlaps('aliases',requestedAliases):{data:[],error:null},
@@ -37,7 +37,7 @@ export async function GET(request:Request){
  if(domainMatches.error||aliasMatches.error)return fail('Company request matching is unavailable.',503)
  const byDomain=new Map((domainMatches.data||[]).map((company:any)=>[company.domain,company]))
  const byAlias=new Map<string,any>()
- for(const company of aliasMatches.data||[])for(const alias of company.aliases||[])byAlias.set(alias,company)
+ for(const company of aliasMatches.data||[])for(const alias of company.aliases||[])byAlias.set(companyKey(alias),company)
  const groupedQueue=new Map<string,any>()
  for(const request of q.data||[]){
   const matched=byDomain.get(normalizeDomain(request.requested_domain||''))||byAlias.get(companyKey(request.company_name||''))
