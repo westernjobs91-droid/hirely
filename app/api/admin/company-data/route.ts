@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 import { authenticate } from '@/lib/server-auth'
-import { backfillProviderPatternCandidates, companyService } from '@/lib/company-data'
+import { backfillProviderPatternCandidates, companyService, recordProviderPatternEvidence } from '@/lib/company-data'
 import { COMPANY_PATTERNS,companyKey,approvalError,publicSource } from '@/lib/company-pattern-review'
 import { normalizeDomain } from '@/lib/email-patterns'
+import { apolloResearchConfigured, researchWorkEmailWithApollo } from '@/lib/apollo-research'
+import { releaseProviderCredit, reserveProviderCredit } from '@/lib/provider-budget'
 export const dynamic='force-dynamic'
 async function admin(request:Request){
  const auth=await authenticate(request)
@@ -62,6 +64,32 @@ export async function POST(request:Request){
  if(!b.id)return fail('Choose a company first.')
  const {data:company,error}=await db.from('company_directory').select('*').eq('id',b.id).single()
  if(error||!company)return fail('Company not found.',404)
+ if(b.action==='research-apollo'){
+  const first=String(b.firstName||'').trim().slice(0,100),last=String(b.lastName||'').trim().slice(0,100)
+  const linkedinUrl=String(b.linkedinUrl||'').trim().slice(0,1000)
+  if(!first||!last||!normalizeDomain(company.domain||''))return fail('Enter the employee first and last name and save a company domain first.')
+  if(linkedinUrl){
+   try{const url=new URL(linkedinUrl);if(url.protocol!=='https:'||!/(^|\.)linkedin\.com$/.test(url.hostname)||!url.pathname.startsWith('/in/'))return fail('Use a valid HTTPS LinkedIn profile URL, or leave it blank.')}
+   catch{return fail('Use a valid HTTPS LinkedIn profile URL, or leave it blank.')}
+  }
+  if(!apolloResearchConfigured())return fail('Apollo owner research is not configured. Add the server-only API key and a positive monthly limit.',503)
+  const reservation=await reserveProviderCredit('apollo')
+  if(reservation==='unavailable')return fail('Apollo spending controls are unavailable. Apply the Apollo migration first.',503)
+  if(reservation==='exhausted')return fail('Apollo research allowance reached for this billing cycle.',503)
+  let consumed=false
+  try{
+   const result=await researchWorkEmailWithApollo({firstName:first,lastName:last,company:company.name,domain:company.domain,linkedinUrl:linkedinUrl||undefined})
+   consumed=result.billable
+   if(result.kind!=='found'||!result.email){
+    const reason=result.reason==='low_confidence'?'Apollo found only a low-confidence match.':result.reason==='unverified'?'Apollo did not return a verified work email.':result.reason==='wrong_domain'?'Apollo returned an address for a different company domain.':'Apollo found no matching work email.'
+    return NextResponse.json({message:reason+' Nothing was added to the shared pattern database.',found:false})
+   }
+   const saved=await recordProviderPatternEvidence({company:company.name,domain:company.domain,firstName:first,lastName:last,email:result.email,sources:[],provider:'apollo'})
+   if(!saved)return fail('Apollo found an address, but the review candidate could not be saved.',503)
+   return NextResponse.json({message:'Apollo found a verified work address and saved it as an owner-only provider candidate. It cannot serve customer searches or qualify for approval.',found:true,email:result.email})
+  }catch{return fail('Apollo research failed. No automatic retry was made.',502)}
+  finally{if(!consumed)await releaseProviderCredit('apollo').catch(()=>{})}
+ }
  if(b.action==='evidence'){
   const first=String(b.firstName||'').trim().slice(0,100),last=String(b.lastName||'').trim().slice(0,100),email=String(b.email||'').trim().toLowerCase()
   const source=String(b.sourceUrl||'').trim(),observed=new Date(b.observedAt)

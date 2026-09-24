@@ -32,21 +32,21 @@ export async function recordCompanySearch(event:{company:string;domain:string;ap
 
 type ProviderSource = { uri?: unknown }
 export async function recordProviderPatternEvidence(input:{
- company:string;domain:string;firstName:string;lastName:string;email:string;sources:ProviderSource[];provider?:'hunter'|'exa'
-}){
+ company:string;domain:string;firstName:string;lastName:string;email:string;sources:ProviderSource[];provider?:'hunter'|'exa'|'apollo'
+}):Promise<boolean>{
  try{
-  const db=companyService();if(!db)return
+  const db=companyService();if(!db)return false
   const domain=normalizeDomain(input.domain||input.email.split('@')[1]||'')
   const email=input.email.trim().toLowerCase()
-  if(!domain||email.split('@')[1]!==domain)return
+  if(!domain||email.split('@')[1]!==domain)return false
   const pattern=identifyEmailPattern(input.firstName,input.lastName,email,domain)
-  if(!pattern)return
+  if(!pattern)return false
   const officialSource=input.sources.map(s=>typeof s?.uri==='string'?s.uri:'').find(uri=>{
    const sourceDomain=normalizeDomain(uri)
    return sourceDomain===domain||sourceDomain.endsWith('.'+domain)
   })
-  const source=officialSource||(input.provider==='hunter'?'https://hunter.io':'')
-  if(!source)return
+  const source=officialSource||(input.provider==='hunter'?'https://hunter.io':input.provider==='apollo'?'https://app.apollo.io':'')
+  if(!source)return false
   const sourceType=officialSource?'official_website':'provider_candidate'
   const alias=companyKey(input.company||domain)
   let {data:company}=await db.from('company_directory').select('*').eq('domain',domain).maybeSingle()
@@ -61,18 +61,20 @@ export async function recordProviderPatternEvidence(input:{
    const aliases=Array.from(new Set([...(company.aliases||[]),...(alias?[alias]:[])]))
    const patch:any={aliases,updated_at:new Date().toISOString()}
    if(!company.pattern)patch.pattern=pattern
-   await db.from('company_directory').update(patch).eq('id',company.id)
+   const updated=await db.from('company_directory').update(patch).eq('id',company.id)
+   if(updated.error)return false
   }
-  if(!company?.id)return
+  if(!company?.id)return false
   const {data:existing}=await db.from('company_pattern_evidence').select('source_type').eq('company_id',company.id).eq('email',email).maybeSingle()
-  if(existing?.source_type&&existing.source_type!=='provider_candidate')return
-  if(existing?.source_type==='provider_candidate'&&sourceType==='provider_candidate')return
-  await db.from('company_pattern_evidence').upsert({
+  if(existing?.source_type&&existing.source_type!=='provider_candidate')return true
+  if(existing?.source_type==='provider_candidate'&&sourceType==='provider_candidate')return true
+  const saved=await db.from('company_pattern_evidence').upsert({
    company_id:company.id,first_name:input.firstName.slice(0,100),last_name:input.lastName.slice(0,100),email,
    source_url:source.slice(0,2000),source_type:sourceType,observed_at:new Date().toISOString(),
    reuse_confirmed:false,excluded:false,
   },{onConflict:'company_id,email'})
- }catch{console.warn('Provider pattern evidence could not be queued for review')}
+  return !saved.error
+ }catch{console.warn('Provider pattern evidence could not be queued for review');return false}
 }
 
 export async function backfillProviderPatternCandidates(limit=1000){

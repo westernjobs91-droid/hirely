@@ -57,15 +57,32 @@ When Hunter Finder returns a named address, Hirely:
 
 Provider candidates are useful leads, but they cannot be approved directly and never participate in pattern prediction. An administrator must confirm the official domain and either find official evidence or confirm provider reuse rights and re-add the address as licensed data. Approval still requires two distinct, recent matching examples. Approved patterns remain predictions rather than mailbox verification. The **Backfill Hunter candidates** action processes existing saved Hunter results without making provider calls.
 
+## Owner-only Apollo research
+
+Apollo is deliberately outside the customer **Find email** pipeline. It is an administrator research aid in **Company Data** only. Set these server-only variables to enable the button:
+
+```text
+APOLLO_API_KEY=...
+APOLLO_MONTHLY_CREDIT_LIMIT=75
+APOLLO_BILLING_CYCLE_DAY=1
+```
+
+The limit defaults to zero. Hirely requests only work-email enrichment and explicitly disables personal emails, phones, and waterfall enrichment. It accepts only a high-confidence match with a verified work address on both the saved company domain and Apollo's returned employer domain.
+
+Accepted addresses are stored as **Provider candidate — not reusable yet**. They are visible only to the administrator, cannot supply customer searches, and cannot qualify a company pattern for approval. To make a format reusable, independently locate the address on the official company website or add properly licensed evidence after confirming reuse rights. Do not copy Apollo candidates into licensed evidence unless the Apollo agreement for the account expressly permits that reuse.
+
+The internal Apollo ceiling reserves one unit before each request. A confirmed no-match releases it; a matched person keeps the reservation because Apollo may charge for returned demographic or email data even when Hirely rejects the result.
+
 ## Deployment checklist
 
 1. Back up the intended Supabase project.
-2. Apply the provider-budget migrations and `supabase/migrations/202609230003_provider_pattern_candidates.sql`.
+2. Apply the provider-budget migrations through `supabase/migrations/202609230004_apollo_owner_research.sql`.
 3. Set `SUPABASE_SERVICE_ROLE_KEY` in the deployment environment.
 4. Set `HUNTER_MONTHLY_CREDIT_LIMIT` to the actual plan allowance.
 5. Set `HUNTER_BILLING_CYCLE_DAY` to the renewal day shown by Hunter.
 6. Set `EXA_API_KEY`, a conservative `EXA_MONTHLY_REQUEST_LIMIT`, and Exa's billing-cycle day.
 7. Seed already-consumed credits for either provider when deploying mid-cycle.
-8. Deploy the Next.js application.
-9. Reload the unpacked extension only if extension files changed; this release does not require an extension-package change.
-10. Test a cache hit, an Exa success, Exa-to-Hunter fallback, a Hunter miss, and both budget ceilings in staging.
+8. If enabling owner research, set the Apollo key, limit, and billing-cycle day; otherwise leave the limit unset or zero.
+9. Deploy the Next.js application.
+10. Reload the unpacked extension only if extension files changed; this release does not require an extension-package change.
+11. Test a cache hit, an Exa success, Exa-to-Hunter fallback, a Hunter miss, all enabled provider ceilings, and that a normal customer cannot call the Apollo admin action.
