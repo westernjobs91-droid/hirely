@@ -5,6 +5,7 @@ import { getEntitlements } from './plans'
 import { isFresh, normalizeDomain, normalizeName, predictEmail, providerStatus, EmailStatus } from './email-patterns'
 import { releaseProviderCredit, reserveProviderCredit } from './provider-budget'
 import { exaEmailSearchConfigured, findPublishedEmailWithExa } from './exa-email'
+import { anymailEmailSearchConfigured, findVerifiedEmailWithAnymail } from './anymail-email'
 
 export async function resolveEmail(request: Request) {
   const event={company:'',domain:'',apiCalled:false,result:false,track:false}
@@ -60,8 +61,12 @@ async function resolveEmailInternal(request:Request,event:{company:string;domain
     return NextResponse.json(result)
   }
   const stored = contact?.email
+  async function queueProviderEvidence(email:string,source:string){
+    const provider=source==='hunter_finder'?'hunter':source==='anymail_finder'?'anymail':null
+    if(provider)await recordProviderPatternEvidence({company,domain:normalizeDomain(email.split('@')[1]||''),firstName:first,lastName:last,email,sources:[],provider})
+  }
   if (action === 'find' && stored && contact.email_status !== 'invalid') {
-    if(contact.email_source==='hunter_finder')await recordProviderPatternEvidence({company,domain:normalizeDomain(stored.split('@')[1]||''),firstName:first,lastName:last,email:stored,sources:[],provider:'hunter'})
+    await queueProviderEvidence(stored,contact.email_source)
     return finish(stored, contact.email_status || 'unverified', contact.email_source || 'saved', contact.email_checked_at, contact.email_evidence || '')
   }
   if (stored && contact.email_status === 'valid' && isFresh(contact.email_checked_at)) return finish(stored, 'valid', contact.email_source || 'saved', contact.email_checked_at, contact.email_evidence || '')
@@ -71,7 +76,7 @@ async function resolveEmailInternal(request:Request,event:{company:string;domain
   }
   const { data: cached } = await db.from('email_resolutions').select('*').eq('user_id', user.id).eq('identity_key', identity).maybeSingle()
   if (cached && isFresh(cached.created_at, 30) && ((action === 'find' && cached.status !== 'invalid') || (cached.status === 'valid' && isFresh(cached.checked_at) && (action !== 'verify' || !stored || cached.email === stored)))){
-    if(action==='find'&&cached.source==='hunter_finder')await recordProviderPatternEvidence({company,domain:normalizeDomain(String(cached.email||'').split('@')[1]||''),firstName:first,lastName:last,email:cached.email,sources:[],provider:'hunter'})
+    if(action==='find')await queueProviderEvidence(String(cached.email||''),cached.source)
     return finish(cached.email, cached.status, cached.source, cached.checked_at, cached.evidence, cached.provider_score)
   }
 
@@ -99,6 +104,28 @@ async function resolveEmailInternal(request:Request,event:{company:string;domain
           return finish(discovered.email,'unverified','exa_public_source',null,details,null)
         }
       }catch{console.warn('Exa email search failed; falling back to Hunter')}
+    }
+  }
+  if(action==='find'&&!stored&&anymailEmailSearchConfigured()){
+    const reservation=await reserveProviderCredit('anymail')
+    if(reservation==='reserved'){
+      event.apiCalled=true
+      let consumed=false
+      try{
+        const result=await findVerifiedEmailWithAnymail({firstName:first,lastName:last,company,domain})
+        consumed=result.creditsCharged>0
+        if(result.kind==='found'){
+          event.domain=result.domain
+          const details='Anymail Finder reports this mailbox as valid for the requested person and company.'
+          const {error:cacheError}=await db.from('email_resolutions').upsert({user_id:user.id,identity_key:identity,email:result.email,
+            status:'valid',source:'anymail_finder',checked_at:new Date().toISOString(),evidence:details,provider_score:null,created_at:new Date().toISOString(),
+          },{onConflict:'user_id,identity_key'})
+          cacheSaved=!cacheError
+          await recordProviderPatternEvidence({company,domain:result.domain,firstName:first,lastName:last,email:result.email,sources:[],provider:'anymail'})
+          return finish(result.email,'valid','anymail_finder',new Date().toISOString(),details,null)
+        }
+      }catch{console.warn('Anymail Finder search failed; falling back to Hunter')}
+      finally{if(!consumed)await releaseProviderCredit('anymail').catch(()=>{})}
     }
   }
   const key = process.env.HUNTER_API_KEY

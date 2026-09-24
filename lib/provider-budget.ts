@@ -1,11 +1,13 @@
 import { companyService } from './company-data'
 
-export type Provider = 'hunter' | 'exa' | 'apollo'
+export type Provider = 'hunter' | 'exa' | 'apollo' | 'anymail'
 
 function monthlyLimit(provider: Provider): number {
   const name = provider === 'hunter'
     ? 'HUNTER_MONTHLY_CREDIT_LIMIT'
-    : provider === 'exa' ? 'EXA_MONTHLY_REQUEST_LIMIT' : 'APOLLO_MONTHLY_CREDIT_LIMIT'
+    : provider === 'exa'
+      ? 'EXA_MONTHLY_REQUEST_LIMIT'
+      : provider === 'anymail' ? 'ANYMAIL_FINDER_CREDIT_LIMIT' : 'APOLLO_MONTHLY_CREDIT_LIMIT'
   const fallback = provider === 'hunter' ? 50 : 0
   const value = Number(process.env[name] ?? fallback)
   return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : fallback
@@ -14,7 +16,9 @@ function monthlyLimit(provider: Provider): number {
 function billingCycleDay(provider: Provider): number {
   const name = provider === 'hunter'
     ? 'HUNTER_BILLING_CYCLE_DAY'
-    : provider === 'exa' ? 'EXA_BILLING_CYCLE_DAY' : 'APOLLO_BILLING_CYCLE_DAY'
+    : provider === 'exa'
+      ? 'EXA_BILLING_CYCLE_DAY'
+      : provider === 'anymail' ? 'ANYMAIL_FINDER_BILLING_CYCLE_DAY' : 'APOLLO_BILLING_CYCLE_DAY'
   const value = Number(process.env[name] ?? 1)
   return Number.isFinite(value) ? Math.min(28, Math.max(1, Math.floor(value))) : 1
 }

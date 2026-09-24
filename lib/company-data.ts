@@ -43,7 +43,7 @@ export async function approvePatternConsensus(db:any,company:any):Promise<boolea
  }catch{return false}
 }
 export async function recordProviderPatternEvidence(input:{
- company:string;domain:string;firstName:string;lastName:string;email:string;sources:ProviderSource[];provider?:'hunter'|'exa'|'apollo'
+ company:string;domain:string;firstName:string;lastName:string;email:string;sources:ProviderSource[];provider?:'hunter'|'exa'|'apollo'|'anymail'
 }):Promise<boolean>{
  try{
   const db=companyService();if(!db)return false
@@ -56,7 +56,7 @@ export async function recordProviderPatternEvidence(input:{
    const sourceDomain=normalizeDomain(uri)
    return sourceDomain===domain||sourceDomain.endsWith('.'+domain)
   })
-  const source=officialSource||(input.provider==='hunter'?'https://hunter.io':input.provider==='apollo'?'https://app.apollo.io':'')
+  const source=officialSource||(input.provider==='hunter'?'https://hunter.io':input.provider==='apollo'?'https://app.apollo.io':input.provider==='anymail'?'https://anymailfinder.com':'')
   if(!source)return false
   const sourceType=officialSource?'official_website':'provider_candidate'
   const alias=companyKey(input.company||domain)
