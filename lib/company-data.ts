@@ -1,6 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 import { companyKey, approvalError } from './company-pattern-review'
 import { identifyEmailPattern, normalizeDomain } from './email-patterns'
+const LEGACY_PATTERN_MAP:Record<string,string>={
+ 'first.last':'{first}.{last}',firstlast:'{first}{last}',flast:'{f}{last}',first_last:'{first}_{last}',
+}
+export function legacyPatternTemplate(value:unknown):string|null{
+ return typeof value==='string'?LEGACY_PATTERN_MAP[value.trim().toLowerCase()]||null:null
+}
 export function companyService(){
  if(!process.env.SUPABASE_SERVICE_ROLE_KEY||!process.env.NEXT_PUBLIC_SUPABASE_URL)return null
  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false},global:{fetch:(input,init)=>fetch(input,{...init,signal:AbortSignal.timeout(2000)})}})
@@ -11,11 +17,22 @@ export async function approvedCompanyPattern(company:string,domain:string){
   let query=db.from('company_directory').select('*').eq('status','approved').eq('domain_confirmed',true).gt('expires_at',new Date().toISOString())
   query=domain?query.eq('domain',domain):query.contains('aliases',[companyKey(company)])
   const {data,error}=await query.limit(2)
-  if(error||data?.length!==1)return null
-  const row=data[0]
-  const {data:evidence,error:evidenceError}=await db.from('company_pattern_evidence').select('*').eq('company_id',row.id)
-  if(evidenceError||approvalError(row,evidence||[]))return null
-  return {domain:row.domain,pattern:row.pattern,evidence:'Observed company pattern. Inbox not verified.'}
+  if(error||data&&data.length>1)return null
+  if(data?.length===1){
+   const row=data[0]
+   const {data:evidence,error:evidenceError}=await db.from('company_pattern_evidence').select('*').eq('company_id',row.id)
+   if(evidenceError||approvalError(row,evidence||[]))return null
+   return {domain:row.domain,pattern:row.pattern,evidence:'Observed company pattern. Inbox not verified.'}
+  }
+  const exactDomain=normalizeDomain(domain)
+  if(!exactDomain)return null
+  const {data:legacy,error:legacyError}=await db.from('domain_patterns').select('domain,pattern,sample_count,source,confidence')
+   .eq('domain',exactDomain).eq('source','sent_recipients_import').eq('confidence','high').limit(2)
+  if(legacyError||legacy?.length!==1)return null
+  const pattern=legacyPatternTemplate(legacy[0].pattern)
+  const samples=Number(legacy[0].sample_count)
+  if(!pattern||!Number.isInteger(samples)||samples<1)return null
+  return {domain:exactDomain,pattern,evidence:`Observed in your sent-mail history from ${samples} recipient${samples===1?'':'s'}. Inbox not re-verified.`}
  }catch{return null}
 }
 export async function recordCompanySearch(event:{company:string;domain:string;apiCalled:boolean;result:boolean}){
