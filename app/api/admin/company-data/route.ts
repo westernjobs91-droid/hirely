@@ -53,7 +53,7 @@ export async function POST(request:Request){
  }
  if(b.action==='save'){
   const name=typeof b.name==='string'?b.name.trim().slice(0,250):'',domain=normalizeDomain(b.domain||'')
-  if(!name||!domain||!publicSource(b.website||'')||normalizeDomain(b.website)!==domain)return fail('Enter a company name, domain and matching official website URL.')
+  if(!name||!domain||!publicSource(b.website||''))return fail('Enter a company name, work-email domain and official website URL.')
   const aliases=Array.from(new Set<string>([companyKey(name),...(Array.isArray(b.aliases)?b.aliases.filter((v:any)=>typeof v==='string').slice(0,30).map(companyKey):[])]))
   const payload={name,domain,website:b.website.slice(0,1000),aliases,country:b.country==='CA'?'CA':String(b.country||'').slice(0,2).toUpperCase(),industry:String(b.industry||'').slice(0,150),domain_confirmed:b.domainConfirmed===true,pattern:COMPANY_PATTERNS.includes(b.pattern)?b.pattern:null,status:'needs_evidence',expires_at:null,approved_at:null,updated_at:new Date().toISOString()}
   const result=b.id?await db.from('company_directory').update(payload).eq('id',b.id).select('*').single():await db.from('company_directory').insert(payload).select('*').single()
@@ -101,7 +101,10 @@ export async function POST(request:Request){
   const first=String(b.firstName||'').trim().slice(0,100),last=String(b.lastName||'').trim().slice(0,100),email=String(b.email||'').trim().toLowerCase()
   const source=String(b.sourceUrl||'').trim(),observed=new Date(b.observedAt)
   if(!first||!last||!/^([^\s@]+)@([^\s@]+)$/.test(email)||email.split('@')[1]!==company.domain||!publicSource(source)||!['official_website','licensed_data'].includes(b.sourceType)||b.reuseConfirmed!==true||!Number.isFinite(observed.getTime())||observed.getTime()>Date.now())return fail('Provide a named employee, same-domain email, source URL, valid observation date and confirmed reuse rights.')
-  if(b.sourceType==='official_website'&&normalizeDomain(source)!==company.domain)return fail('Use an official source on the confirmed domain, or select licensed data.')
+  if(b.sourceType==='official_website'){
+   const sourceDomain=normalizeDomain(source),websiteDomain=normalizeDomain(company.website||'')
+   if(![company.domain,websiteDomain].some(domain=>domain&&(sourceDomain===domain||sourceDomain.endsWith('.'+domain))))return fail('Use an official source on the confirmed website or email domain, or select licensed data.')
+  }
   const paused=await db.from('company_directory').update({status:'needs_evidence',expires_at:null,updated_at:new Date().toISOString()}).eq('id',b.id)
   if(paused.error)return fail('Could not invalidate approval.',503)
   const result=await db.from('company_pattern_evidence').upsert({company_id:b.id,first_name:first,last_name:last,email,source_url:source.slice(0,2000),source_type:b.sourceType,observed_at:observed.toISOString(),reuse_confirmed:true,excluded:false},{onConflict:'company_id,email'})
@@ -116,7 +119,11 @@ export async function POST(request:Request){
   const {data:evidence,error}=await db.from('company_pattern_evidence').select('*').eq('id',b.evidenceId).eq('company_id',b.id).single()
   if(error||!evidence)return fail('Evidence not found.',404)
   if(evidence.source_type==='provider_candidate')return fail('Provider candidates cannot be approved directly. Confirm your provider reuse rights, then add this address as Licensed data with reuse rights.')
-  if(!publicSource(evidence.source_url)||evidence.source_type==='official_website'&&normalizeDomain(evidence.source_url)!==company.domain)return fail('Review the source URL and company domain before confirming reuse.')
+  if(!publicSource(evidence.source_url))return fail('Review the source URL before confirming reuse.')
+  if(evidence.source_type==='official_website'){
+   const sourceDomain=normalizeDomain(evidence.source_url),websiteDomain=normalizeDomain(company.website||'')
+   if(![company.domain,websiteDomain].some(domain=>domain&&(sourceDomain===domain||sourceDomain.endsWith('.'+domain))))return fail('Review the source URL and confirmed company domains before confirming reuse.')
+  }
   const paused=await db.from('company_directory').update({status:'needs_evidence',expires_at:null,updated_at:new Date().toISOString()}).eq('id',b.id)
   if(paused.error)return fail('Could not invalidate approval.',503)
   const result=await db.from('company_pattern_evidence').update({reuse_confirmed:b.confirmed===true}).eq('id',b.evidenceId).eq('company_id',b.id)
