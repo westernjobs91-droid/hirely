@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { authenticate } from '@/lib/server-auth'
-import { backfillProviderPatternCandidates, companyService, recordProviderPatternEvidence } from '@/lib/company-data'
+import { approvePatternConsensus, backfillProviderPatternCandidates, companyService, recordProviderPatternEvidence } from '@/lib/company-data'
 import { COMPANY_PATTERNS,companyKey,approvalError,publicSource } from '@/lib/company-pattern-review'
 import { identifyEmailPattern, normalizeDomain } from '@/lib/email-patterns'
 import { apolloResearchConfigured, researchWorkEmailWithApollo } from '@/lib/apollo-research'
@@ -82,6 +82,13 @@ export async function POST(request:Request){
   const result=await backfillProviderPatternCandidates()
   return result.error?fail(result.error,503):NextResponse.json({message:`Processed ${result.processed} historical Hunter results as unapproved pattern candidates.`,processed:result.processed})
  }
+ if(b.action==='confirm-pattern-consensus'){
+  const {data,error}=await db.from('company_directory').select('*').eq('status','needs_evidence').eq('domain_confirmed',true).limit(1000)
+  if(error)return fail('Could not review matching company patterns.',503)
+  let confirmed=0
+  for(const company of data||[])if(await approvePatternConsensus(db,company))confirmed++
+  return NextResponse.json({message:confirmed?`Confirmed ${confirmed} matching company pattern${confirmed===1?'':'s'}.`:'Company patterns are up to date.',confirmed})
+ }
  if(b.action==='save'){
   const name=typeof b.name==='string'?b.name.trim().slice(0,250):'',domain=normalizeDomain(b.domain||'')
   if(!name||!domain||!publicSource(b.website||''))return fail('Enter a company name, work-email domain and official website URL.')
@@ -104,7 +111,7 @@ export async function POST(request:Request){
   const saved=await recordProviderPatternEvidence({company:company.name,domain,firstName:first,lastName:last,email,sources:[],provider:'apollo'})
   if(!saved)return fail('The Apollo candidate could not be saved. Check that the address matches a supported company pattern.',503)
   const refreshed=await db.from('company_directory').select('*').eq('id',b.id).single()
-  return NextResponse.json({message:`Saved Apollo candidate. Detected pattern: ${detectedPattern}. This is research only; add two reusable official or licensed examples to approve the domain.`,found:true,email,pattern:detectedPattern,company:refreshed.data||company})
+  return NextResponse.json({message:`Saved Apollo result. Detected pattern: ${detectedPattern}. Two distinct matching employees automatically confirm the company pattern.`,found:true,email,pattern:detectedPattern,company:refreshed.data||company})
  }
  if(b.action==='research-apollo'){
   const first=String(b.firstName||'').trim().slice(0,100),last=String(b.lastName||'').trim().slice(0,100)

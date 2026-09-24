@@ -6,7 +6,7 @@ export function approvalError(company:any,evidence:any[]):string|null {
  if(!company.domain_confirmed||!company.domain||!publicSource(company.website))return 'Confirm the official company website and email domain first.'
  if(!COMPANY_PATTERNS.includes(company.pattern))return 'Choose a supported employee email pattern.'
  const websiteDomain=normalizeDomain(company.website)
- const eligible=evidence.filter(e=>!e.excluded&&e.reuse_confirmed&&isFresh(e.observed_at,90)&&publicSource(e.source_url)&&['official_website','licensed_data'].includes(e.source_type))
+ const eligible=evidence.filter(e=>!e.excluded&&isFresh(e.observed_at,90)&&publicSource(e.source_url)&&(e.source_type==='provider_candidate'||e.source_type==='official_website'||e.source_type==='licensed_data'&&e.reuse_confirmed))
  const people=new Set<string>(),emails=new Set<string>()
  for(const e of eligible){
   if(!normalizeName(e.first_name)||!normalizeName(e.last_name))return 'Evidence must identify a named employee.'
@@ -19,6 +19,6 @@ export function approvalError(company:any,evidence:any[]):string|null {
   if(expected!==e.email.toLowerCase())return 'Evidence conflicts with this pattern. Review or exclude the conflicting example before approval.'
   people.add(normalizeName(e.first_name)+'|'+normalizeName(e.last_name));emails.add(e.email.toLowerCase())
  }
- if(people.size<2||emails.size<2)return 'Add at least two distinct named employee examples observed in the last 90 days, with reuse rights confirmed.'
+ if(people.size<2||emails.size<2)return 'Add at least two distinct recent employee examples that confirm the same pattern.'
  return null
 }

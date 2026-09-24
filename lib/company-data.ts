@@ -31,6 +31,17 @@ export async function recordCompanySearch(event:{company:string;domain:string;ap
 }
 
 type ProviderSource = { uri?: unknown }
+export async function approvePatternConsensus(db:any,company:any):Promise<boolean>{
+ try{
+  if(!company?.id||company.status==='paused')return false
+  const {data:evidence,error}=await db.from('company_pattern_evidence').select('*').eq('company_id',company.id)
+  if(error||approvalError(company,evidence||[]))return false
+  const now=Date.now(),dates=(evidence||[]).filter((item:any)=>!item.excluded).map((item:any)=>Date.parse(item.observed_at)+90*86400000).filter((date:number)=>date>now)
+  const expires=new Date(Math.min(now+90*86400000,...dates)).toISOString()
+  const result=await db.from('company_directory').update({status:'approved',approved_at:new Date(now).toISOString(),expires_at:expires,updated_at:new Date(now).toISOString()}).eq('id',company.id)
+  return !result.error
+ }catch{return false}
+}
 export async function recordProviderPatternEvidence(input:{
  company:string;domain:string;firstName:string;lastName:string;email:string;sources:ProviderSource[];provider?:'hunter'|'exa'|'apollo'
 }):Promise<boolean>{
@@ -69,17 +80,20 @@ export async function recordProviderPatternEvidence(input:{
    if(!priorEvidenceError&&company.status!=='approved'&&!hasReusableEvidence&&observedPatterns.every((value:any)=>value===pattern))patch.pattern=pattern
    const updated=await db.from('company_directory').update(patch).eq('id',company.id)
    if(updated.error)return false
+   company={...company,...patch}
   }
   if(!company?.id)return false
   const {data:existing}=await db.from('company_pattern_evidence').select('source_type').eq('company_id',company.id).eq('email',email).maybeSingle()
-  if(existing?.source_type&&existing.source_type!=='provider_candidate')return true
-  if(existing?.source_type==='provider_candidate'&&sourceType==='provider_candidate')return true
-  const saved=await db.from('company_pattern_evidence').upsert({
-   company_id:company.id,first_name:input.firstName.slice(0,100),last_name:input.lastName.slice(0,100),email,
-   source_url:source.slice(0,2000),source_type:sourceType,observed_at:new Date().toISOString(),
-   reuse_confirmed:false,excluded:false,
-  },{onConflict:'company_id,email'})
-  return !saved.error
+  if(!existing?.source_type){
+   const saved=await db.from('company_pattern_evidence').upsert({
+    company_id:company.id,first_name:input.firstName.slice(0,100),last_name:input.lastName.slice(0,100),email,
+    source_url:source.slice(0,2000),source_type:sourceType,observed_at:new Date().toISOString(),
+    reuse_confirmed:false,excluded:false,
+   },{onConflict:'company_id,email'})
+   if(saved.error)return false
+  }
+  await approvePatternConsensus(db,company)
+  return true
  }catch{console.warn('Provider pattern evidence could not be queued for review');return false}
 }
 
