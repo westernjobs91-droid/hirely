@@ -31,3 +31,8 @@ test('customer resolver never imports or calls Apollo',()=>{
  const source=fs.readFileSync('lib/resolve-email.ts','utf8')
  assert.doesNotMatch(source,/apollo/i)
 })
+test('Company Data supports manual Apollo extension candidates without adding Apollo to customer lookup',()=>{
+ const page=fs.readFileSync('app/admin/companies/page.tsx','utf8'),route=fs.readFileSync('app/api/admin/company-data/route.ts','utf8')
+ assert.match(page,/save-apollo-candidate/);assert.match(page,/Verified work email from Apollo/)
+ assert.match(route,/b\.action==='save-apollo-candidate'/);assert.match(route,/provider:'apollo'/)
+})

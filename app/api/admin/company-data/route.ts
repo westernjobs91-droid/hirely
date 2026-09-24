@@ -64,6 +64,13 @@ export async function POST(request:Request){
  if(!b.id)return fail('Choose a company first.')
  const {data:company,error}=await db.from('company_directory').select('*').eq('id',b.id).single()
  if(error||!company)return fail('Company not found.',404)
+ if(b.action==='save-apollo-candidate'){
+  const first=String(b.firstName||'').trim().slice(0,100),last=String(b.lastName||'').trim().slice(0,100)
+  const email=String(b.email||'').trim().toLowerCase(),domain=normalizeDomain(company.domain||'')
+  if(!first||!last||!domain||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||normalizeDomain(email.split('@')[1]||'')!==domain||b.ownerConfirmed!==true)return fail('Enter the employee name and a same-domain work email, then confirm it came from your Apollo workspace.')
+  const saved=await recordProviderPatternEvidence({company:company.name,domain,firstName:first,lastName:last,email,sources:[],provider:'apollo'})
+  return saved?NextResponse.json({message:'Apollo extension result saved as an owner-only provider candidate. It cannot serve customer searches or qualify for approval.',found:true,email}):fail('The Apollo candidate could not be saved. Check that the address matches a supported company pattern.',503)
+ }
  if(b.action==='research-apollo'){
   const first=String(b.firstName||'').trim().slice(0,100),last=String(b.lastName||'').trim().slice(0,100)
   const linkedinUrl=String(b.linkedinUrl||'').trim().slice(0,1000)

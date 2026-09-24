@@ -59,7 +59,16 @@ Provider candidates are useful leads, but they cannot be approved directly and n
 
 ## Owner-only Apollo research
 
-Apollo is deliberately outside the customer **Find email** pipeline. It is an administrator research aid in **Company Data** only. Set these server-only variables to enable the button:
+Apollo is deliberately outside the customer **Find email** pipeline. It is an administrator research aid in **Company Data** only.
+
+Apollo's Free plan may include credits in the Apollo web app and Chrome extension while rejecting the `api/v1/people/match` API with HTTP 403. Those product credits are not interchangeable. The no-cost workflow is therefore:
+
+1. Open the employee's LinkedIn profile and use the Apollo Chrome extension.
+2. Copy only the verified work email; do not copy a personal email or phone number.
+3. In **Company Data**, select the company and paste the employee name and work email under **Owner-only Apollo research**.
+4. Save it as an internal provider candidate.
+
+If Hirely later moves to an Apollo plan that includes People Enrichment API access, these server-only variables enable the dormant API route:
 
 ```text
 APOLLO_API_KEY=...
@@ -67,7 +76,7 @@ APOLLO_MONTHLY_CREDIT_LIMIT=75
 APOLLO_BILLING_CYCLE_DAY=1
 ```
 
-The limit defaults to zero. Hirely requests only work-email enrichment and explicitly disables personal emails, phones, and waterfall enrichment. It accepts only a high-confidence match with a verified work address on both the saved company domain and Apollo's returned employer domain.
+The API limit defaults to zero. Hirely requests only work-email enrichment and explicitly disables personal emails, phones, and waterfall enrichment. It accepts only a high-confidence match with a verified work address on both the saved company domain and Apollo's returned employer domain.
 
 Accepted addresses are stored as **Provider candidate — not reusable yet**. They are visible only to the administrator, cannot supply customer searches, and cannot qualify a company pattern for approval. To make a format reusable, independently locate the address on the official company website or add properly licensed evidence after confirming reuse rights. Do not copy Apollo candidates into licensed evidence unless the Apollo agreement for the account expressly permits that reuse.
 
@@ -82,7 +91,7 @@ The internal Apollo ceiling reserves one unit before each request. A confirmed n
 5. Set `HUNTER_BILLING_CYCLE_DAY` to the renewal day shown by Hunter.
 6. Set `EXA_API_KEY`, a conservative `EXA_MONTHLY_REQUEST_LIMIT`, and Exa's billing-cycle day.
 7. Seed already-consumed credits for either provider when deploying mid-cycle.
-8. If enabling owner research, set the Apollo key, limit, and billing-cycle day; otherwise leave the limit unset or zero.
+8. Keep the Apollo API limit unset or zero on a Free plan. Set the Apollo key, limit, and billing-cycle day only after the account includes People Enrichment API access.
 9. Deploy the Next.js application.
 10. Reload the unpacked extension only if extension files changed; this release does not require an extension-package change.
 11. Test a cache hit, an Exa success, Exa-to-Hunter fallback, a Hunter miss, all enabled provider ceilings, and that a normal customer cannot call the Apollo admin action.
