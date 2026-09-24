@@ -28,6 +28,25 @@ export async function GET(request:Request){
  if(filter==='supported')directory=directory.eq('status','approved').gt('expires_at',new Date().toISOString())
  const [d,q,stats]=await Promise.all([directory.range(page*50,page*50+49),db!.from('company_requests').select('*').order('requests',{ascending:false}).limit(100),db!.rpc('company_data_stats')])
  if(d.error||q.error||stats.error)return fail('Company Data storage unavailable. Apply the company data migration.',503)
+ const requestedDomains=Array.from(new Set<string>((q.data||[]).map((item:any)=>normalizeDomain(item.requested_domain||'')).filter(Boolean)))
+ const requestedAliases=Array.from(new Set<string>((q.data||[]).map((item:any)=>companyKey(item.company_name||'')).filter(Boolean)))
+ const [domainMatches,aliasMatches]=await Promise.all([
+  requestedDomains.length?db!.from('company_directory').select('*').eq('domain_confirmed',true).in('domain',requestedDomains):{data:[],error:null},
+  requestedAliases.length?db!.from('company_directory').select('*').eq('domain_confirmed',true).overlaps('aliases',requestedAliases):{data:[],error:null},
+ ])
+ if(domainMatches.error||aliasMatches.error)return fail('Company request matching is unavailable.',503)
+ const byDomain=new Map((domainMatches.data||[]).map((company:any)=>[company.domain,company]))
+ const byAlias=new Map<string,any>()
+ for(const company of aliasMatches.data||[])for(const alias of company.aliases||[])byAlias.set(alias,company)
+ const groupedQueue=new Map<string,any>()
+ for(const request of q.data||[]){
+  const matched=byDomain.get(normalizeDomain(request.requested_domain||''))||byAlias.get(companyKey(request.company_name||''))
+  const key=matched?'company:'+matched.id:request.company_key
+  const existing=groupedQueue.get(key)
+  if(existing){for(const field of ['requests','api_calls','api_avoided','results'])existing[field]=Number(existing[field]||0)+Number(request[field]||0);if(Date.parse(request.last_requested_at)>Date.parse(existing.last_requested_at))existing.last_requested_at=request.last_requested_at}
+  else groupedQueue.set(key,{...request,...(matched?{company_key:key,company_name:matched.name,requested_domain:matched.domain,resolved_company:matched}:{})})
+ }
+ const queue=Array.from(groupedQueue.values()).sort((a:any,b:any)=>Number(b.requests)-Number(a.requests))
  const ids=(d.data||[]).map((company:any)=>company.id)
  const evidence=ids.length?await db!.from('company_pattern_evidence').select('company_id,source_type,reuse_confirmed,excluded').in('company_id',ids):{data:[],error:null}
  if(evidence.error)return fail('Company evidence summary is unavailable.',503)
@@ -40,7 +59,7 @@ export async function GET(request:Request){
   counts.set(item.company_id,current)
  }
  const companies=(d.data||[]).map((company:any)=>({...company,research_candidates:counts.get(company.id)?.candidates||0,qualifying_evidence:counts.get(company.id)?.qualifying||0}))
- return NextResponse.json({companies,total:d.count,queue:q.data,stats:stats.data})
+ return NextResponse.json({companies,total:d.count,queue,stats:stats.data})
 }
 export async function POST(request:Request){
  const a=await admin(request);if(a.error)return a.error

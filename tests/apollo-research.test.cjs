@@ -35,6 +35,7 @@ test('Company Data supports manual Apollo extension candidates without adding Ap
  const page=fs.readFileSync('app/admin/companies/page.tsx','utf8'),route=fs.readFileSync('app/api/admin/company-data/route.ts','utf8')
  assert.match(page,/save-apollo-candidate/);assert.match(page,/Verified work email from Apollo/)
  assert.match(page,/apolloMessage/);assert.match(page,/research candidate/);assert.match(page,/qualifyingEvidence\.length<2/)
+ assert.match(page,/This is usage history, not an attention list/);assert.match(page,/In directory/)
  assert.match(route,/b\.action==='save-apollo-candidate'/);assert.match(route,/provider:'apollo'/)
- assert.match(route,/Detected pattern:/);assert.match(route,/research_candidates/)
+ assert.match(route,/Detected pattern:/);assert.match(route,/research_candidates/);assert.match(route,/resolved_company/)
 })
