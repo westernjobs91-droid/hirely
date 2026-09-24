@@ -60,7 +60,13 @@ export async function recordProviderPatternEvidence(input:{
   }else{
    const aliases=Array.from(new Set([...(company.aliases||[]),...(alias?[alias]:[])]))
    const patch:any={aliases,updated_at:new Date().toISOString()}
-   if(!company.pattern)patch.pattern=pattern
+   const {data:priorEvidence,error:priorEvidenceError}=await db.from('company_pattern_evidence').select('first_name,last_name,email,source_type,reuse_confirmed,excluded').eq('company_id',company.id)
+   const active=(priorEvidence||[]).filter((item:any)=>!item.excluded)
+   const hasReusableEvidence=active.some((item:any)=>item.reuse_confirmed&&['official_website','licensed_data'].includes(item.source_type))
+   const observedPatterns=active.map((item:any)=>identifyEmailPattern(item.first_name,item.last_name,item.email,domain)).filter(Boolean)
+   // Provider research may correct a placeholder pattern while the company is still unapproved.
+   // It must never override a pattern supported by reusable evidence.
+   if(!priorEvidenceError&&company.status!=='approved'&&!hasReusableEvidence&&observedPatterns.every((value:any)=>value===pattern))patch.pattern=pattern
    const updated=await db.from('company_directory').update(patch).eq('id',company.id)
    if(updated.error)return false
   }

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { authenticate } from '@/lib/server-auth'
 import { backfillProviderPatternCandidates, companyService, recordProviderPatternEvidence } from '@/lib/company-data'
 import { COMPANY_PATTERNS,companyKey,approvalError,publicSource } from '@/lib/company-pattern-review'
-import { normalizeDomain } from '@/lib/email-patterns'
+import { identifyEmailPattern, normalizeDomain } from '@/lib/email-patterns'
 import { apolloResearchConfigured, researchWorkEmailWithApollo } from '@/lib/apollo-research'
 import { releaseProviderCredit, reserveProviderCredit } from '@/lib/provider-budget'
 export const dynamic='force-dynamic'
@@ -28,7 +28,19 @@ export async function GET(request:Request){
  if(filter==='supported')directory=directory.eq('status','approved').gt('expires_at',new Date().toISOString())
  const [d,q,stats]=await Promise.all([directory.range(page*50,page*50+49),db!.from('company_requests').select('*').order('requests',{ascending:false}).limit(100),db!.rpc('company_data_stats')])
  if(d.error||q.error||stats.error)return fail('Company Data storage unavailable. Apply the company data migration.',503)
- return NextResponse.json({companies:d.data,total:d.count,queue:q.data,stats:stats.data})
+ const ids=(d.data||[]).map((company:any)=>company.id)
+ const evidence=ids.length?await db!.from('company_pattern_evidence').select('company_id,source_type,reuse_confirmed,excluded').in('company_id',ids):{data:[],error:null}
+ if(evidence.error)return fail('Company evidence summary is unavailable.',503)
+ const counts=new Map<string,{candidates:number;qualifying:number}>()
+ for(const item of evidence.data||[]){
+  if(item.excluded)continue
+  const current=counts.get(item.company_id)||{candidates:0,qualifying:0}
+  if(item.source_type==='provider_candidate')current.candidates++
+  if(item.reuse_confirmed&&['official_website','licensed_data'].includes(item.source_type))current.qualifying++
+  counts.set(item.company_id,current)
+ }
+ const companies=(d.data||[]).map((company:any)=>({...company,research_candidates:counts.get(company.id)?.candidates||0,qualifying_evidence:counts.get(company.id)?.qualifying||0}))
+ return NextResponse.json({companies,total:d.count,queue:q.data,stats:stats.data})
 }
 export async function POST(request:Request){
  const a=await admin(request);if(a.error)return a.error
@@ -68,8 +80,12 @@ export async function POST(request:Request){
   const first=String(b.firstName||'').trim().slice(0,100),last=String(b.lastName||'').trim().slice(0,100)
   const email=String(b.email||'').trim().toLowerCase(),domain=normalizeDomain(company.domain||'')
   if(!first||!last||!domain||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||normalizeDomain(email.split('@')[1]||'')!==domain||b.ownerConfirmed!==true)return fail('Enter the employee name and a same-domain work email, then confirm it came from your Apollo workspace.')
+  const detectedPattern=identifyEmailPattern(first,last,email,domain)
+  if(!detectedPattern)return fail('This Apollo address does not match one of Hirely’s supported company patterns.')
   const saved=await recordProviderPatternEvidence({company:company.name,domain,firstName:first,lastName:last,email,sources:[],provider:'apollo'})
-  return saved?NextResponse.json({message:'Apollo extension result saved as an owner-only provider candidate. It cannot serve customer searches or qualify for approval.',found:true,email}):fail('The Apollo candidate could not be saved. Check that the address matches a supported company pattern.',503)
+  if(!saved)return fail('The Apollo candidate could not be saved. Check that the address matches a supported company pattern.',503)
+  const refreshed=await db.from('company_directory').select('*').eq('id',b.id).single()
+  return NextResponse.json({message:`Saved Apollo candidate. Detected pattern: ${detectedPattern}. This is research only; add two reusable official or licensed examples to approve the domain.`,found:true,email,pattern:detectedPattern,company:refreshed.data||company})
  }
  if(b.action==='research-apollo'){
   const first=String(b.firstName||'').trim().slice(0,100),last=String(b.lastName||'').trim().slice(0,100)
