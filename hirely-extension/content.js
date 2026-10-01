@@ -893,6 +893,12 @@ if (typeof window !== 'undefined') { window.HirelyEngine = HirelyEngine; window.
           '<a class="hirely-btn" href="'+HIRELY_CONFIG.API_BASE+'" target="_blank">Open Hirely CRM &#x2197;</a>';
         return;
       }
+      if (data.photo && !existing.photo_path && !state.photoSyncStarted) {
+        state.photoSyncStarted = true;
+        sendMsg({type:'HIRELY_SAVE_PHOTO',contactId:existing.id,photo:data.photo}).then(result=>{
+          if (result?.ok) existing.photo_path = 'stored';
+        });
+      }
       const columnLabel=COLUMN_LABELS[existing.column_name]||existing.column_name||"Pipeline";
       const statusLabel=existing.email_status==="predicted"?"Predicted: inbox not checked":"Check email status in Hirely";
       const emailDisplay=existing.email
