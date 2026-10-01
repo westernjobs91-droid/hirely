@@ -162,12 +162,39 @@ async function saveContact(payload) {
   }
   const contact = Array.isArray(data) ? data[0] : data;
 
+  if (contact?.id && body.photo_url) {
+    try {
+      await persistContactPhoto(session, contact.id, body.photo_url);
+    } catch (error) {
+      // The contact is already safely saved. Keep its temporary URL as a
+      // fallback and let a later profile visit retry the permanent copy.
+      console.warn('[Hirely] profile photo copy failed:', error.message);
+    }
+  }
+
   // No automatic enrichment call here on purpose: Apollo/Hunter credits are
   // limited, and firing a lookup on every single save (before the recruiter
   // has had a chance to fix a mis-scraped company name) wastes them. The
   // "Find email" button on the dashboard is the deliberate place enrichment
   // happens, once the contact's info is confirmed correct.
   return contact;
+}
+
+async function persistContactPhoto(session, contactId, photoUrl) {
+  if (!contactId || !/^https:\/\/media(?:-exp\d+)?\.licdn\.com\//i.test(photoUrl || '')) {
+    throw new Error('A valid LinkedIn profile photo is required.');
+  }
+  const res = await fetch(`${HIRELY_CONFIG.API_BASE}/api/extension/contact-photo`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`
+    },
+    body: JSON.stringify({ contactId, photoUrl })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Profile photo could not be saved.');
+  return data;
 }
 
 async function findExistingByEmail(session, email) {
@@ -356,13 +383,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       } else if (msg.type === "HIRELY_SAVE_PHOTO") {
         const session=await refreshIfNeeded(await getSession());
         if(!session)throw new Error('NOT_LOGGED_IN');
-        if(!msg.contactId||!/^https:\/\//i.test(msg.photo||''))throw new Error('A contact and profile photo are required.');
-        const res=await fetch(`${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?deleted_at=is.null&id=eq.${encodeURIComponent(msg.contactId)}&user_id=eq.${session.user.id}`,{
-          method:'PATCH',headers:{apikey:HIRELY_CONFIG.SUPABASE_ANON_KEY,Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({photo_url:msg.photo})
-        });
-        const rows=await res.json();
-        if(!res.ok)throw new Error('Photo could not be saved. Check that the contact-photo database migration is installed.');
-        if(!Array.isArray(rows)||!rows.length)throw new Error('Contact not found in your account.');
+        await persistContactPhoto(session,msg.contactId,msg.photo);
         sendResponse({ok:true});
       } else if (msg.type === "HIRELY_FIND_EMAIL") {
         const result = await findEmailForContact(msg.contactId, msg.firstName, msg.lastName, msg.company, msg.domain, msg.action, msg.allowPaid);
@@ -398,7 +419,7 @@ async function checkContact(url) {
   if (!session) return null;
 
   const res = await fetch(
-    `${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?select=id,first_name,last_name,email,email_status,email_source,email_evidence,email_checked_at,email_confidence,photo_url,job_title,company,column_name,status_label,deleted_at&user_id=eq.${session.user.id}&linkedin_url=eq.${encodeURIComponent(url)}&limit=1`,
+    `${HIRELY_CONFIG.SUPABASE_URL}/rest/v1/contacts?select=id,first_name,last_name,email,email_status,email_source,email_evidence,email_checked_at,email_confidence,photo_url,photo_path,job_title,company,column_name,status_label,deleted_at&user_id=eq.${session.user.id}&linkedin_url=eq.${encodeURIComponent(url)}&limit=1`,
     {
       headers: {
         apikey: HIRELY_CONFIG.SUPABASE_ANON_KEY,

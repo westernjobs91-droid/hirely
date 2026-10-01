@@ -79,6 +79,20 @@ export default function Dashboard() {
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
     if (error) { console.error(error); return }
+    const photoPaths = (data || [])
+      .map((c: Record<string, unknown>) => c.photo_path as string || '')
+      .filter(Boolean)
+    const signedPhotoByPath = new Map<string, string>()
+    for (let start = 0; start < photoPaths.length; start += 100) {
+      const batch = photoPaths.slice(start, start + 100)
+      const { data: signedPhotos, error: photoError } = await supabase.storage
+        .from('hirely-contact-photos')
+        .createSignedUrls(batch, 24 * 60 * 60)
+      if (photoError) console.error('Could not load contact photos', photoError)
+      for (const photo of signedPhotos || []) {
+        if (photo.path && photo.signedUrl) signedPhotoByPath.set(photo.path, photo.signedUrl)
+      }
+    }
     const mapped: Contact[] = (data || []).map((c: Record<string, unknown>) => ({
       id: c.id as string,
       firstName: c.first_name as string || '',
@@ -88,7 +102,7 @@ export default function Dashboard() {
       company: c.company as string || '',
       jobTitle: c.job_title as string || '',
       linkedinUrl: c.linkedin_url as string || '',
-      photoUrl: c.photo_url as string || null,
+      photoUrl: signedPhotoByPath.get(c.photo_path as string) || c.photo_url as string || null,
       avatarColor: c.avatar_color as string || '#2563EB',
       status: c.status as Contact['status'],
       column: c.column_name as Contact['column'],
