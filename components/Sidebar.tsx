@@ -193,7 +193,10 @@ export default function Sidebar({ activeNav, onNavChange, contactCount, overdueC
       {/* Bottom */}
       <div className="border-t border-slate-100 p-2">
         <button onClick={() => selectNav('trash')} aria-current={activeNav === 'trash' ? 'page' : undefined}
-          className={`w-full px-3 py-2 rounded-lg text-left text-[12.5px] mb-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${activeNav === 'trash' ? 'bg-blue-50 text-blue-600 font-medium' : 'text-slate-500 hover:bg-slate-50'}`}>
+          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-[12.5px] mb-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${activeNav === 'trash' ? 'bg-blue-50 text-blue-600 font-medium' : 'text-slate-500 hover:bg-slate-50'}`}>
+          <svg aria-hidden="true" className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6m4-6v6" />
+          </svg>
           Trash
         </button>
         <button onClick={() => selectNav('settings')} aria-current={activeNav === 'settings' ? 'page' : undefined}
