@@ -15,7 +15,8 @@ const PAGE_SIZE = 50
 
 const iconPaths = {
   trash: 'M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6m4-6v6',
-  refresh: 'M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0111.55-2.6L20 7M4 17l2.35 2.6A7 7 0 0017.9 17',
+  refresh: 'M3 12a9 9 0 019-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 01-9 9c-2.52 0-4.93-1-6.74-2.74L3 16M8 16H3v5',
+  info: 'M12 11v6m0-10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0',
   restore: 'M3 10h10a7 7 0 017 7M3 10l5-5m-5 5l5 5',
 }
 
@@ -70,27 +71,31 @@ export default function TrashView({ userId, onRestored }: { userId: string; onRe
     finally { setBusy(null) }
   }
 
-  return <section className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-8 sm:py-8" aria-label="Trashed contacts" aria-busy={loading}>
-    <header className="flex items-start justify-between gap-4">
-      <div>
-        <div className="flex flex-wrap items-center gap-3">
-          <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Trash</h2>
-          {!loading && !failed && <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600">
-            {total} {total === 1 ? 'contact' : 'contacts'}
-          </span>}
+  return <section className="w-full max-w-6xl p-4 sm:p-6" aria-label="Trashed contacts" aria-busy={loading}>
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 px-4 py-5 sm:px-6 sm:py-6">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 sm:flex">
+            <Icon name="trash" className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h2 className="text-lg font-semibold tracking-tight text-slate-900">Deleted contacts</h2>
+              {!loading && !failed && <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium tabular-nums text-slate-600" aria-label={`${total} ${total === 1 ? 'contact' : 'contacts'}`}>{total}</span>}
+            </div>
+            <p className="mt-1 text-sm leading-5 text-slate-500">Review and restore contacts you’ve removed.</p>
+          </div>
         </div>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">A place for contacts you’ve removed. Restore them whenever you need them.</p>
-      </div>
-      <button type="button" onClick={() => { setMessage(''); load() }} disabled={loading || busy !== null}
-        aria-label="Refresh Trash" title="Refresh Trash"
-        className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
-        <Icon name="refresh" className={`h-4 w-4 ${loading ? 'motion-safe:animate-spin' : ''}`} />
-      </button>
-    </header>
+        <button type="button" onClick={() => { setMessage(''); load() }} disabled={loading || busy !== null}
+          aria-label="Refresh Trash"
+          className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+          <Icon name="refresh" className={`h-4 w-4 ${loading ? 'motion-safe:animate-spin' : ''}`} />
+          {loading ? 'Refreshing…' : 'Refresh'}
+        </button>
+      </header>
 
-    <div role="status" aria-atomic="true" className={message ? `rounded-xl border px-4 py-3 text-sm ${messageError ? 'border-red-100 bg-red-50 text-red-700' : 'border-emerald-100 bg-emerald-50 text-emerald-800'}` : 'sr-only'}>{message}</div>
+      <div role="status" aria-atomic="true" className={message ? `border-b px-4 py-3 text-sm sm:px-6 ${messageError ? 'border-red-100 bg-red-50 text-red-700' : 'border-emerald-100 bg-emerald-50 text-emerald-800'}` : 'sr-only'}>{message}</div>
 
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       {loading ? <div className="px-6 py-16 text-center">
         <Icon name="refresh" className="mx-auto h-6 w-6 text-blue-500 motion-safe:animate-spin" />
         <p className="mt-4 text-sm text-slate-500">Loading Trash…</p>
@@ -104,17 +109,17 @@ export default function TrashView({ userId, onRestored }: { userId: string; onRe
         <h3 className="mt-5 font-semibold text-slate-900">No contacts in Trash</h3>
         <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">Contacts you remove will appear here, ready to restore if you change your mind.</p>
       </div> : <>
-        <div aria-hidden="true" className="hidden grid-cols-[minmax(0,1fr)_10rem_8rem] gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-3 text-xs font-medium text-slate-500 sm:grid">
-          <span>Contact</span><span>Deleted on</span><span className="text-right">Action</span>
+        <div aria-hidden="true" className="hidden grid-cols-[minmax(0,1fr)_11rem_9rem] gap-4 border-b border-slate-100 bg-slate-50/80 px-6 py-3 text-xs font-medium text-slate-500 sm:grid">
+          <span>Contact</span><span>Moved to Trash</span><span className="sr-only">Actions</span>
         </div>
         <ul className="divide-y divide-slate-100">
           {rows.map(contact => {
             const name = [contact.first_name, contact.last_name].filter(Boolean).join(' ') || 'Unnamed contact'
             const initials = [contact.first_name, contact.last_name].filter(Boolean).map(part => part[0]).join('').toUpperCase() || '?'
             const date = new Date(contact.deleted_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-            return <li key={contact.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-4 py-5 transition-colors hover:bg-slate-50/60 sm:grid-cols-[minmax(0,1fr)_10rem_8rem] sm:px-5">
+            return <li key={contact.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-4 py-5 transition-colors hover:bg-slate-50/60 sm:grid-cols-[minmax(0,1fr)_11rem_9rem] sm:px-6">
               <div className="flex min-w-0 items-center gap-3">
-                <div aria-hidden="true" className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-600 sm:flex">{initials}</div>
+                <div aria-hidden="true" className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-xs font-semibold text-slate-600 sm:flex">{initials}</div>
                 <div className="min-w-0">
                   <p className="break-words text-sm font-semibold text-slate-900">{name}</p>
                   <p className="mt-0.5 break-words text-xs leading-5 text-slate-500">{contact.company || 'No company'}</p>
@@ -124,7 +129,7 @@ export default function TrashView({ userId, onRestored }: { userId: string; onRe
                 <span className="sm:hidden">Deleted </span>{date}
               </time>
               <button type="button" disabled={busy !== null} onClick={() => restore(contact)} aria-label={`Restore ${name}`}
-                className="col-start-2 row-span-2 row-start-1 inline-flex items-center justify-center gap-2 justify-self-end rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 transition-colors hover:border-blue-200 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:col-start-auto sm:row-span-1 sm:row-start-auto sm:text-sm">
+                className="col-start-2 row-span-2 row-start-1 inline-flex items-center justify-center gap-2 justify-self-end rounded-lg border border-blue-600 bg-blue-600 px-3 py-2 text-xs font-medium text-white shadow-sm transition-colors hover:border-blue-700 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:col-start-auto sm:row-span-1 sm:row-start-auto sm:text-sm">
                 <Icon name="restore" />{busy === contact.id ? 'Restoring…' : 'Restore'}
               </button>
             </li>
@@ -139,10 +144,10 @@ export default function TrashView({ userId, onRestored }: { userId: string; onRe
           <button disabled={busy !== null || (page + 1) * PAGE_SIZE >= total} onClick={() => setPage(page + 1)} className="rounded-lg border border-slate-200 px-3 py-2 font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-blue-500">Next</button>
         </div>
       </nav>}
-    </div>
-    <div className="flex items-start gap-2.5 px-1 text-xs leading-5 text-slate-500">
-      <Icon name="restore" className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-      <p>Restoring a contact brings back their notes, follow-ups and meeting links.<br className="hidden sm:block" /> Nothing in Trash is automatically deleted.</p>
+      <footer className="flex items-start gap-2.5 border-t border-slate-100 bg-slate-50/70 px-4 py-4 text-xs leading-5 text-slate-500 sm:px-6">
+        <Icon name="info" className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+        <p><span className="font-medium text-slate-600">Your contacts are safe here.</span> Nothing is automatically deleted. Restoring brings back notes, follow-ups and meeting links.</p>
+      </footer>
     </div>
   </section>
 }
